@@ -8,12 +8,12 @@
 	// const data = getContext("data");
 
 	let scrollIndex = $state();
-	const steps = [0,1,2,3,4,5,6,7]
+	const steps = [0,1,2,3,4,5]
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
 	<div class="sticky">
-		<Network />
+		<Network {scrollIndex}/>
 	</div>
 	<!-- scrolly container to house steps -->
 	<Scrolly bind:value={scrollIndex}>
