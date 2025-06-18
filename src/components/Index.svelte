@@ -2,13 +2,15 @@
 	import { getContext } from "svelte";
 	import Footer from "$components/Footer.svelte";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
-	import Network from "$components/Network.svelte";
+	import Network from "$components/NetworkSvelte.svelte";
 
-	// const copy = getContext("copy");
+	const copy = getContext("copy");
 	// const data = getContext("data");
 
 	let scrollIndex = $state();
-	const steps = [0,1,2,3,4,5]
+	const steps = [0,1,2,3,4,5];
+
+	console.log(copy)
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
@@ -18,14 +20,17 @@
 	<!-- scrolly container to house steps -->
 	<Scrolly bind:value={scrollIndex}>
 		<!-- for each paragraph in the steps object in the copy, add another step -->
-		{#each steps as step, i}
+		{#each copy.scrollSteps as step, i}
 			<div class="step">
 			<div class="step-inner">
-				<p>{step}</p>
+				<p>{step.value}</p>
 			</div>
 			</div>
 		{/each}
 	</Scrolly>
+	<div id="post-intro">
+		<p></p>
+	</div>
 
 	<!-- <Footer recirc={true} /> -->
 </svelte:boundary>
