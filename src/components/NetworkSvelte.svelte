@@ -91,7 +91,7 @@
         });
     }
 
-    function computeOuterPositions(centerX, centerY, radius = width / 2.5) {
+    function computeOuterPositions(centerX, centerY, radius = width / 4) {
         outerPositions = outerNodeIds.map((id, i) => {
             const angle = (2 * Math.PI * i) / outerNodeIds.length;
             return {
