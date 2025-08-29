@@ -13,8 +13,7 @@
     const spacing = 8;
     const startX = 60; // Increased startX to make room for axis
     const bulgeAmount = $derived(svgWidth/5);
-    const monthPadding = 50;
-    
+
     // Function to process data and generate path points
     function generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount) {
         if (!janData || !ashleeData) return { jan: { paths: [], dots: [] }, ashlee: { paths: [], dots: [] } };
@@ -99,6 +98,7 @@
 
         return {
             yScale,
+            monthlyData,
             jan: { paths: janPaths, dots: janDots },
             ashlee: { paths: ashleePaths, dots: ashleeDots }
         };
@@ -120,6 +120,7 @@
     let dotEvent = $state();
     let dotTheme = $state();
     const formatMonthYear = d3.timeFormat("%B %Y");
+    const formatYear = d3.timeFormat("%Y");
 
     function circleMouseEnter(e, dot) {
         let circle = d3.select(e.currentTarget);
@@ -146,6 +147,17 @@
         <p>{dotDate}</p>
     </div>
     <figure>
+        <div class="date-labels" style="width: 100%">
+            {#each allTimelineData.monthlyData as month, i}
+                <p style="position: absolute; 
+                    left: 50%; 
+                    top: {20000/allTimelineData.monthlyData.length*i}px; 
+                    transform: translate(-50%,0)"
+                >
+                    {formatYear(month.date)}
+                </p>
+            {/each}
+        </div>
         <svg width={svgWidth} height={20000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
                 {#each allTimelineData.jan.paths as themePath, i}
@@ -191,7 +203,7 @@
         border-radius: 8px;
         padding: 1rem;
         z-index: 1000;
-        font-family: var(--mono);
+        font-family: var(--sans);
         font-size: var(--12px);
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         transition: opacity 100ms linear;
@@ -200,6 +212,10 @@
 
     #tooltip.visible {
         opacity: 1;
+    }
+
+    #tooltip p {
+        margin: 0;
     }
 
     .theme-lust {
@@ -240,6 +256,23 @@
 
     figure {
         width: 100%;
+        position: relative;
+    }
+
+    svg, .date-labels {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    .date-labels p {
+        font-family: var(--sans);
+        font-weight: 700;
+        opacity: 0
+    }
+
+    .date-labels p:nth-of-type(12n + 1) {
+        opacity: 1;
     }
 
     :global(#timeline svg circle) {
