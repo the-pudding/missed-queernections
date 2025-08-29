@@ -7,7 +7,7 @@
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
-	<!-- <Intro /> -->
+	<Intro />
 	<Timeline />
 
 	<!-- <Footer recirc={true} /> -->
