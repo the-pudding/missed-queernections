@@ -1,266 +1,317 @@
 <script>
-  import * as d3 from "d3";
-  import * as THREE from "three";
-  import { onMount, onDestroy } from "svelte";
-  import janData from "$data/jan.csv";
-  import ashleeData from "$data/ashlee.csv";
+    import * as d3 from 'd3';
+    import janData from "$data/jan.csv";
+    import ashleeData from "$data/ashlee.csv";
 
-  let container;
-  let renderer, scene, camera;
-  let raycaster, mouse;
-  let width = 0, height = 0;
-  let scrollY = 0; // ✅ declare properly
+    let svgHeight = $state(0);
+    let svgWidth = $state(0);
 
-  const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
-  const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
-  const spacing = 20;
-  const startX = 20;
+    const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
+    const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
+    const strokeWidth = 3;
+    const padding = 20; // Increased padding for axis
+    const spacing = 20;
+    const startX = 20; // Increased startX to make room for axis
+    const bulgeAmount = $derived(svgWidth/8);
 
-  // Tooltip state
-  let tooltipVisible = false;
-  let tooltipX = 0;
-  let tooltipY = 0;
-  let dotDate = "";
-  let dotEvent = "";
-  let dotTheme = "";
-  const formatMonthYear = d3.timeFormat("%B %Y");
+    // Function to process data and generate path points
+    function generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount) {
+        if (!janData || !ashleeData) return { jan: { paths: [], dots: [] }, ashlee: { paths: [], dots: [] } };
 
-  function generateTimelineData(janData, ashleeData) {
-  if (!janData || !ashleeData) return { jan: [], ashlee: [], dots: [] };
+        // Find the overall min/max dates across both datasets
+        const allDates = janData.concat(ashleeData).map(d => new Date(d.date));
+        const minDate = d3.min(allDates);
+        const maxDate = d3.max(allDates);
 
-  const allDates = janData.concat(ashleeData).map(d => new Date(d.date));
-  const minDate = d3.min(allDates);
-  const maxDate = d3.max(allDates);
+        const yScale = d3.scaleTime()
+            .domain([minDate, maxDate])
+            .range([padding, svgHeight - padding]);
 
-  const yScale = d3.scaleTime()
-    .domain([minDate, maxDate])
-    .range([20, height - 20]);
-
-  const monthlyData = d3.timeMonth.range(
-    d3.timeMonth.floor(minDate),
-    d3.timeMonth.ceil(maxDate)
-  ).map(d => {
-    const janEvent = janData.find(event => d3.timeMonth.floor(new Date(event.date)).getTime() === d.getTime());
-    const ashleeEvent = ashleeData.find(event => d3.timeMonth.floor(new Date(event.date)).getTime() === d.getTime());
-    return { date: d, janThemes: janEvent || {}, ashleeThemes: ashleeEvent || {} };
-  });
-
-  // --- bulge scaling ---
-  const bulgeUnit = width * 0.02;   // 2% of width
-  const maxBulge = width * 0.1;     // max 10% of width
-
-  const janPaths = themes.map((theme, i) => {
-    const baseX = startX + i * spacing;
-    const points = monthlyData.map(d => {
-      const janValue = d.janThemes[theme] === '1';
-      const ashleeValue = d.ashleeThemes[theme] === '1';
-
-      let offset = 0;
-      if (janValue) offset = ashleeValue ? bulgeUnit * 2 : bulgeUnit;
-      offset = Math.min(offset, maxBulge);
-
-      return new THREE.Vector3(baseX + offset, yScale(d.date), 0);
-    });
-    return { theme, points };
-  });
-
-  const ashleePaths = themes.map((theme, i) => {
-    const baseX = width - startX - i * spacing;
-    const points = monthlyData.map(d => {
-      const janValue = d.janThemes[theme] === '1';
-      const ashleeValue = d.ashleeThemes[theme] === '1';
-
-      let offset = 0;
-      if (ashleeValue) offset = janValue ? bulgeUnit * 2 : bulgeUnit;
-      offset = Math.min(offset, maxBulge);
-
-      return new THREE.Vector3(baseX - offset, yScale(d.date), 0);
-    });
-    return { theme, points };
-  });
-
-  // --- dots ---
-  const dots = [];
-  monthlyData.forEach(d => {
-    themes.forEach((theme, i) => {
-      if (d.janThemes[theme] === '1') {
-        let bulge = d.ashleeThemes[theme] === '1' ? bulgeUnit * 2 : bulgeUnit;
-        bulge = Math.min(bulge, maxBulge);
-        dots.push({
-          theme,
-          date: d.date,
-          event: d.janThemes.event,
-          color: colors[i],
-          pos: new THREE.Vector3(startX + i * spacing + bulge, yScale(d.date), 0)
+        // Create a comprehensive monthly dataset by combining both
+        const monthlyData = d3.timeMonth.range(d3.timeMonth.floor(minDate), d3.timeMonth.ceil(maxDate)).map(d => {
+            const janEvent = janData.find(event => d3.timeMonth.floor(new Date(event.date)).getTime() === d.getTime());
+            const ashleeEvent = ashleeData.find(event => d3.timeMonth.floor(new Date(event.date)).getTime() === d.getTime());
+            return {
+                date: d,
+                janThemes: janEvent || {},
+                ashleeThemes: ashleeEvent || {}
+            };
         });
-      }
-      if (d.ashleeThemes[theme] === '1') {
-        let bulge = d.janThemes[theme] === '1' ? bulgeUnit * 2 : bulgeUnit;
-        bulge = Math.min(bulge, maxBulge);
-        dots.push({
-          theme,
-          date: d.date,
-          event: d.ashleeThemes.event,
-          color: colors[i],
-          pos: new THREE.Vector3(width - startX - i * spacing - bulge, yScale(d.date), 0)
+
+        // Generate paths and dots data for Jan
+        const janPaths = themes.map((theme, i) => {
+            const baseX = startX + i * spacing;
+            const points = monthlyData.map(d => {
+                const janValue = d.janThemes[theme] === '1';
+                const ashleeValue = d.ashleeThemes[theme] === '1';
+                let xOffset = 0;
+                if (janValue && ashleeValue) {
+                    xOffset = 2 * bulgeAmount; // Double bulge
+                } else if (janValue) {
+                    xOffset = bulgeAmount; // Single bulge
+                }
+                return [baseX + xOffset, yScale(d.date)];
+            });
+            return { theme, points };
         });
-      }
-    });
-  });
 
-  return { jan: janPaths, ashlee: ashleePaths, dots };
-}
+        const janDots = monthlyData
+            .filter(d => themes.some(theme => d.janThemes[theme] === '1'))
+            .flatMap(d => themes.filter(theme => d.janThemes[theme] === '1').map(theme => {
+                const ashleeValue = d.ashleeThemes[theme] === '1';
+                const janValue = d.janThemes[theme] === '1';
+                let xOffset = janValue ? bulgeAmount : 0;
+                if (janValue && ashleeValue) xOffset = 2 * bulgeAmount;
+                
+                const baseX = startX + themes.indexOf(theme) * spacing;
 
-  function initScene() {
-    width = container.clientWidth;
-    height = typeof window !== "undefined" ? window.innerHeight : 800; // ✅ safe fallback
+                return {
+                    date: d.date,
+                    event: d.janThemes.event,
+                    theme: theme,
+                    bulge: ashleeValue ? 2 * bulgeAmount : bulgeAmount, // Keep this for reference
+                    x: baseX + xOffset, // Store the calculated x coordinate
+                    y: yScale(d.date)   // Store the calculated y coordinate
+                };
+            }));
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    container.appendChild(renderer.domElement);
+        // Generate paths and dots data for Ashlee (reversed)
+        const ashleePaths = themes.map((theme, i) => {
+            const baseX = svgWidth - startX - i * spacing;
+            const points = monthlyData.map(d => {
+                const janValue = d.janThemes[theme] === '1';
+                const ashleeValue = d.ashleeThemes[theme] === '1';
+                let xOffset = 0;
+                if (janValue && ashleeValue) {
+                    xOffset = 2 * bulgeAmount; // Double bulge
+                } else if (ashleeValue) {
+                    xOffset = bulgeAmount; // Single bulge
+                }
+                return [baseX - xOffset, yScale(d.date)];
+            });
+            return { theme, points };
+        });
 
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
+        const ashleeDots = monthlyData
+            .filter(d => themes.some(theme => d.ashleeThemes[theme] === '1'))
+            .flatMap(d => themes.filter(theme => d.ashleeThemes[theme] === '1').map(theme => {
+                const janValue = d.janThemes[theme] === '1';
+                const ashleeValue = d.ashleeThemes[theme] === '1';
+                let xOffset = ashleeValue ? bulgeAmount : 0;
+                if (janValue && ashleeValue) xOffset = 2 * bulgeAmount;
 
-    camera = new THREE.PerspectiveCamera(45, width / height, 1, 10000);
-    camera.position.set(width / 2, height / 2, 1000);
-    scene.add(camera);
+                const baseX = svgWidth - startX - themes.indexOf(theme) * spacing;
 
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(0, 0, 1000).normalize();
-    scene.add(light);
+                return {
+                    date: d.date,
+                    event: d.ashleeThemes.event,
+                    theme: theme,
+                    bulge: janValue ? 2 * bulgeAmount : bulgeAmount, // Keep this for reference
+                    x: baseX - xOffset, // Store the calculated x coordinate
+                    y: yScale(d.date)   // Store the calculated y coordinate
+                };
+            }));
+        
+        return {
+            yScale,
+            monthlyData,
+            jan: { paths: janPaths, dots: janDots },
+            ashlee: { paths: ashleePaths, dots: ashleeDots }
+        };
+    }
 
-    raycaster = new THREE.Raycaster();
-    mouse = new THREE.Vector2();
+    // Call the function for both datasets
+    const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount));
 
-    const data = generateTimelineData(janData, ashleeData);
+    // Define the line generator once
+    const lineGenerator = d3.line()
+        .x(d => d[0])
+        .y(d => d[1])
+        .curve(d3.curveBasis);
 
-    // Tubes
-    [...data.jan, ...data.ashlee].forEach((themePath, i) => {
-      const curve = new THREE.CatmullRomCurve3(themePath.points, false, "catmullrom", 0.1);
-      const geometry = new THREE.TubeGeometry(curve, 256, 4, 16, closed);
-      const material = new THREE.MeshStandardMaterial({
-        color: colors[i % colors.length],
-        metalness: 0.3,
-        roughness: 0.5,
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
-    });
+    let tooltipVisible = $state(false);
+    let tooltipX = $state();
+    let tooltipY = $state();
+    let dotDate = $state();
+    let dotEvent = $state();
+    let dotTheme = $state();
+    const formatMonthYear = d3.timeFormat("%B %Y");
+    const formatYear = d3.timeFormat("%Y");
 
-    // Dots (spheres)
-    data.dots.forEach((dot) => {
-      const geom = new THREE.SphereGeometry(6, 16, 16);
-      const mat = new THREE.MeshStandardMaterial({ color: dot.color });
-      const sphere = new THREE.Mesh(geom, mat);
-      sphere.position.copy(dot.pos);
-      sphere.userData = dot;
-      scene.add(sphere);
-    });
-
-    animate();
-
-    renderer.domElement.addEventListener("mousemove", onMouseMove);
-  }
-
-  function onMouseMove(event) {
-    mouse.x = (event.clientX / width) * 2 - 1;
-    mouse.y = -(event.clientY / height) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children);
-
-    if (intersects.length > 0) {
-      const obj = intersects[0].object;
-      if (obj.userData.theme) {
-        const dot = obj.userData;
+    function circleMouseEnter(e, dot) {
+        let circle = d3.select(e.currentTarget);
+        circle.attr("r", 10);
         dotTheme = dot.theme;
         dotDate = formatMonthYear(dot.date);
         dotEvent = dot.event;
-        tooltipX = event.clientX + 10;
-        tooltipY = event.clientY + 10;
+        tooltipX = e.x+10;
+        tooltipY = e.y+10;
         tooltipVisible = true;
-      }
-    } else {
-      tooltipVisible = false;
     }
-  }
 
-  function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  }
-
-  function onResize() {
-    if (typeof window === "undefined") return;
-    width = container.clientWidth;
-    height = window.innerHeight;
-    renderer.setSize(width, height);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-  }
-
-  onMount(() => {
-    initScene();
-
-    const updateScroll = () => {
-      if (typeof window !== "undefined") {
-        scrollY = window.scrollY;
-      }
-    };
-    window.addEventListener("scroll", updateScroll);
-    updateScroll();
-
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener("scroll", updateScroll);
-        window.removeEventListener("resize", onResize);
-      }
-    };
-  });
-
-  onDestroy(() => {
-    if (typeof window !== "undefined") {
-      window.removeEventListener("resize", onResize);
+    function circleMouseExit(e, dot) {
+        let circle = d3.select(e.currentTarget);
+        circle.attr("r", 5);
+        tooltipVisible = false;
     }
-    renderer?.dispose();
-  });
 </script>
 
-<section id="timeline" bind:this={container}>
-  <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
-    <p class="theme theme-{dotTheme}">{dotTheme}</p>
-    <p>{dotEvent}</p>
-    <p>{dotDate}</p>
-  </div>
+<section id="timeline">
+    <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
+        <p class="theme theme-{dotTheme}">{dotTheme}</p>
+        <p>{dotEvent}</p>
+        <p>{dotDate}</p>
+    </div>
+    <figure>
+        <div class="date-labels" style="width: 100%">
+            {#each allTimelineData.monthlyData as month, i}
+                <p style="position: absolute; 
+                    left: 50%; 
+                    top: {20000/allTimelineData.monthlyData.length*i}px; 
+                    transform: translate(-50%,0)"
+                >
+                    {formatYear(month.date)}
+                </p>
+            {/each}
+        </div>
+        <svg width={svgWidth} height={40000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
+            {#if svgHeight > 0}
+                <defs>
+                    {#each themes as theme, i}
+                        <linearGradient id={"gradient-" + i} x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style={"stop-color: " + d3.color(colors[i]).darker(1)} />
+                            <stop offset="50%" style={"stop-color: " + colors[i]} />
+                            <stop offset="100%" style={"stop-color: " + d3.color(colors[i]).darker(1)} />
+                        </linearGradient>
+
+                        <radialGradient id={"radial-gradient-" + i} cx="30%" cy="30%" r="50%" fx="30%" fy="30%">
+                            <stop offset="0%" style={"stop-color: " + d3.color(colors[i]).brighter(1)} />
+                            <stop offset="80%" style={"stop-color: " + colors[i]} />
+                            <stop offset="100%" style={"stop-color: " + d3.color(colors[i]).darker(0.5)} />
+                        </radialGradient>
+                    {/each}
+                </defs>
+                {#each allTimelineData.jan.paths as themePath, i}
+                    <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i]).darker(0.25)} fill="none" stroke-width={6} />
+
+                    <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i])} fill="none" stroke-width={2} />
+                {/each}
+                {#each allTimelineData.ashlee.paths as themePath, i}
+                    <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i]).darker(0.5)} fill="none" stroke-width={6} />
+
+                    <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i])} fill="none" stroke-width={2} />
+                {/each}
+
+                {#each allTimelineData.jan.dots as dot}
+                    <circle
+                        cx={dot.x}
+                        cy={dot.y}
+                        r={10}
+                        fill={"url(#radial-gradient-" + themes.indexOf(dot.theme) + ")"}
+                        role="tooltip"
+                        onmouseenter={(e) => circleMouseEnter(e, dot)}
+                        onmouseleave={(e) => circleMouseExit(e, dot)}
+                    />
+                {/each}
+
+                {#each allTimelineData.ashlee.dots as dot}
+                    <circle
+                        cx={dot.x}
+                        cy={dot.y}
+                        r={10}
+                        fill={"url(#radial-gradient-" + themes.indexOf(dot.theme) + ")"}
+                        role="tooltip"
+                        onmouseenter={(e) => circleMouseEnter(e, dot)}
+                        onmouseleave={(e) => circleMouseExit(e, dot)}
+                    />
+                {/each}
+            {/if}
+        </svg>
+    </figure>
 </section>
 
 <style>
-  #timeline {
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
-    position: relative;
-  }
-  canvas {
-    display: block;
-  }
-  #tooltip {
-    position: fixed;
-    opacity: 0;
-    background: var(--color-bg, #fff);
-    border-radius: 8px;
-    padding: 1rem;
-    z-index: 1000;
-    font-family: var(--sans, sans-serif);
-    font-size: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    transition: opacity 100ms linear;
-    pointer-events: none;
-  }
-  #tooltip.visible {
-    opacity: 1;
-  }
+    #tooltip {
+        position: fixed;
+        opacity: 0;
+        background: var(--color-bg);
+        border-radius: 8px;
+        padding: 1rem;
+        z-index: 1000;
+        font-family: var(--sans);
+        font-size: var(--12px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: opacity 100ms linear;
+        pointer-events: none;
+    }
+
+    #tooltip.visible {
+        opacity: 1;
+    }
+
+    #tooltip p {
+        margin: 0;
+    }
+
+    /* .theme-lust {
+        background: #FF69B4;
+    }
+
+    .theme-representation {
+        background: #FF0000;
+    }
+
+    .theme-beHer {
+        background: #FF8E00;
+    }
+
+    .theme-genderConstruct {
+        background: #FFCC00;
+    }
+
+    .theme-girlPower {
+        background: #008E00;
+    }
+
+    .theme-gaySeeGay {
+        background: #00C0C0;
+    }
+
+    .theme-publicOpinion {
+        background: #400098;
+    }
+
+    .theme-trueSelves {
+        background: #8E008E;
+    } */
+
+    #timeline {
+        width: 100%;
+    }
+
+    figure {
+        width: 100%;
+        position: relative;
+    }
+
+    svg, .date-labels {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    .date-labels p {
+        font-family: var(--sans);
+        font-weight: 700;
+        opacity: 0
+    }
+
+    .date-labels p:nth-of-type(12n + 1) {
+        opacity: 1;
+    }
+
+    :global(#timeline svg circle) {
+        cursor: pointer;
+        /* transition: all 0.3s linear; */
+    }
 </style>
