@@ -10,9 +10,9 @@
     const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
     const strokeWidth = 3;
     const padding = 20; // Increased padding for axis
-    const spacing = 8;
-    const startX = 60; // Increased startX to make room for axis
-    const bulgeAmount = $derived(svgWidth/5);
+    const spacing = 20;
+    const startX = 20; // Increased startX to make room for axis
+    const bulgeAmount = $derived(svgWidth/8);
 
     // Function to process data and generate path points
     function generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount) {
@@ -160,12 +160,25 @@
         </div>
         <svg width={svgWidth} height={20000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
+                <defs>
+                    {#each themes as theme, i}
+                        <linearGradient id={"gradient-" + i} x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style={"stop-color: " + d3.color(colors[i]).darker(1)} />
+                            <stop offset="50%" style={"stop-color: " + colors[i]} />
+                            <stop offset="100%" style={"stop-color: " + d3.color(colors[i]).darker(1)} />
+                        </linearGradient>
+                    {/each}
+                </defs>
                 {#each allTimelineData.jan.paths as themePath, i}
-                    <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={strokeWidth} />
-                {/each}
-                {#each allTimelineData.ashlee.paths as themePath, i}
-                    <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={strokeWidth} />
-                {/each}
+            <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i]).darker(0.25)} fill="none" stroke-width={8} />
+
+            <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i])} fill="none" stroke-width={2} />
+        {/each}
+        {#each allTimelineData.ashlee.paths as themePath, i}
+            <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i]).darker(0.5)} fill="none" stroke-width={8} />
+
+            <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i])} fill="none" stroke-width={2} />
+        {/each}
 
                 {#each allTimelineData.jan.dots as dot}
                     <circle
@@ -218,7 +231,7 @@
         margin: 0;
     }
 
-    .theme-lust {
+    /* .theme-lust {
         background: #FF69B4;
     }
 
@@ -248,7 +261,7 @@
 
     .theme-trueSelves {
         background: #8E008E;
-    }
+    } */
 
     #timeline {
         width: 100%;
