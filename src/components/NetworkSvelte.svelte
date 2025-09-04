@@ -6,6 +6,8 @@
     import { tweened } from 'svelte/motion';
     import { cubicOut } from 'svelte/easing';
 
+    const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
+
     // ANIMATION
     const nodeTweens = new Map();
     
@@ -53,7 +55,7 @@
     let height = $state(0); // Initialize with 0
 
     // OUTERS
-    const outerNodeIds = nodes.slice(0, 10).map(d => d.index);
+    const outerNodeIds = nodes.slice(0, 8).map(d => d.index);
     let outerPositions = $state([]);
     let outerRingLinks = $state([]);
     let outerCrossLinks = $state([]);
@@ -216,6 +218,11 @@
 
         {#if width && height}
         <svg bind:this={svgEl} {width} {height} class="network-svg">
+            <filter id='noise' x='0%' y='0%' width='100%' height='100%'>
+                <feTurbulence baseFrequency="0.005" type="fractalNoise" />
+            </filter>
+  
+            <rect x="0" y="0" width="100%" height="100%" filter="url(#noise)" fill="none"></rect>
             <g class="links">
                 {#each $processedLinks as link (link.index)}
                     {#if $tweenedPositions[link.source.index] && $tweenedPositions[link.target.index]}
@@ -272,11 +279,14 @@
                 {#each $processedData as node (node.index)}
                     {#if $tweenedPositions[node.index]}
                         <circle
-                            r={5}
+                            r={8}
                             cx={$tweenedPositions[node.index]?.x ?? node.x}
                             cy={$tweenedPositions[node.index]?.y ?? node.y}
                             opacity={scrollIndex >= 4 && node.index > 9 ? 0 : 
                                 scrollIndex >= 5 && node.index !== 0 && node.index !== 5 ? 0 : 1}
+                            stroke={node.index <= 7 ? colors[node.index] : "#191919"}
+                            stroke-width={node.index <= 7 ? 5 : 1}
+                            fill={"white"}
                         />
                     {/if}
                 {/each}
@@ -320,7 +330,7 @@
         transition: opacity 0.5s ease, stroke-dashoffset 1s ease;
     }
     :global(.circle) {
-        fill: var(--color-fg, black);
+        fill: var(--color-bg);
         transition: opacity 0.5s ease, cy 1s ease, cx 1s ease;
     }
 

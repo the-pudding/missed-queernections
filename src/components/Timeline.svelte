@@ -2,6 +2,9 @@
     import * as d3 from 'd3';
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
+    import { onMount } from "svelte";
+    import { tweened } from "svelte/motion";
+    import { cubicInOut } from "svelte/easing";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -193,15 +196,34 @@
         highlightedTickIndex = closestIndex;
     });
 
+    let feTurbulence = tweened(0.005, { duration: 5000, easing: cubicInOut });
+
+    function animateNoiseSmooth() {
+        console.log("check")
+        const min = 0.0015;
+        const max = 0.005;
+
+        function nextTween() {
+        const nextFreq = Math.random() * (max - min) + min;
+        // Set a new tween value, and when it finishes, call nextTween again
+        feTurbulence.set(nextFreq, { duration: 500, easing: cubicInOut }).then(nextTween);
+        }
+
+        nextTween(); // start the first tween
+    }
+
+    onMount(() => {
+        animateNoiseSmooth();
+    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
 
 <section id="timeline">
-    <div class="bg">
+    <!-- <div class="bg">
         <div class="bg-img"></div>
         <div class="bg-overlay"></div>
-    </div>
+    </div> -->
     <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
         <p class="theme theme-{dotTheme}">{dotTheme}</p>
         <p>{dotEvent}</p>
@@ -212,20 +234,6 @@
         <p>Ashleé</p>
     </div>
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
-        <div class="axis-container" style="height: {svgHeight}px;">
-            {#each axisData as tickValue, i}
-                <div class="axis-tick" 
-                    style="top: {allTimelineData.yScale(tickValue) - padding}px;"
-                    class:highlighted={i === highlightedTickIndex}
-                >
-                    {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
-                        <p class="year">{formatYear(tickValue)}</p>
-                    {:else}
-                        <p class="month">{formatMonthYear(tickValue)}</p>
-                    {/if}
-                </div>
-            {/each}
-        </div>
         <svg width={svgWidth} height={40000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
                 <defs>
@@ -251,6 +259,12 @@
                         <feDisplacementMap in="SourceGraphic" scale="10"/>
                     </filter> -->
                 </defs>
+
+                <filter id='noise' x='0%' y='0%' width='100%' height='100%'>
+                <feTurbulence baseFrequency={$feTurbulence} type="fractalNoise" />
+            </filter>
+  
+            <rect x="0" y="0" width="100%" height="100%" filter="url(#noise)" fill="none"></rect>
                 
                 {#each ["jan", "ashlee"] as side}
                     {#each allTimelineData[side].paths as themePath, i}
@@ -274,6 +288,20 @@
                 {/each}
             {/if}
         </svg>
+        <div class="axis-container" style="height: {svgHeight}px;">
+            {#each axisData as tickValue, i}
+                <div class="axis-tick" 
+                    style="top: {allTimelineData.yScale(tickValue) - padding}px;"
+                    class:highlighted={i === highlightedTickIndex}
+                >
+                    {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
+                        <p class="year">{formatYear(tickValue)}</p>
+                    {:else}
+                        <p class="month">{formatMonthYear(tickValue)}</p>
+                    {/if}
+                </div>
+            {/each}
+        </div>
     </figure>
 </section>
 
