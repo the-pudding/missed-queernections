@@ -11,10 +11,13 @@
     const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
     const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
     const strokeWidth = 3;
-    const padding = 20; // Increased padding for axis
-    const spacing = 20;
-    const startX = 20; // Increased startX to give left right padding
+    const padding = 0; // Increased padding for axis
+    const spacing = 12;
+    const startX = 12; // Increased startX to give left right padding
     const bulgeAmount = $derived(svgWidth/8);
+    let figureElement;
+    let highlightedTickIndex = $state(0);
+    let yScroll = $state(0);
 
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
         const reverse = side === "ashlee";
@@ -100,14 +103,41 @@
             .domain([minDate, maxDate])
             .range([padding, svgHeight - padding]));
     const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount));
-    let axisData = $derived(allTimelineData.yScale.ticks(d3.timeYear.every(1)));
+    let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
     const formatAxisYear = d3.timeFormat("%Y");
 
     // Define the line generator once
     const lineGenerator = d3.line()
         .x(d => d[0])
         .y(d => d[1])
-        .curve(d3.curveBasis);
+        .curve(d3.curveBumpY);
+
+    function findClosestTick() {
+        if (!figureElement || !allTimelineData) return;
+
+        const containerTop = figureElement.getBoundingClientRect().top;
+        const viewportCenterY = window.innerHeight / 2;
+
+        let closestDistance = Infinity;
+        let closestIndex = -1;
+
+        // Loop through all axis ticks to find the closest one
+        allTimelineData.monthlyData.forEach((month, i) => {
+            const tickY = allTimelineData.yScale(month.date);
+            
+            // This is the tick's position relative to the viewport
+            const tickScreenY = tickY + containerTop - figureElement.scrollTop;
+            const distance = Math.abs(tickScreenY - viewportCenterY);
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = i;
+            }
+        });
+
+        // Update the highlighted tick index
+        highlightedTickIndex = closestIndex;
+    }
 
     // TOOLTIP
     let tooltipVisible = $state(false);
@@ -116,7 +146,7 @@
     let dotDate = $state();
     let dotEvent = $state();
     let dotTheme = $state();
-    const formatMonthYear = d3.timeFormat("%B %Y");
+    const formatMonthYear = d3.timeFormat("%b %Y");
     const formatYear = d3.timeFormat("%Y");
 
     // EVENT HANDLERS
@@ -133,10 +163,39 @@
 
     function circleMouseExit(e, dot) {
         let circle = d3.select(e.currentTarget);
-        circle.attr("r", 5);
+        circle.attr("r", 8);
         tooltipVisible = false;
     }
+
+    $effect(() => {
+        if (!figureElement || !allTimelineData) return;
+
+        // This is the y-coordinate of the timeline's top edge
+        const containerTop = figureElement.getBoundingClientRect().top + yScroll;
+        const viewportCenterY = window.innerHeight / 2 + yScroll;
+
+        let closestDistance = Infinity;
+        let closestIndex = -1;
+
+        allTimelineData.monthlyData.forEach((month, i) => {
+            const tickY = allTimelineData.yScale(month.date);
+            
+            // Calculate the tick's position in the window coordinate system
+            const tickWindowY = tickY + containerTop;
+            const distance = Math.abs(tickWindowY - viewportCenterY);
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = i;
+            }
+        });
+
+        highlightedTickIndex = closestIndex;
+    });
+
 </script>
+
+<svelte:window bind:scrollY={yScroll}></svelte:window>
 
 <section id="timeline">
     <div class="bg">
@@ -148,11 +207,22 @@
         <p>{dotEvent}</p>
         <p>{dotDate}</p>
     </div>
-    <figure>
+    <div class="sticky-header">
+        <p>Jan</p>
+        <p>Ashleé</p>
+    </div>
+    <figure bind:this={figureElement} style="height: {svgHeight}px;">
         <div class="axis-container" style="height: {svgHeight}px;">
-            {#each axisData as tickValue}
-                <div class="axis-tick" style="top: {allTimelineData.yScale(tickValue)}px;">
-                    <p>{formatAxisYear(tickValue)}</p>
+            {#each axisData as tickValue, i}
+                <div class="axis-tick" 
+                    style="top: {allTimelineData.yScale(tickValue) - padding}px;"
+                    class:highlighted={i === highlightedTickIndex}
+                >
+                    {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
+                        <p class="year">{formatYear(tickValue)}</p>
+                    {:else}
+                        <p class="month">{formatMonthYear(tickValue)}</p>
+                    {/if}
                 </div>
             {/each}
         </div>
@@ -172,12 +242,20 @@
                             <stop offset="100%" style={"stop-color: " + d3.color(colors[i]).darker(0.5)} />
                         </radialGradient>
                     {/each}
+                    <!-- <filter id="noise1">
+                        <feTurbulence baseFrequency="0.035"/>
+                        <feDisplacementMap in="SourceGraphic" scale="10"/>
+                    </filter>
+                    <filter id="noise2">
+                        <feTurbulence baseFrequency="0.045"/>
+                        <feDisplacementMap in="SourceGraphic" scale="10"/>
+                    </filter> -->
                 </defs>
                 
                 {#each ["jan", "ashlee"] as side}
                     {#each allTimelineData[side].paths as themePath, i}
-                        <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={6} />
-                        <!-- <path d={lineGenerator(themePath.points)} stroke={d3.color(colors[i]).brighter(0.25)} fill="none" stroke-width={2} /> -->
+                        <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
+                        <!-- <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={2} /> -->
                     {/each}
 
                     {#each allTimelineData[side].dots as dot}
@@ -185,7 +263,9 @@
                             cx={dot.x}
                             cy={dot.y}
                             r={8}
-                            fill={"url(#radial-gradient-" + themes.indexOf(dot.theme) + ")"}
+                            fill={"white"}
+                            stroke={colors[themes.indexOf(dot.theme)]}
+                            stroke-width={3}
                             role="tooltip"
                             onmouseenter={(e) => circleMouseEnter(e, dot)}
                             onmouseleave={(e) => circleMouseExit(e, dot)}
@@ -251,9 +331,37 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: var(--mq-pink);
+        background-color: linearGradient(var(--mq-pink), var(--mq-red));
         mix-blend-mode: overlay;
         opacity: 0.5;
+    }
+
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        left: 0;
+        height: 3rem;
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .sticky-header p {
+        font-family: var(--sans);
+        font-weight: 700;
+        font-size: var(--18px);
+        width: 110px;
+        height: 2.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-bg);
+        border-radius: 1.25rem;
+        border: 2px solid var(--color-fg);
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
     }
 
     figure {
@@ -275,12 +383,61 @@
     }
 
     .axis-tick p {
+        transition: all 0.25s linear;
+    }
+
+    .year, .month {
         font-family: var(--sans);
+        margin: 0;
+        padding: 0;
+        line-height: 1;
+        font-size: var(--14px);
+        font-weight: 500;
+    }
+
+    .year {
+       font-weight: 700; 
+    }
+
+    .highlighted p {
         font-weight: 700;
+        font-size: var(--36px);
     }
 
     :global(#timeline svg circle) {
         cursor: pointer;
         /* transition: all 0.3s linear; */
+    }
+
+    .theme-lust {
+        background: #FF69B4;
+    }
+
+    .theme-representation {
+        background: #FF0000;
+    }
+
+    .theme-beHer {
+        background: #FF8E00;
+    }
+
+    .theme-genderConstruct {
+        background: #FFCC00;
+    }
+
+    .theme-girlPower {
+        background: #008E00;
+    }
+
+    .theme-gaySeeGay {
+        background: #00C0C0;
+    }
+
+    .theme-publicOpinion {
+        background: #400098;
+    }
+
+    .theme-trueSelves {
+        background: #8E008E;
     }
 </style>
