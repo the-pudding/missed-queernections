@@ -2,6 +2,7 @@
     import * as d3 from 'd3';
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
+    import Key from "$components/Key.svelte";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -13,7 +14,7 @@
     const strokeWidth = 3;
     const padding = 0; // Increased padding for axis
     const spacing = 12;
-    const startX = 32; // Increased startX to give left right padding
+    const startX = 40; // Increased startX to give left right padding
     const bulgeAmount = $derived(svgWidth/8);
     let figureElement;
     let highlightedTickIndex = $state(0);
@@ -45,7 +46,7 @@
         });
 
         const dots = data
-            .filter(d => themes.some(theme => d[`${side}Themes`][theme] === '1') && d.event !== "START" && d.event !== "END")
+            .filter(d => themes.some(theme => d[`${side}Themes`][theme] === '1'))
             .flatMap(d =>
                 themes.filter(theme => d[`${side}Themes`][theme] === '1').map(theme => {
                     const hasSelf = d[`${side}Themes`][theme] === '1';
@@ -78,7 +79,7 @@
             .map(d => ({
                 date: d.date,
                 event: d[`${side}Themes`].event, // guaranteed non-null now
-                x: reverse ? svgWidth - 10 : 10,
+                x: reverse ? svgWidth - 16 : 16,
                 y: yScale(d.date)
             }));
 
@@ -137,26 +138,40 @@
     // EVENT HANDLERS
     function circleMouseEnter(e, dot, dotType) {
         let circle = d3.select(e.currentTarget);
-        circle.attr("r", dotType == "empty" ? 8 : 10);
+        circle.attr("r", dotType == "empty" ? 8 : 12);
 
         dotTheme = dot.theme;
         dotDate = formatMonthYear(dot.date);
         dotEvent = dot.event;
 
         tooltipX = e.x > svgWidth/2 ? e.x - 210 : e.x + 10;
-        tooltipY = e.y+10;; // always just below
+        tooltipY = e.y+10;;
 
         tooltipVisible = true;
+    
+    // Find the closest axis tick to the dot's date and highlight it
+    const dotDateValue = new Date(dot.date);
+        let closestIndex = -1;
+        let closestDistance = Infinity;
+
+        axisData.forEach((tickValue, i) => {
+            const distance = Math.abs(tickValue.getTime() - dotDateValue.getTime());
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = i;
+            }
+        });
+        
+        highlightedTickIndex = closestIndex;
     }
 
     function circleMouseExit(e, dot, dotType) {
         let circle = d3.select(e.currentTarget);
-        circle.attr("r", dotType == "empty" ? 6 : 8);
+        circle.attr("r", dotType == "empty" ? 6 : 10);
         tooltipVisible = false;
     }
 
     $effect(() => {
-        console.log({allTimelineData})
         if (!figureElement || !allTimelineData) return;
 
         // This is the y-coordinate of the timeline's top edge
@@ -198,13 +213,16 @@
         <p>{dotEvent}</p>
     </div>
     <div class="sticky-header">
-        <p>Jan</p>
-        <p>Ashleé</p>
+        <Key />
+        <div class="names">
+            <p>Jan</p>
+            <p>Ashleé</p>
+        </div>
     </div>
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
         <div class="axis-container" style="height: {svgHeight}px;">
             {#each axisData as tickValue, i}
-                <div class="axis-tick" 
+                <div id="tick-{i}" class="axis-tick" 
                     style="top: {allTimelineData.yScale(tickValue) - padding}px;"
                     class:highlighted={i === highlightedTickIndex}
                 >
@@ -236,6 +254,8 @@
                 
                 {#each ["jan", "ashlee"] as side}
                     <g class="g-{side}">
+                        <line x1={side == "jan" ? 20 : svgWidth - 20} y1=0 x2={side == "jan" ? 10 : svgWidth - 10} y2={svgHeight} stroke="black" stroke-width={4}></line>
+
                         {#each allTimelineData[side].paths as themePath, i}
                             <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
                             <!-- <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={2} /> -->
@@ -245,10 +265,8 @@
                             <circle
                                 cx={dot.x}
                                 cy={dot.y}
-                                r={8}
-                                fill={"white"}
-                                stroke={colors[themes.indexOf(dot.theme)]}
-                                stroke-width={3}
+                                r={10}
+                                fill={colors[themes.indexOf(dot.theme)]}
                                 role="tooltip"
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
@@ -261,15 +279,11 @@
                                 cy={dot.y}
                                 r={6}
                                 fill="black"
-                                stroke="white"
-                                stroke-width={2}
                                 role="tooltip"
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "empty")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "empty")}
                             />
                         {/each}
-
-                        <line x1={side == "jan" ? 10 : svgWidth - 10} y1=0 x2={side == "jan" ? 10 : svgWidth - 10} y2={svgHeight} stroke="black" stroke-width={4}></line>
                     </g>
                 {/each}
             {/if}
@@ -282,7 +296,7 @@
         position: fixed;
         opacity: 0;
         background: var(--color-bg);
-        max-width: 200px;
+        width: 200px;
         border-radius: 8px;
         padding: 1rem;
         z-index: 1000;
@@ -304,6 +318,7 @@
     #timeline {
         width: 100%;
         position: relative;
+        margin-top: 10rem;
     }
 
     .bg {
@@ -339,22 +354,31 @@
 
     .sticky-header {
         position: sticky;
-        top: 0;
+        top: 1rem;
         left: 0;
-        height: 3rem;
+        height: 1.75rem;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 900;
+    }
+
+    .sticky-header .names {
         width: 100%;
         display: flex;
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        z-index: 1000;
+        margin-top: -2rem;
     }
 
     .sticky-header p {
         font-family: var(--sans);
         font-weight: 700;
         font-size: var(--18px);
-        width: 110px;
+        width: 140px;
         height: 2.5rem;
         display: flex;
         align-items: center;
