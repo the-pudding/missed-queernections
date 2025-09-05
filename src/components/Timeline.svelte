@@ -2,9 +2,6 @@
     import * as d3 from 'd3';
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
-    import { onMount } from "svelte";
-    import { tweened } from "svelte/motion";
-    import { cubicInOut } from "svelte/easing";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -16,7 +13,7 @@
     const strokeWidth = 3;
     const padding = 0; // Increased padding for axis
     const spacing = 12;
-    const startX = 12; // Increased startX to give left right padding
+    const startX = 32; // Increased startX to give left right padding
     const bulgeAmount = $derived(svgWidth/8);
     let figureElement;
     let highlightedTickIndex = $state(0);
@@ -48,7 +45,7 @@
         });
 
         const dots = data
-            .filter(d => themes.some(theme => d[`${side}Themes`][theme] === '1'))
+            .filter(d => themes.some(theme => d[`${side}Themes`][theme] === '1') && d.event !== "START" && d.event !== "END")
             .flatMap(d =>
                 themes.filter(theme => d[`${side}Themes`][theme] === '1').map(theme => {
                     const hasSelf = d[`${side}Themes`][theme] === '1';
@@ -72,7 +69,20 @@
                 })
             );
 
-        return { paths, dots };
+        const emptyDots = data
+            .filter(d => {
+                const ev = d[`${side}Themes`].event;
+                return ev && ev !== "START" && ev !== "END" && // must exist & not START/END
+                    themes.every(theme => !d[`${side}Themes`][theme]); // all themes empty
+            })
+            .map(d => ({
+                date: d.date,
+                event: d[`${side}Themes`].event, // guaranteed non-null now
+                x: reverse ? svgWidth - 10 : 10,
+                y: yScale(d.date)
+            }));
+
+        return { paths, dots, emptyDots };
     }
 
     // Function to process data and generate path points
@@ -107,40 +117,12 @@
             .range([padding, svgHeight - padding]));
     const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount));
     let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
-    const formatAxisYear = d3.timeFormat("%Y");
 
     // Define the line generator once
     const lineGenerator = d3.line()
         .x(d => d[0])
         .y(d => d[1])
         .curve(d3.curveBumpY);
-
-    function findClosestTick() {
-        if (!figureElement || !allTimelineData) return;
-
-        const containerTop = figureElement.getBoundingClientRect().top;
-        const viewportCenterY = window.innerHeight / 2;
-
-        let closestDistance = Infinity;
-        let closestIndex = -1;
-
-        // Loop through all axis ticks to find the closest one
-        allTimelineData.monthlyData.forEach((month, i) => {
-            const tickY = allTimelineData.yScale(month.date);
-            
-            // This is the tick's position relative to the viewport
-            const tickScreenY = tickY + containerTop - figureElement.scrollTop;
-            const distance = Math.abs(tickScreenY - viewportCenterY);
-
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestIndex = i;
-            }
-        });
-
-        // Update the highlighted tick index
-        highlightedTickIndex = closestIndex;
-    }
 
     // TOOLTIP
     let tooltipVisible = $state(false);
@@ -153,24 +135,28 @@
     const formatYear = d3.timeFormat("%Y");
 
     // EVENT HANDLERS
-    function circleMouseEnter(e, dot) {
+    function circleMouseEnter(e, dot, dotType) {
         let circle = d3.select(e.currentTarget);
-        circle.attr("r", 10);
+        circle.attr("r", dotType == "empty" ? 8 : 10);
+
         dotTheme = dot.theme;
         dotDate = formatMonthYear(dot.date);
         dotEvent = dot.event;
-        tooltipX = e.x+10;
-        tooltipY = e.y+10;
+
+        tooltipX = e.x > svgWidth/2 ? e.x - 210 : e.x + 10;
+        tooltipY = e.y+10;; // always just below
+
         tooltipVisible = true;
     }
 
-    function circleMouseExit(e, dot) {
+    function circleMouseExit(e, dot, dotType) {
         let circle = d3.select(e.currentTarget);
-        circle.attr("r", 8);
+        circle.attr("r", dotType == "empty" ? 6 : 8);
         tooltipVisible = false;
     }
 
     $effect(() => {
+        console.log({allTimelineData})
         if (!figureElement || !allTimelineData) return;
 
         // This is the y-coordinate of the timeline's top edge
@@ -195,26 +181,6 @@
 
         highlightedTickIndex = closestIndex;
     });
-
-    let feTurbulence = tweened(0.005, { duration: 5000, easing: cubicInOut });
-
-    function animateNoiseSmooth() {
-        console.log("check")
-        const min = 0.0015;
-        const max = 0.005;
-
-        function nextTween() {
-        const nextFreq = Math.random() * (max - min) + min;
-        // Set a new tween value, and when it finishes, call nextTween again
-        feTurbulence.set(nextFreq, { duration: 500, easing: cubicInOut }).then(nextTween);
-        }
-
-        nextTween(); // start the first tween
-    }
-
-    onMount(() => {
-        animateNoiseSmooth();
-    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
@@ -225,15 +191,31 @@
         <div class="bg-overlay"></div>
     </div> -->
     <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
-        <p class="theme theme-{dotTheme}">{dotTheme}</p>
+        <p><strong>{dotDate}</strong></p>
+        {#if dotTheme}
+            <p class="theme theme-{dotTheme}">{dotTheme}</p>
+        {/if}
         <p>{dotEvent}</p>
-        <p>{dotDate}</p>
     </div>
     <div class="sticky-header">
         <p>Jan</p>
         <p>Ashleé</p>
     </div>
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
+        <div class="axis-container" style="height: {svgHeight}px;">
+            {#each axisData as tickValue, i}
+                <div class="axis-tick" 
+                    style="top: {allTimelineData.yScale(tickValue) - padding}px;"
+                    class:highlighted={i === highlightedTickIndex}
+                >
+                    {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
+                        <p class="year">{formatYear(tickValue)}</p>
+                    {:else}
+                        <p class="month">{formatMonthYear(tickValue)}</p>
+                    {/if}
+                </div>
+            {/each}
+        </div>
         <svg width={svgWidth} height={40000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
                 <defs>
@@ -250,58 +232,48 @@
                             <stop offset="100%" style={"stop-color: " + d3.color(colors[i]).darker(0.5)} />
                         </radialGradient>
                     {/each}
-                    <!-- <filter id="noise1">
-                        <feTurbulence baseFrequency="0.035"/>
-                        <feDisplacementMap in="SourceGraphic" scale="10"/>
-                    </filter>
-                    <filter id="noise2">
-                        <feTurbulence baseFrequency="0.045"/>
-                        <feDisplacementMap in="SourceGraphic" scale="10"/>
-                    </filter> -->
                 </defs>
-
-                <filter id='noise' x='0%' y='0%' width='100%' height='100%'>
-                <feTurbulence baseFrequency={$feTurbulence} type="fractalNoise" />
-            </filter>
-  
-            <rect x="0" y="0" width="100%" height="100%" filter="url(#noise)" fill="none"></rect>
                 
                 {#each ["jan", "ashlee"] as side}
-                    {#each allTimelineData[side].paths as themePath, i}
-                        <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
-                        <!-- <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={2} /> -->
-                    {/each}
+                    <g class="g-{side}">
+                        {#each allTimelineData[side].paths as themePath, i}
+                            <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
+                            <!-- <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={2} /> -->
+                        {/each}
 
-                    {#each allTimelineData[side].dots as dot}
-                        <circle
-                            cx={dot.x}
-                            cy={dot.y}
-                            r={8}
-                            fill={"white"}
-                            stroke={colors[themes.indexOf(dot.theme)]}
-                            stroke-width={3}
-                            role="tooltip"
-                            onmouseenter={(e) => circleMouseEnter(e, dot)}
-                            onmouseleave={(e) => circleMouseExit(e, dot)}
-                        />
-                    {/each}
+                        {#each allTimelineData[side].dots as dot}
+                            <circle
+                                cx={dot.x}
+                                cy={dot.y}
+                                r={8}
+                                fill={"white"}
+                                stroke={colors[themes.indexOf(dot.theme)]}
+                                stroke-width={3}
+                                role="tooltip"
+                                onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
+                                onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
+                            />
+                        {/each}
+
+                        {#each allTimelineData[side].emptyDots as dot}
+                            <circle
+                                cx={dot.x}
+                                cy={dot.y}
+                                r={6}
+                                fill="black"
+                                stroke="white"
+                                stroke-width={2}
+                                role="tooltip"
+                                onmouseenter={(e) => circleMouseEnter(e, dot, "empty")}
+                                onmouseleave={(e) => circleMouseExit(e, dot, "empty")}
+                            />
+                        {/each}
+
+                        <line x1={side == "jan" ? 10 : svgWidth - 10} y1=0 x2={side == "jan" ? 10 : svgWidth - 10} y2={svgHeight} stroke="black" stroke-width={4}></line>
+                    </g>
                 {/each}
             {/if}
         </svg>
-        <div class="axis-container" style="height: {svgHeight}px;">
-            {#each axisData as tickValue, i}
-                <div class="axis-tick" 
-                    style="top: {allTimelineData.yScale(tickValue) - padding}px;"
-                    class:highlighted={i === highlightedTickIndex}
-                >
-                    {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
-                        <p class="year">{formatYear(tickValue)}</p>
-                    {:else}
-                        <p class="month">{formatMonthYear(tickValue)}</p>
-                    {/if}
-                </div>
-            {/each}
-        </div>
     </figure>
 </section>
 
@@ -310,6 +282,7 @@
         position: fixed;
         opacity: 0;
         background: var(--color-bg);
+        max-width: 200px;
         border-radius: 8px;
         padding: 1rem;
         z-index: 1000;
