@@ -3,38 +3,46 @@
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
     import Key from "$components/Key.svelte";
+    import plusSVG from "$svg/plus.svg";
 
     // DIMENSIONS
     let svgHeight = $state(0);
     let svgWidth = $state(0);
+    const margins = {top: 0, right: 12, bottom: 0, left: 12}
+    const spacing = margins.left;
+    const startX = 40; // Increased startX to give left right padding
+    const bulgeAmount = $derived(svgWidth/8);
+    let yScroll = $state(0);
 
     // STYLES
     const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
     const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
-    const strokeWidth = 3;
-    const padding = 0; // Increased padding for axis
-    const spacing = 12;
-    const startX = 40; // Increased startX to give left right padding
-    const bulgeAmount = $derived(svgWidth/8);
+    
+    // DOM ELEMENTS
     let figureElement;
     let highlightedTickIndex = $state(0);
-    let yScroll = $state(0);
 
+    // DATA
+    let addedEvents = [];
+
+    // Computes paths and dots from the data
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
         const reverse = side === "ashlee";
 
+        // Paths
         const paths = themes.map((theme, i) => {
             const baseX = reverse
                 ? svgWidth - startX - i * spacing
                 : startX + i * spacing;
 
             const points = data.map(d => {
+                // Bulges - small for one side, large for both sides
                 const hasSelf = d[`${side}Themes`][theme] === '1';
                 const hasOther = d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1';
 
                 let xOffset = 0;
-                if (hasSelf && hasOther) xOffset = 2 * bulgeAmount;
-                else if (hasSelf) xOffset = bulgeAmount;
+                if (hasSelf && hasOther) xOffset = 2 * bulgeAmount + i * 12;
+                else if (hasSelf) xOffset = bulgeAmount + i * 12;
 
                 return [
                     reverse ? baseX - xOffset : baseX + xOffset,
@@ -45,48 +53,54 @@
             return { theme, points };
         });
 
+        // Rainbow line dots
         const dots = data
             .filter(d => themes.some(theme => d[`${side}Themes`][theme] === '1'))
             .flatMap(d =>
                 themes.filter(theme => d[`${side}Themes`][theme] === '1').map(theme => {
+                    // Bulges - small for one side, large for both sides
                     const hasSelf = d[`${side}Themes`][theme] === '1';
                     const hasOther = d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1';
 
-                    let xOffset = hasSelf ? bulgeAmount : 0;
-                    if (hasSelf && hasOther) xOffset = 2 * bulgeAmount;
+                    const themeIndex = themes.indexOf(theme);
+
+                    let xOffset = 0;
+                    if (hasSelf && hasOther) xOffset = 2 * bulgeAmount + themeIndex * 12;
+                    else if (hasSelf) xOffset = bulgeAmount + themeIndex * 12;
 
                     const baseX = reverse
-                        ? svgWidth - startX - themes.indexOf(theme) * spacing
-                        : startX + themes.indexOf(theme) * spacing;
+                        ? svgWidth - startX - themeIndex * spacing
+                        : startX + themeIndex * spacing;
 
                     return {
                         date: d.date,
                         event: d[`${side}Themes`].event,
                         theme,
-                        bulge: hasOther ? 2 * bulgeAmount : bulgeAmount,
+                        bulge: xOffset, // keep same as applied
                         x: reverse ? baseX - xOffset : baseX + xOffset,
                         y: yScale(d.date)
                     };
                 })
             );
-
+        
+        // Black line
         const emptyDots = data
             .filter(d => {
                 const ev = d[`${side}Themes`].event;
-                return ev && ev !== "START" && ev !== "END" && // must exist & not START/END
-                    themes.every(theme => !d[`${side}Themes`][theme]); // all themes empty
+                return ev && ev !== "START" && ev !== "END" &&
+                    themes.every(theme => !d[`${side}Themes`][theme]);
             })
             .map(d => ({
                 date: d.date,
-                event: d[`${side}Themes`].event, // guaranteed non-null now
-                x: reverse ? svgWidth - 16 : 16,
+                event: d[`${side}Themes`].event,
+                x: reverse ? svgWidth - 19 : 19,
                 y: yScale(d.date)
             }));
 
         return { paths, dots, emptyDots };
     }
 
-    // Function to process data and generate path points
+    // Process data and generate path points
     function generateTimelineData(janData, ashleeData) {
         if (!janData || !ashleeData) return { jan: { paths: [], dots: [] }, ashlee: { paths: [], dots: [] } };
 
@@ -108,18 +122,19 @@
         };
     }
 
-    // Call the function for both datasets
+    // Creates full dataset + axes
     const allDates = janData.concat(ashleeData).map(d => new Date(d.date));
-        const minDate = d3.min(allDates);
-        const maxDate = d3.max(allDates);
+    const minDate = d3.min(allDates);
+    const maxDate = d3.max(allDates);
 
-        const yScale = $derived(d3.scaleTime()
-            .domain([minDate, maxDate])
-            .range([padding, svgHeight - padding]));
+    const yScale = $derived(d3.scaleTime()
+        .domain([minDate, maxDate])
+        .range([margins.top, svgHeight - margins.top - margins.bottom]));
+
     const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount));
     let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
 
-    // Define the line generator once
+    // Defines the line generator
     const lineGenerator = d3.line()
         .x(d => d[0])
         .y(d => d[1])
@@ -137,8 +152,8 @@
 
     // EVENT HANDLERS
     function circleMouseEnter(e, dot, dotType) {
-        let circle = d3.select(e.currentTarget);
-        circle.attr("r", dotType == "empty" ? 8 : 12);
+        let circleGroup = d3.select(e.currentTarget);
+        circleGroup.attr("transform", `translate(${dot.x}, ${dot.y}) scale(1.2)`);
 
         dotTheme = dot.theme;
         dotDate = formatMonthYear(dot.date);
@@ -149,53 +164,78 @@
 
         tooltipVisible = true;
     
-    // Find the closest axis tick to the dot's date and highlight it
-    const dotDateValue = new Date(dot.date);
-        let closestIndex = -1;
-        let closestDistance = Infinity;
+        // Find the closest axis tick to the dot's date and highlight it
+        const dotDateValue = new Date(dot.date);
+            let closestIndex = -1;
+            let closestDistance = Infinity;
 
-        axisData.forEach((tickValue, i) => {
-            const distance = Math.abs(tickValue.getTime() - dotDateValue.getTime());
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestIndex = i;
-            }
-        });
+            axisData.forEach((tickValue, i) => {
+                const distance = Math.abs(tickValue.getTime() - dotDateValue.getTime());
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestIndex = i;
+                }
+            });
         
         highlightedTickIndex = closestIndex;
     }
 
     function circleMouseExit(e, dot, dotType) {
-        let circle = d3.select(e.currentTarget);
-        circle.attr("r", dotType == "empty" ? 6 : 10);
+        let circleGroup = d3.select(e.currentTarget);
+        circleGroup.attr("transform", `translate(${dot.x}, ${dot.y}) scale(1)`);
         tooltipVisible = false;
     }
 
+    function circleClickAdd(e, dot) {
+        console.log({e,dot})
+
+        let circleGroup = d3.select(e.currentTarget).node();
+        let currClasses = circleGroup.classList;
+
+        console.log(currClasses)
+
+        if (currClasses.includes("added")) {
+            console.log("REMOVE")
+        } else {
+            console.log("ADD")
+        }
+
+        if (!addedEvents.includes(dot.event)) {
+            addedEvents = [...addedEvents, dot.event];
+        }
+
+        console.log(addedEvents)
+    }
+
+    // REACTIVE
+    $effect(() => {
+        console.log({addedEvents})
+    })
     $effect(() => {
         if (!figureElement || !allTimelineData) return;
 
-        // This is the y-coordinate of the timeline's top edge
-        const containerTop = figureElement.getBoundingClientRect().top + yScroll;
-        const viewportCenterY = window.innerHeight / 2 + yScroll;
+            // Finds nearest tick on scroll
+            const containerTop = figureElement.getBoundingClientRect().top + yScroll;
+            const viewportCenterY = window.innerHeight / 2 + yScroll;
 
-        let closestDistance = Infinity;
-        let closestIndex = -1;
+            let closestDistance = Infinity;
+            let closestIndex = -1;
 
-        allTimelineData.monthlyData.forEach((month, i) => {
-            const tickY = allTimelineData.yScale(month.date);
-            
-            // Calculate the tick's position in the window coordinate system
-            const tickWindowY = tickY + containerTop;
-            const distance = Math.abs(tickWindowY - viewportCenterY);
+            allTimelineData.monthlyData.forEach((month, i) => {
+                const tickY = allTimelineData.yScale(month.date);
+                
+                // Calculates the tick position in the window coordinate system
+                const tickWindowY = tickY + containerTop;
+                const distance = Math.abs(tickWindowY - viewportCenterY);
 
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestIndex = i;
-            }
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestIndex = i;
+                }
+            });
+
+            highlightedTickIndex = closestIndex;
         });
-
-        highlightedTickIndex = closestIndex;
-    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
@@ -223,7 +263,7 @@
         <div class="axis-container" style="height: {svgHeight}px;">
             {#each axisData as tickValue, i}
                 <div id="tick-{i}" class="axis-tick" 
-                    style="top: {allTimelineData.yScale(tickValue) - padding}px;"
+                    style="top: {allTimelineData.yScale(tickValue) - margins.top}px;"
                     class:highlighted={i === highlightedTickIndex}
                 >
                     {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
@@ -258,31 +298,72 @@
 
                         {#each allTimelineData[side].paths as themePath, i}
                             <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
-                            <!-- <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={2} /> -->
                         {/each}
 
                         {#each allTimelineData[side].dots as dot}
-                            <circle
-                                cx={dot.x}
-                                cy={dot.y}
-                                r={10}
-                                fill={colors[themes.indexOf(dot.theme)]}
+                            <g 
+                                class="circle-group"
                                 role="tooltip"
+                                transform={`translate(${dot.x}, ${dot.y}) scale(1) rotate(0)`}
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
-                            />
+                                onclick={(e) => circleClickAdd(e, dot)}
+                            >
+                                <circle
+                                    r={12}
+                                    fill={colors[themes.indexOf(dot.theme)]}
+                                />
+                                <!-- Plus sign -->
+                                <g class="add-group">
+                                    <line
+                                        x1="0" y1="-4"
+                                        x2="0" y2="4"
+                                        stroke="white"
+                                        stroke-width="2"
+                                        pointer-events="none"
+                                    />
+                                    <line
+                                        x1="-4" y1="0"
+                                        x2="4" y2="0"
+                                        stroke="white"
+                                        stroke-width="2"
+                                        pointer-events="none"
+                                    />
+                                </g>
+                            </g>
                         {/each}
 
                         {#each allTimelineData[side].emptyDots as dot}
-                            <circle
-                                cx={dot.x}
-                                cy={dot.y}
-                                r={6}
-                                fill="black"
+                            <g 
+                                class="circle-group"
                                 role="tooltip"
-                                onmouseenter={(e) => circleMouseEnter(e, dot, "empty")}
-                                onmouseleave={(e) => circleMouseExit(e, dot, "empty")}
-                            />
+                                transform={`translate(${dot.x}, ${dot.y}) scale(1)`}
+                                onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
+                                onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
+                            >
+                                <circle
+                                    r={8}
+                                    fill="black"
+                                />
+                                <!-- Plus sign -->
+                                 <!-- Plus sign -->
+                                <g class="add-group">
+                                    <line
+                                        x1="0" y1="-4"
+                                        x2="0" y2="4"
+                                        stroke="white"
+                                        stroke-width="2"
+                                        pointer-events="none"
+                                    />
+                                    <line
+                                        x1="-4" y1="0"
+                                        x2="4" y2="0"
+                                        stroke="white"
+                                        stroke-width="2"
+                                        pointer-events="none"
+                                    />
+                                </g>
+                            </g>
                         {/each}
                     </g>
                 {/each}
