@@ -3,7 +3,7 @@
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
     import Key from "$components/Key.svelte";
-    import plusSVG from "$svg/plus.svg";
+    import Story from "$components/Story.svelte";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -21,9 +21,11 @@
     // DOM ELEMENTS
     let figureElement;
     let highlightedTickIndex = $state(0);
+    let storyVisible = $state(false);
 
     // DATA
     let addedEvents = $state([]);
+    let tickLocked = $state(false);
 
     // Computes paths and dots from the data
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
@@ -226,33 +228,35 @@
 
     // REACTIVE
     $effect(() => {
-        console.log("addedEvents changed:", addedEvents);
-    })
-    $effect(() => {
         if (!figureElement || !allTimelineData) return;
 
-            // Finds nearest tick on scroll
-            const containerTop = figureElement.getBoundingClientRect().top + yScroll;
-            const viewportCenterY = window.innerHeight / 2 + yScroll;
+        // Finds nearest tick on scroll
+        const containerTop = figureElement.getBoundingClientRect().top + yScroll;
+        const viewportCenterY = window.innerHeight / 2 + yScroll;
 
-            let closestDistance = Infinity;
-            let closestIndex = -1;
+        let closestDistance = Infinity;
+        let closestIndex = -1;
 
-            allTimelineData.monthlyData.forEach((month, i) => {
-                const tickY = allTimelineData.yScale(month.date);
-                
-                // Calculates the tick position in the window coordinate system
-                const tickWindowY = tickY + containerTop;
-                const distance = Math.abs(tickWindowY - viewportCenterY);
+        allTimelineData.monthlyData.forEach((month, i) => {
+            const tickY = allTimelineData.yScale(month.date);
+            const tickWindowY = tickY + containerTop;
+            const distance = Math.abs(tickWindowY - viewportCenterY);
 
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestIndex = i;
-                }
-            });
-
-            highlightedTickIndex = closestIndex;
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = i;
+            }
         });
+
+        highlightedTickIndex = closestIndex;
+
+        storyVisible = highlightedTickIndex == 57;
+        console.log(highlightedTickIndex, storyVisible);
+
+        // if (storyVisible) {
+        //     d3.select("body").style("overflow", "hidden");
+        // }
+});
 
     function normalizeEventKey(str) {
         return String(str || '')
@@ -265,10 +269,9 @@
 <svelte:window bind:scrollY={yScroll}></svelte:window>
 
 <section id="timeline">
-    <!-- <div class="bg">
-        <div class="bg-img"></div>
-        <div class="bg-overlay"></div>
-    </div> -->
+    <Story {storyVisible} 
+        on:close={() => storyVisible = false} 
+        />
     <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
         <p><strong>{dotDate}</strong></p>
         {#if dotTheme}
