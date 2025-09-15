@@ -251,7 +251,6 @@
         highlightedTickIndex = closestIndex;
 
         storyVisible = highlightedTickIndex == 57;
-        console.log(highlightedTickIndex, storyVisible);
 
         // if (storyVisible) {
         //     d3.select("body").style("overflow", "hidden");
@@ -270,7 +269,8 @@
 
 <section id="timeline">
     <Story {storyVisible} 
-        on:close={() => storyVisible = false} 
+        on:close={() => {
+            storyVisible = false}} 
         />
     <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
         <p><strong>{dotDate}</strong></p>
