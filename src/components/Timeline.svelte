@@ -23,7 +23,7 @@
     let highlightedTickIndex = $state(0);
 
     // DATA
-    let addedEvents = [];
+    let addedEvents = $state([]);
 
     // Computes paths and dots from the data
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
@@ -73,8 +73,9 @@
                         : startX + themeIndex * spacing;
 
                     return {
+                        id: `${side}-${new Date(d.date).getTime()}-${theme}`,
                         date: d.date,
-                        event: d[`${side}Themes`].event,
+                        event: String(d[`${side}Themes`].event || '').trim(),
                         theme,
                         bulge: xOffset, // keep same as applied
                         x: reverse ? baseX - xOffset : baseX + xOffset,
@@ -90,12 +91,16 @@
                 return ev && ev !== "START" && ev !== "END" &&
                     themes.every(theme => !d[`${side}Themes`][theme]);
             })
-            .map(d => ({
-                date: d.date,
-                event: d[`${side}Themes`].event,
-                x: reverse ? svgWidth - 19 : 19,
-                y: yScale(d.date)
-            }));
+            .map(d => {
+                const eventStr = String(d[`${side}Themes`].event || '').trim();
+                return {
+                    id: `${side}-${new Date(d.date).getTime()}-empty-${eventStr || 'noevent'}`,
+                    date: d.date,
+                    event: eventStr,
+                    x: reverse ? svgWidth - 19 : 19,
+                    y: yScale(d.date)
+                };
+            })
 
         return { paths, dots, emptyDots };
     }
@@ -152,10 +157,25 @@
 
     // EVENT HANDLERS
     function circleMouseEnter(e, dot, dotType) {
-        let circleGroup = d3.select(e.currentTarget);
-        circleGroup.attr("transform", `translate(${dot.x}, ${dot.y}) scale(1.2)`);
+        const eventKey = normalizeEventKey(dot.event);
+        if (!eventKey) return;
 
-        dotTheme = dot.theme;
+        const matchingDots = d3.selectAll(`.circle-group[data-id='${eventKey}']`);
+
+        matchingDots.attr("transform", function() {
+            const x = this.dataset.x;
+            const y = this.dataset.y;
+            return `translate(${x}, ${y}) scale(1.2)`;
+        });
+
+        const themes = [];
+        matchingDots.each(function(d) {
+            if (this.dataset.theme) {
+                themes.push(this.dataset.theme);
+            }
+        });
+
+        dotTheme = Array.from(new Set(themes));
         dotDate = formatMonthYear(dot.date);
         dotEvent = dot.event;
 
@@ -181,35 +201,32 @@
     }
 
     function circleMouseExit(e, dot, dotType) {
-        let circleGroup = d3.select(e.currentTarget);
-        circleGroup.attr("transform", `translate(${dot.x}, ${dot.y}) scale(1)`);
+        const eventKey = normalizeEventKey(dot.event);
+        d3.selectAll(`.circle-group[data-id='${eventKey}']`)
+            .attr("transform", function() {
+                const x = this.dataset.x;
+                const y = this.dataset.y;
+                return `translate(${x}, ${y}) scale(1)`;
+            });
         tooltipVisible = false;
     }
 
     function circleClickAdd(e, dot) {
-        console.log({e,dot})
+        const eventKey = String(dot.event ?? '').trim();
+        if (!eventKey) return; // ignore blanks
 
-        let circleGroup = d3.select(e.currentTarget).node();
-        let currClasses = circleGroup.classList;
-
-        console.log(currClasses)
-
-        if (currClasses.includes("added")) {
-            console.log("REMOVE")
+        if (addedEvents.includes(eventKey)) {
+            addedEvents = addedEvents.filter(ev => ev !== eventKey);
         } else {
-            console.log("ADD")
+            addedEvents = [...addedEvents, eventKey];
         }
 
-        if (!addedEvents.includes(dot.event)) {
-            addedEvents = [...addedEvents, dot.event];
-        }
-
-        console.log(addedEvents)
+        console.log("toggled", eventKey, { addedEvents });
     }
 
     // REACTIVE
     $effect(() => {
-        console.log({addedEvents})
+        console.log("addedEvents changed:", addedEvents);
     })
     $effect(() => {
         if (!figureElement || !allTimelineData) return;
@@ -236,6 +253,13 @@
 
             highlightedTickIndex = closestIndex;
         });
+
+    function normalizeEventKey(str) {
+        return String(str || '')
+            .toLowerCase()              // optional: lowercase everything
+            .replace(/\s+/g, '')        // remove all whitespace
+            .replace(/[^a-z0-9\-]/g, ''); // remove all non-alphanumeric characters (keep dash if needed)
+    }
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
@@ -248,7 +272,11 @@
     <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
         <p><strong>{dotDate}</strong></p>
         {#if dotTheme}
-            <p class="theme theme-{dotTheme}">{dotTheme}</p>
+            <p>
+                {#each dotTheme as t}
+                    <span class="theme-span theme-{t}">{t}</span>{" "}
+                {/each}
+            </p>
         {/if}
         <p>{dotEvent}</p>
     </div>
@@ -303,8 +331,12 @@
                         {#each allTimelineData[side].dots as dot}
                             <g 
                                 class="circle-group"
+                                data-id={normalizeEventKey(dot.event)}
+                                data-x={dot.x}
+                                data-y={dot.y}
+                                data-theme={dot.theme}
                                 role="tooltip"
-                                transform={`translate(${dot.x}, ${dot.y}) scale(1) rotate(0)`}
+                                transform={`translate(${dot.x}, ${dot.y}) scale(1)`}
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
                                 onclick={(e) => circleClickAdd(e, dot)}
@@ -314,7 +346,9 @@
                                     fill={colors[themes.indexOf(dot.theme)]}
                                 />
                                 <!-- Plus sign -->
-                                <g class="add-group">
+                                <g 
+                                    class="icon"
+                                    class:rotated={addedEvents.includes(dot.event)}>
                                     <line
                                         x1="0" y1="-4"
                                         x2="0" y2="4"
@@ -336,18 +370,23 @@
                         {#each allTimelineData[side].emptyDots as dot}
                             <g 
                                 class="circle-group"
+                                data-id={normalizeEventKey(dot.event)}
+                                data-x={dot.x}
+                                data-y={dot.y}
                                 role="tooltip"
                                 transform={`translate(${dot.x}, ${dot.y}) scale(1)`}
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
+                                onclick={(e) => circleClickAdd(e, dot)}
                             >
                                 <circle
                                     r={8}
                                     fill="black"
                                 />
                                 <!-- Plus sign -->
-                                 <!-- Plus sign -->
-                                <g class="add-group">
+                                <g 
+                                    class="icon"
+                                    class:rotated={addedEvents.includes(dot.event)}>
                                     <line
                                         x1="0" y1="-4"
                                         x2="0" y2="4"
@@ -475,6 +514,20 @@
         position: relative;
     }
 
+    .circle-group {
+        transition: transform 150ms ease;
+    }
+
+    .icon {
+        transition: transform 150ms ease;
+        transform-box: fill-box;       /* make transform-origin use the box of the element */
+        transform-origin: 50% 50%;     /* center of the group */
+    }
+
+    .icon.rotated {
+        transform: rotate(45deg);
+    }
+
     svg, .axis-container {
         position: absolute;
         width: 100%;
@@ -513,6 +566,11 @@
     :global(#timeline svg circle) {
         cursor: pointer;
         /* transition: all 0.3s linear; */
+    }
+
+    .theme-span {
+        padding: 0.125rem 0.25rem;
+        border-radius: 4px;
     }
 
     .theme-lust {
