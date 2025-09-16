@@ -346,21 +346,21 @@
         }
     }
 
-    function highlightTick(yScroll) {
-        if (!figureElement || !allTimelineData) return;
+    // REACTIVE
+    $effect(() => {
+        if (!allTimelineData || !axisData) return;
 
-        // Finds nearest tick on scroll
-        const containerTop = figureElement.getBoundingClientRect().top + yScroll;
-        const viewportCenterY = window.innerHeight / 2 + yScroll;
+        const viewportCenterY = window.innerHeight / 2;
+
+        // Precompute tick positions
+        const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
 
         let closestDistance = Infinity;
         let closestIndex = -1;
 
-        allTimelineData.monthlyData.forEach((month, i) => {
-            const tickY = allTimelineData.yScale(month.date);
-            const tickWindowY = tickY + containerTop;
-            const distance = Math.abs(tickWindowY - viewportCenterY);
-
+        tickPositions.forEach((tickY, i) => {
+            // tickY is relative to SVG container
+            const distance = Math.abs(tickY - yScroll - viewportCenterY);
             if (distance < closestDistance) {
                 closestDistance = distance;
                 closestIndex = i;
@@ -368,12 +368,7 @@
         });
 
         highlightedTickIndex = closestIndex;
-    }
-
-    // REACTIVE
-    $effect(() => {
-        highlightTick(yScroll)
-        storyVisible = highlightedTickIndex == 57;
+        storyVisible = highlightedTickIndex === 57;
     });
 </script>
 
