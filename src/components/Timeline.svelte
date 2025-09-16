@@ -121,6 +121,8 @@
             };
         });
 
+        console.log("monthlyData", monthlyData);
+
         return {
             yScale,
             monthlyData,
@@ -226,8 +228,7 @@
         console.log("toggled", eventKey, { addedEvents });
     }
 
-    // REACTIVE
-    $effect(() => {
+    function highlightTick(yScroll) {
         if (!figureElement || !allTimelineData) return;
 
         // Finds nearest tick on scroll
@@ -249,7 +250,11 @@
         });
 
         highlightedTickIndex = closestIndex;
+    }
 
+    // REACTIVE
+    $effect(() => {
+        highlightTick(yScroll)
         storyVisible = highlightedTickIndex == 57;
 
         // if (storyVisible) {
