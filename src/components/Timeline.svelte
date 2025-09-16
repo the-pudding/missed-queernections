@@ -14,7 +14,7 @@
     const bulgeAmount = $derived(svgWidth/8);
     let yScroll = $state(0);
 
-    // STYLES
+    // ARRAYS
     const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
     const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
     
@@ -25,7 +25,14 @@
 
     // DATA
     let addedEvents = $state([]);
-    let tickLocked = $state(false);
+
+    // HELPER FUNCTIONS
+    function normalizeEventKey(str) {
+        return String(str || '')
+            .toLowerCase()              // optional: lowercase everything
+            .replace(/\s+/g, '')        // remove all whitespace
+            .replace(/[^a-z0-9\-]/g, ''); // remove all non-alphanumeric characters (keep dash if needed)
+    }
 
     // Computes paths and dots from the data
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
@@ -37,18 +44,28 @@
                 ? svgWidth - startX - i * spacing
                 : startX + i * spacing;
 
-            const points = data.map(d => {
-                // Bulges - small for one side, large for both sides
-                const hasSelf = d[`${side}Themes`][theme] === '1';
-                const hasOther = d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1';
+            // Get all months in the data range
+            const months = d3.timeMonth.range(
+                d3.timeMonth.floor(d3.min(data, d => d.date)),
+                d3.timeMonth.ceil(d3.max(data, d => d.date))
+            );
 
+            const points = months.map(month => {
+                // All events in this month
+                const monthEvents = data.filter(d => d3.timeMonth.floor(d.date).getTime() === month.getTime());
+
+                // Check if any event in this month has theme on self/other
+                const hasSelf = monthEvents.some(d => d[`${side}Themes`][theme] === '1');
+                const hasOther = monthEvents.some(d => d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1');
+
+                // Compute bulge
                 let xOffset = 0;
                 if (hasSelf && hasOther) xOffset = 2 * bulgeAmount + i * 12;
                 else if (hasSelf) xOffset = bulgeAmount + i * 12;
 
                 return [
                     reverse ? baseX - xOffset : baseX + xOffset,
-                    yScale(d.date)
+                    yScale(month)
                 ];
             });
 
@@ -56,78 +73,105 @@
         });
 
         // Rainbow line dots
-        const dots = data
-            .filter(d => themes.some(theme => d[`${side}Themes`][theme] === '1'))
-            .flatMap(d =>
-                themes.filter(theme => d[`${side}Themes`][theme] === '1').map(theme => {
-                    // Bulges - small for one side, large for both sides
-                    const hasSelf = d[`${side}Themes`][theme] === '1';
-                    const hasOther = d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1';
+        const dots = data.flatMap(d => {
+            const reverse = side === "ashlee";
+            const otherSide = side === "jan" ? "ashlee" : "jan";
 
-                    const themeIndex = themes.indexOf(theme);
+            return themes.flatMap((theme, themeIndex) => {
+                if (d[`${side}Themes`][theme] !== '1') return [];
 
-                    let xOffset = 0;
-                    if (hasSelf && hasOther) xOffset = 2 * bulgeAmount + themeIndex * 12;
-                    else if (hasSelf) xOffset = bulgeAmount + themeIndex * 12;
+                // Find all events in this month for self and other
+                const monthEvents = data.filter(
+                    ev => d3.timeMonth.floor(ev.date).getTime() === d3.timeMonth.floor(d.date).getTime()
+                );
 
-                    const baseX = reverse
-                        ? svgWidth - startX - themeIndex * spacing
-                        : startX + themeIndex * spacing;
+                const hasSelf = monthEvents.some(ev => ev[`${side}Themes`][theme] === '1');
+                const hasOther = monthEvents.some(ev => ev[`${otherSide}Themes`][theme] === '1');
 
-                    return {
-                        id: `${side}-${new Date(d.date).getTime()}-${theme}`,
-                        date: d.date,
-                        event: String(d[`${side}Themes`].event || '').trim(),
-                        theme,
-                        bulge: xOffset, // keep same as applied
-                        x: reverse ? baseX - xOffset : baseX + xOffset,
-                        y: yScale(d.date)
-                    };
-                })
-            );
+                // Bulge calculation (same as paths)
+                let xOffset = 0;
+                if (hasSelf && hasOther) xOffset = 2 * bulgeAmount + themeIndex * 12;
+                else if (hasSelf) xOffset = bulgeAmount + themeIndex * 12;
+
+                const baseX = reverse
+                    ? svgWidth - startX - themeIndex * spacing
+                    : startX + themeIndex * spacing;
+
+                return {
+                    id: `${side}-${+new Date(d.date)}-${theme}`,
+                    date: d.date,
+                    event: String(d[`${side}Themes`].event || '').trim(),
+                    theme,
+                    bulge: xOffset,
+                    x: reverse ? baseX - xOffset : baseX + xOffset,
+                    y: yScale(d.date)
+                };
+            });
+        });
         
         // Black line
         const emptyDots = data
             .filter(d => {
-                const ev = d[`${side}Themes`].event;
-                return ev && ev !== "START" && ev !== "END" &&
-                    themes.every(theme => !d[`${side}Themes`][theme]);
+                const self = d[`${side}Themes`];
+                const hasEvent = self.event && self.event !== "START" && self.event !== "END";
+                const allThemesZero = themes.every(theme => self[theme] !== '1');
+                return hasEvent && allThemesZero;
             })
             .map(d => {
                 const eventStr = String(d[`${side}Themes`].event || '').trim();
+                const reverse = side === "ashlee";
+
+                const baseX = reverse ? svgWidth - spacing - 5 : spacing + 5;
+
                 return {
-                    id: `${side}-${new Date(d.date).getTime()}-empty-${eventStr || 'noevent'}`,
+                    id: `${side}-${+new Date(d.date)}-empty-${eventStr}`,
                     date: d.date,
                     event: eventStr,
-                    x: reverse ? svgWidth - 19 : 19,
-                    y: yScale(d.date)
+                    x: baseX,
+                    y: yScale(d.date),
+                    r: 8
                 };
-            })
+            });
 
         return { paths, dots, emptyDots };
     }
 
     // Process data and generate path points
     function generateTimelineData(janData, ashleeData) {
-        if (!janData || !ashleeData) return { jan: { paths: [], dots: [] }, ashlee: { paths: [], dots: [] } };
+        if (!janData || !ashleeData) return { jan: { paths: [], dots: [], emptyDots: [] }, ashlee: { paths: [], dots: [], emptyDots: [] } };
 
-        const monthlyData = d3.timeMonth.range(d3.timeMonth.floor(minDate), d3.timeMonth.ceil(maxDate)).map(d => {
-            const janEvent = janData.find(event => d3.timeMonth.floor(new Date(event.date)).getTime() === d.getTime());
-            const ashleeEvent = ashleeData.find(event => d3.timeMonth.floor(new Date(event.date)).getTime() === d.getTime());
-            return {
-                date: d,
-                janThemes: janEvent || {},
-                ashleeThemes: ashleeEvent || {}
-            };
+        // Prepare data: each event stays as its own object
+        const allData = [];
+
+        janData.forEach(e => {
+            allData.push({
+                date: new Date(e.date),
+                janThemes: (() => {
+                    const obj = { event: [e.event] }; // keep event as array
+                    themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
+                    return obj;
+                })(),
+                ashleeThemes: {} // empty for Jan events
+            });
         });
 
-        console.log("monthlyData", monthlyData);
+        ashleeData.forEach(e => {
+            allData.push({
+                date: new Date(e.date),
+                janThemes: {}, // empty for Ashlee events
+                ashleeThemes: (() => {
+                    const obj = { event: [e.event] };
+                    themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
+                    return obj;
+                })()
+            });
+        });
 
         return {
-            yScale,
-            monthlyData,
-            jan: makePathsAndDots({ side: "jan", data: monthlyData, svgWidth, spacing, startX, bulgeAmount, yScale }),
-            ashlee: makePathsAndDots({ side: "ashlee", data: monthlyData, svgWidth, spacing, startX, bulgeAmount, yScale })
+            yScale, // pass the scale
+            monthlyData: allData, // just a flat array of events
+            jan: makePathsAndDots({ side: "jan", data: allData, svgWidth, spacing, startX, bulgeAmount, yScale }),
+            ashlee: makePathsAndDots({ side: "ashlee", data: allData, svgWidth, spacing, startX, bulgeAmount, yScale })
         };
     }
 
@@ -164,6 +208,7 @@
         const eventKey = normalizeEventKey(dot.event);
         if (!eventKey) return;
 
+        // Scales all related dots
         const matchingDots = d3.selectAll(`.circle-group[data-id='${eventKey}']`);
 
         matchingDots.attr("transform", function() {
@@ -172,21 +217,69 @@
             return `translate(${x}, ${y}) scale(1.2)`;
         });
 
-        const themes = [];
+        // Sets tooltip info
+        tooltipX = e.x > svgWidth/2 ? e.x - 210 : e.x + 10;
+        tooltipY = e.y+10;;
+        tooltipVisible = true;
+        const themesLocal = [];
         matchingDots.each(function(d) {
             if (this.dataset.theme) {
-                themes.push(this.dataset.theme);
+                themesLocal.push(this.dataset.theme);
             }
         });
 
-        dotTheme = Array.from(new Set(themes));
+        dotTheme = Array.from(new Set(themesLocal));
         dotDate = formatMonthYear(dot.date);
         dotEvent = dot.event;
 
-        tooltipX = e.x > svgWidth/2 ? e.x - 210 : e.x + 10;
-        tooltipY = e.y+10;;
+        // Path lightness
+        // Resets
+        d3.selectAll("path").each(function() {
+            const pathId = this.getAttribute("id") || "";
+            const parts = pathId.split("-"); // ["theme", "index", "path"]
+            const themeIndex = parseInt(parts[1]);
+            if (!isNaN(themeIndex)) {
+                d3.select(this).attr("stroke", colors[themeIndex]);
+            }
+        });
 
-        tooltipVisible = true;
+        // Lighten non-matching paths
+        const trimmedDotTheme = dotTheme.map(t => t.trim());
+
+        d3.selectAll("path").each(function() {
+            const pathId = this.getAttribute("id") || "";
+            const theme = pathId.split("-")[0]; // get the theme from the id
+
+            if (!trimmedDotTheme.includes(theme)) {
+                const pathColor = d3.color(this.getAttribute("stroke"));
+                if (pathColor) {
+                    pathColor.opacity = 0.2; // lighten by reducing opacity
+                    d3.select(this).attr("stroke", pathColor.formatRgb());
+                }
+            }
+        });
+
+        // Lighten non-matching circles
+        d3.selectAll(".circle-group circle").each(function() {
+            const parent = this.parentNode;
+            const eventId = parent.dataset.id; // normalized event key
+            const theme = parent.dataset.theme;
+            if (!theme) return;
+            const themeIndex = themes.indexOf(theme);
+            console.log(eventId, eventKey, theme, themeIndex)
+
+            if (eventId !== eventKey && themeIndex !== -1) {
+                const originalColor = colors[themeIndex];
+                const color = d3.color(originalColor);
+                if (color) {
+                    color.opacity = 0.2; // lighten
+                    d3.select(this).attr("fill", color.formatRgb());
+                }
+            } else if (eventId === eventKey && themeIndex !== -1) {
+                // restore original color if this is the hovered event
+                d3.select(this).attr("fill", colors[themeIndex]);
+            }
+        });
     
         // Find the closest axis tick to the dot's date and highlight it
         const dotDateValue = new Date(dot.date);
@@ -206,26 +299,51 @@
 
     function circleMouseExit(e, dot, dotType) {
         const eventKey = normalizeEventKey(dot.event);
+        
+        // Reset dot scale
         d3.selectAll(`.circle-group[data-id='${eventKey}']`)
             .attr("transform", function() {
                 const x = this.dataset.x;
                 const y = this.dataset.y;
                 return `translate(${x}, ${y}) scale(1)`;
             });
+
+        // Reset path lightness
+        d3.selectAll("path").each(function() {
+            const pathId = this.getAttribute("id") || "";
+            const parts = pathId.split("-"); // ["theme", "index", "path"]
+            const themeIndex = parseInt(parts[1]);
+            if (!isNaN(themeIndex)) {
+                d3.select(this).attr("stroke", colors[themeIndex]);
+            }
+        });
+
+        // Reset circle lightness
+        d3.selectAll(".circle-group circle").each(function() {
+            const parent = this.parentNode;
+            const theme = parent.dataset.theme; // may be undefined for emptyDots
+            if (!theme) return; // skip emptyDots
+            const themeIndex = themes.indexOf(theme);
+            if (themeIndex === -1) return;
+
+            // Restore original color
+            d3.select(this).attr("fill", colors[themeIndex]);
+        });
+
+        // Tooltip info
         tooltipVisible = false;
     }
 
     function circleClickAdd(e, dot) {
         const eventKey = String(dot.event ?? '').trim();
-        if (!eventKey) return; // ignore blanks
+        if (!eventKey) return;
 
+        // TO-DO push this to database
         if (addedEvents.includes(eventKey)) {
             addedEvents = addedEvents.filter(ev => ev !== eventKey);
         } else {
             addedEvents = [...addedEvents, eventKey];
         }
-
-        console.log("toggled", eventKey, { addedEvents });
     }
 
     function highlightTick(yScroll) {
@@ -256,18 +374,7 @@
     $effect(() => {
         highlightTick(yScroll)
         storyVisible = highlightedTickIndex == 57;
-
-        // if (storyVisible) {
-        //     d3.select("body").style("overflow", "hidden");
-        // }
-});
-
-    function normalizeEventKey(str) {
-        return String(str || '')
-            .toLowerCase()              // optional: lowercase everything
-            .replace(/\s+/g, '')        // remove all whitespace
-            .replace(/[^a-z0-9\-]/g, ''); // remove all non-alphanumeric characters (keep dash if needed)
-    }
+    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
@@ -310,7 +417,7 @@
                 </div>
             {/each}
         </div>
-        <svg width={svgWidth} height={40000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
+        <svg width={svgWidth} height={30000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
                 <defs>
                     {#each themes as theme, i}
@@ -333,7 +440,7 @@
                         <line x1={side == "jan" ? 20 : svgWidth - 20} y1=0 x2={side == "jan" ? 10 : svgWidth - 10} y2={svgHeight} stroke="black" stroke-width={4}></line>
 
                         {#each allTimelineData[side].paths as themePath, i}
-                            <path d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
+                            <path id="{themePath.theme}-{i}-path" d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
                         {/each}
 
                         {#each allTimelineData[side].dots as dot}
@@ -520,6 +627,10 @@
     figure {
         width: 100%;
         position: relative;
+    }
+
+    :global(path.faded) {
+        opacity: 0.4;
     }
 
     .circle-group {
