@@ -4,7 +4,7 @@
     import copy from '$data/copy.json';
 
 
-    let { highlightedTickDate } = $props();
+    let { highlightedTickDate, isOpen } = $props();
     let dateMatch = $derived(
         highlightedTickDate
             ? copy.expandedEvents.find(e => {
@@ -28,11 +28,11 @@
     let storyH = $state(0);
     let keepContents = $state(false);
     let activeMatch = $state(null);
-    let isOpen = $state(false);
     let closeTimer = null;
     const CLOSE_DURATION = 750;
 
     function onCloseClick() {
+        isOpen = false;
         dispatch("close");
     }
 
@@ -44,7 +44,6 @@
         }
 
         if (dateMatch) {
-            console.log("match")
             // immediate: set the active content and open the bubble
             activeMatch = dateMatch;
             keepContents = true;
@@ -82,7 +81,7 @@
                 </div>
                 <div class="details">
                     <div class="image-wrapper">
-                        <img src="assets/imgs/green-ranger.png" alt="Green Ranger" />
+                        <img src="assets/imgs/{activeMatch.img}" alt={activeMatch.event} />
                     </div>
                     <div class="text-wrapper">
                         <h3>{activeMatch.event}</h3>
@@ -123,7 +122,7 @@
     transform: translate(-50%, -50%);
     clip-path: circle(var(--clip-size, 0px) at 50% 50%);
     transition: clip-path 0.75s ease-in-out;
-    background: var(--mq-purple); /* optional */
+    opacity: 0.98;
     pointer-events: none;
 }
 

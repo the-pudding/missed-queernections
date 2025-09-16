@@ -2,8 +2,10 @@
     import * as d3 from 'd3';
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
+    import commentsData from "$data/comments.csv";
     import Key from "$components/Key.svelte";
     import Story from "$components/Story.svelte";
+    import { fly } from 'svelte/transition';
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -12,7 +14,12 @@
     const spacing = margins.left;
     const startX = 40; // Increased startX to give left right padding
     const bulgeAmount = $derived(svgWidth/8);
+
+    // SCROLL
     let yScroll = $state(0);
+    let lastScrollY = 0;
+    let scrollTimeout = null;
+    let scrolling = false;
 
     // ARRAYS
     const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
@@ -35,7 +42,7 @@
             .replace(/[^a-z0-9\-]/g, ''); // remove all non-alphanumeric characters (keep dash if needed)
     }
 
-    // Computes paths and dots from the data
+    // COMPUTES PATHS AND DOTS FROM THE EVENT DATA
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
         const reverse = side === "ashlee";
 
@@ -137,7 +144,7 @@
         return { paths, dots, emptyDots };
     }
 
-    // Process data and generate path points
+    // PROCESS DATA AND GENERATE POINTS
     function generateTimelineData(janData, ashleeData) {
         if (!janData || !ashleeData) return { jan: { paths: [], dots: [], emptyDots: [] }, ashlee: { paths: [], dots: [], emptyDots: [] } };
 
@@ -176,7 +183,7 @@
         };
     }
 
-    // Creates full dataset + axes
+    // FULL DATASET + AXES
     const allDates = janData.concat(ashleeData).map(d => new Date(d.date));
     const minDate = d3.min(allDates);
     const maxDate = d3.max(allDates);
@@ -188,7 +195,7 @@
     const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount));
     let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
 
-    // Defines the line generator
+    // LINE GENERATOR
     const lineGenerator = d3.line()
         .x(d => d[0])
         .y(d => d[1])
@@ -206,6 +213,8 @@
 
     // EVENT HANDLERS
     function circleMouseEnter(e, dot, dotType) {
+        if (scrolling) return;
+
         const eventKey = normalizeEventKey(dot.event);
         if (!eventKey) return;
 
@@ -267,7 +276,6 @@
             const theme = parent.dataset.theme;
             if (!theme) return;
             const themeIndex = themes.indexOf(theme);
-            console.log(eventId, eventKey, theme, themeIndex)
 
             if (eventId !== eventKey && themeIndex !== -1) {
                 const originalColor = colors[themeIndex];
@@ -347,7 +355,7 @@
         }
     }
 
-    // REACTIVE
+    // REACTIVE: HIGHLIGHT TICK BASED ON SCROLL
     $effect(() => {
         if (!allTimelineData || !axisData) return;
 
@@ -370,14 +378,30 @@
 
         highlightedTickIndex = closestIndex;
         highlightedTickDate = axisData[highlightedTickIndex];
-        // storyVisible = highlightedTickIndex === 57;
     });
+
+    // REACTIVE: DEBOUNCE HOVER DURING SCROLL
+    $effect(() => {
+        if (yScroll !== lastScrollY) {
+            scrolling = true;
+
+            // clear previous timeout
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+
+            // after 100ms of no scroll, consider scroll stable
+            scrollTimeout = setTimeout(() => {
+                scrolling = false;
+            }, 100);
+
+            lastScrollY = yScroll;
+        }
+    })
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
 
 <section id="timeline">
-    <Story {storyVisible} {highlightedTickDate}
+    <Story bind:isOpen={storyVisible} {highlightedTickDate}
         on:close={() => {
             storyVisible = false}} 
         />
@@ -402,6 +426,8 @@
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
         <div class="axis-container" style="height: {svgHeight}px;">
             {#each axisData as tickValue, i}
+                {@const match = commentsData.find(d => new Date(d.date).getTime() === tickValue.getTime())}
+                {@const hasComment = match && (match.janComment || match.ashComment)}
                 <div id="tick-{i}" class="axis-tick" 
                     style="top: {allTimelineData.yScale(tickValue) - margins.top}px;"
                     class:highlighted={i === highlightedTickIndex}
@@ -412,9 +438,17 @@
                         <p class="month">{formatMonthYear(tickValue)}</p>
                     {/if}
                 </div>
+                {#if hasComment && i === highlightedTickIndex}
+                    <div class="comment" 
+                        transition:fly={{ y: 40, duration: 300 }}
+                        style="left: {match.janComment ? '20px' : 'auto'}; right: {match.ashComment ? '20px' : 'auto'};"
+                    >
+                        {match.janComment ? match.janComment : match.ashComment}
+                    </div>
+                {/if}
             {/each}
         </div>
-        <svg width={svgWidth} height={30000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
+        <svg width={svgWidth} height={36000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
                 <defs>
                     {#each themes as theme, i}
@@ -443,15 +477,22 @@
                         {#each allTimelineData[side].dots as dot}
                             <g 
                                 class="circle-group"
+                                tabindex="0" 
+                                role="button"  
                                 data-id={normalizeEventKey(dot.event)}
                                 data-x={dot.x}
                                 data-y={dot.y}
                                 data-theme={dot.theme}
-                                role="tooltip"
                                 transform={`translate(${dot.x}, ${dot.y}) scale(1)`}
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
                                 onclick={(e) => circleClickAdd(e, dot)}
+                                onkeydown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        circleClickAdd(e, dot);
+                                        e.preventDefault();
+                                    }
+                                }}
                             >
                                 <circle
                                     r={12}
@@ -482,14 +523,21 @@
                         {#each allTimelineData[side].emptyDots as dot}
                             <g 
                                 class="circle-group"
+                                tabindex="0" 
+                                role="button"  
                                 data-id={normalizeEventKey(dot.event)}
                                 data-x={dot.x}
                                 data-y={dot.y}
-                                role="tooltip"
                                 transform={`translate(${dot.x}, ${dot.y}) scale(1)`}
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
                                 onclick={(e) => circleClickAdd(e, dot)}
+                                onkeydown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        circleClickAdd(e, dot);
+                                        e.preventDefault();
+                                    }
+                                }}
                             >
                                 <circle
                                     r={8}
@@ -551,37 +599,6 @@
         width: 100%;
         position: relative;
         margin-top: 10rem;
-    }
-
-    .bg {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100svh;
-    }
-
-    .bg-img {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: url("assets/imgs/kelly-kapowski.jpg");
-        background-size: 25%;
-        filter: grayscale(1) blur(2px);
-        opacity: 0.15;
-    }
-
-    .bg-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: linearGradient(var(--mq-pink), var(--mq-red));
-        mix-blend-mode: overlay;
-        opacity: 0.5;
     }
 
     .sticky-header {
@@ -677,6 +694,21 @@
     .highlighted p {
         font-weight: 700;
         font-size: var(--36px);
+    }
+
+    .comment {
+        position: fixed;
+        top: 50%;
+        background: var(--color-bg);
+        width: 200px;
+        border-radius: 8px;
+        padding: 1rem;
+        z-index: 1000;
+        font-family: var(--sans);
+        font-size: var(--12px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: opacity 100ms linear;
+        pointer-events: none;
     }
 
     :global(#timeline svg circle) {
