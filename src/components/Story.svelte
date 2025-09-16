@@ -1,50 +1,103 @@
 <script>
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onDestroy } from 'svelte';
     import * as d3 from 'd3';
-    let { storyVisible } = $props();
+    import copy from '$data/copy.json';
+
+
+    let { highlightedTickDate } = $props();
+    let dateMatch = $derived(
+        highlightedTickDate
+            ? copy.expandedEvents.find(e => {
+                const eventDate = new Date(e.date);
+                return (
+                eventDate.getFullYear() === highlightedTickDate.getFullYear() &&
+                eventDate.getMonth() === highlightedTickDate.getMonth() &&
+                eventDate.getDate() === highlightedTickDate.getDate()
+                );
+            })
+            : null
+        );
+
+    // ARRAYS
+    const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
+    const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
 
     const dispatch = createEventDispatcher();
 
     let storyW = $state(0);
     let storyH = $state(0);
-    let multiplier = 1.5;
-    let storyDimMax = $derived(d3.max([storyW, storyH]) * multiplier);
+    let keepContents = $state(false);
+    let activeMatch = $state(null);
+    let isOpen = $state(false);
+    let closeTimer = null;
+    const CLOSE_DURATION = 750;
 
     function onCloseClick() {
         dispatch("close");
     }
 
     $effect(() => {
-        console.log(storyVisible)
-    })
+        // clear any pending close timer whenever this effect runs
+        if (closeTimer) {
+            clearTimeout(closeTimer);
+            closeTimer = null;
+        }
+
+        if (dateMatch) {
+            console.log("match")
+            // immediate: set the active content and open the bubble
+            activeMatch = dateMatch;
+            keepContents = true;
+            isOpen = true;
+        } else {
+            // no exact match: start closing sequence only if we currently have mounted contents
+            if (keepContents) {
+                isOpen = false; // triggers CSS clip-path transition to close
+                // wait until the visual transition finishes, then unmount and clear activeMatch
+                closeTimer = setTimeout(() => {
+                    keepContents = false;
+                    activeMatch = null;
+                    closeTimer = null;
+                }, CLOSE_DURATION);
+            }
+        }
+    });
+
+    onDestroy(() => {
+        if (closeTimer) clearTimeout(closeTimer);
+    });
 </script>
 
 <section class="story" bind:clientWidth={storyW} bind:clientHeight={storyH}>
     <!-- Bubble as clipping mask -->
     <div 
         class="bubble-mask"
-        style="--clip-size: {storyVisible ? Math.max(storyW, storyH) * 1.5 + 'px' : '0px'}"
-    >
-        <div class="contents">
-            <div class="theme">
-                <p>Trying on our true selves</p>
-            </div>
-            <div class="details">
-                <div class="image-wrapper">
-                    <img src="assets/imgs/green-ranger.png" alt="Green Ranger" />
+        style="--clip-size: {isOpen ? Math.max(storyW, storyH) * 1.5 + 'px' : '0px'};
+        background: {activeMatch ? colors[themes.indexOf(activeMatch.theme)] : null};"
+    >   
+        {#if keepContents}
+            <div class="contents">
+                <div class="theme">
+                    <p>{activeMatch.theme}</p>
                 </div>
-                <div class="text-wrapper">
-                        <h3>Green Ranger</h3>
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec eu magna a magna maximus interdum vitae consequat ipsum. Phasellus scelerisque ipsum sed sem commodo fringilla. Donec et magna at est iaculis efficitur vitae ac dolor. Suspendisse in vehicula ipsum. Cras at neque enim. Suspendisse accumsan dolor quis pharetra suscipit. Nulla facilisi. Morbi malesuada sapien ut rutrum efficitur. Sed quis erat turpis. Integer et ullamcorper dui. Praesent sit amet nisl sed sapien blandit tincidunt. In commodo turpis turpis, in sollicitudin urna sollicitudin quis. Nunc hendrerit dui eget magna suscipit, in molestie nulla lacinia.</p>
-                    <p>Praesent quis lacus rutrum, rutrum justo sed, mollis mi. Sed porttitor placerat ante eget feugiat. Aliquam maximus id risus in posuere. Nullam blandit, eros bibendum sodales aliquam, dui urna fermentum mauris, rhoncus condimentum metus purus blandit arcu. Quisque consequat massa nisl, ut egestas nibh scelerisque nec. Fusce in neque vitae mi euismod tincidunt. Nunc lacus ligula, molestie vel rhoncus eu, scelerisque imperdiet ante. Maecenas quis placerat mi, ac vehicula lorem.</p>
+                <div class="details">
+                    <div class="image-wrapper">
+                        <img src="assets/imgs/green-ranger.png" alt="Green Ranger" />
+                    </div>
+                    <div class="text-wrapper">
+                        <h3>{activeMatch.event}</h3>
+                        {#each activeMatch.text as graf, i}
+                            <p>{graf.value}</p>
+                        {/each}
+                    </div>
                 </div>
+                <button 
+                    id="close-btn"
+                    onclick={onCloseClick}
+                >
+                    Close</button>
             </div>
-            <button 
-                id="close-btn"
-                onclick={onCloseClick}
-            >
-                Close</button>
-        </div>
+        {/if}
     </div>
 </section>
 

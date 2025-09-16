@@ -21,6 +21,7 @@
     // DOM ELEMENTS
     let figureElement;
     let highlightedTickIndex = $state(0);
+    let highlightedTickDate = $state(0);
     let storyVisible = $state(false);
 
     // DATA
@@ -368,14 +369,15 @@
         });
 
         highlightedTickIndex = closestIndex;
-        storyVisible = highlightedTickIndex === 57;
+        highlightedTickDate = axisData[highlightedTickIndex];
+        // storyVisible = highlightedTickIndex === 57;
     });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
 
 <section id="timeline">
-    <Story {storyVisible} 
+    <Story {storyVisible} {highlightedTickDate}
         on:close={() => {
             storyVisible = false}} 
         />
