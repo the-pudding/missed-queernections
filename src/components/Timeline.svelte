@@ -33,6 +33,7 @@
 
     // DATA
     let addedEvents = $state([]);
+    const parseMonthYear = d3.timeParse("%B %Y");
 
     // HELPER FUNCTIONS
     function normalizeEventKey(str) {
@@ -60,7 +61,8 @@
 
             const points = months.map(month => {
                 // All events in this month
-                const monthEvents = data.filter(d => d3.timeMonth.floor(d.date).getTime() === month.getTime());
+                const monthStr = d3.timeFormat("%B %Y")(month);
+                const monthEvents = data.filter(d => d3.timeFormat("%B %Y")(d.date) === monthStr);
 
                 // Check if any event in this month has theme on self/other
                 const hasSelf = monthEvents.some(d => d[`${side}Themes`][theme] === '1');
@@ -89,9 +91,8 @@
                 if (d[`${side}Themes`][theme] !== '1') return [];
 
                 // Find all events in this month for self and other
-                const monthEvents = data.filter(
-                    ev => d3.timeMonth.floor(ev.date).getTime() === d3.timeMonth.floor(d.date).getTime()
-                );
+                const dotMonthStr = d3.timeFormat("%B %Y")(d.date);
+                const monthEvents = data.filter(ev => d3.timeFormat("%B %Y")(ev.date) === dotMonthStr);
 
                 const hasSelf = monthEvents.some(ev => ev[`${side}Themes`][theme] === '1');
                 const hasOther = monthEvents.some(ev => ev[`${otherSide}Themes`][theme] === '1');
@@ -106,7 +107,7 @@
                     : startX + themeIndex * spacing;
 
                 return {
-                    id: `${side}-${+new Date(d.date)}-${theme}`,
+                    id: `${side}-${parseMonthYear(d.date)}-${theme}`,
                     date: d.date,
                     event: String(d[`${side}Themes`].event || '').trim(),
                     theme,
@@ -132,7 +133,7 @@
                 const baseX = reverse ? svgWidth - spacing - 5 : spacing + 5;
 
                 return {
-                    id: `${side}-${+new Date(d.date)}-empty-${eventStr}`,
+                    id: `${side}-${parseMonthYear(d.date)}-empty-${eventStr}`,
                     date: d.date,
                     event: eventStr,
                     x: baseX,
@@ -153,7 +154,7 @@
 
         janData.forEach(e => {
             allData.push({
-                date: new Date(e.date),
+                date: parseMonthYear(e.date),
                 janThemes: (() => {
                     const obj = { event: [e.event] }; // keep event as array
                     themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
@@ -165,7 +166,7 @@
 
         ashleeData.forEach(e => {
             allData.push({
-                date: new Date(e.date),
+                date: parseMonthYear(e.date),
                 janThemes: {}, // empty for Ashlee events
                 ashleeThemes: (() => {
                     const obj = { event: [e.event] };
@@ -184,7 +185,7 @@
     }
 
     // FULL DATASET + AXES
-    const allDates = janData.concat(ashleeData).map(d => new Date(d.date));
+    const allDates = janData.concat(ashleeData).map(d => parseMonthYear(d.date));
     const minDate = d3.min(allDates);
     const maxDate = d3.max(allDates);
 
@@ -291,14 +292,13 @@
         });
     
         // Find the closest axis tick to the dot's date and highlight it
-        const dotDateValue = new Date(dot.date);
+        const dotDateValue = parseMonthYear(dot.date);
+            const dotMonthStr = d3.timeFormat("%B %Y")(parseMonthYear(dot.date));
             let closestIndex = -1;
-            let closestDistance = Infinity;
 
             axisData.forEach((tickValue, i) => {
-                const distance = Math.abs(tickValue.getTime() - dotDateValue.getTime());
-                if (distance < closestDistance) {
-                    closestDistance = distance;
+                const tickStr = d3.timeFormat("%B %Y")(tickValue);
+                if (tickStr === dotMonthStr) {
                     closestIndex = i;
                 }
             });
@@ -395,7 +395,7 @@
 
             lastScrollY = yScroll;
         }
-    })
+    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
@@ -426,7 +426,10 @@
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
         <div class="axis-container" style="height: {svgHeight}px;">
             {#each axisData as tickValue, i}
-                {@const match = commentsData.find(d => new Date(d.date).getTime() === tickValue.getTime())}
+                {@const match = commentsData.find(d => {
+                    const tickStr = d3.timeFormat("%B %Y")(tickValue); // "January 1989"
+                    return d.date.trim() === tickStr;
+                })}
                 {@const hasComment = match && (match.janComment || match.ashComment)}
                 <div id="tick-{i}" class="axis-tick" 
                     style="top: {allTimelineData.yScale(tickValue) - margins.top}px;"
@@ -450,22 +453,6 @@
         </div>
         <svg width={svgWidth} height={36000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
-                <defs>
-                    {#each themes as theme, i}
-                        <linearGradient id={"gradient-" + i} x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style={"stop-color: " + d3.color(colors[i]).darker(1)} />
-                            <stop offset="50%" style={"stop-color: " + colors[i]} />
-                            <stop offset="100%" style={"stop-color: " + d3.color(colors[i]).darker(1)} />
-                        </linearGradient>
-
-                        <radialGradient id={"radial-gradient-" + i} cx="30%" cy="30%" r="50%" fx="30%" fy="30%">
-                            <stop offset="0%" style={"stop-color: " + d3.color(colors[i]).brighter(1)} />
-                            <stop offset="80%" style={"stop-color: " + colors[i]} />
-                            <stop offset="100%" style={"stop-color: " + d3.color(colors[i]).darker(0.5)} />
-                        </radialGradient>
-                    {/each}
-                </defs>
-                
                 {#each ["jan", "ashlee"] as side}
                     <g class="g-{side}">
                         <line x1={side == "jan" ? 20 : svgWidth - 20} y1=0 x2={side == "jan" ? 10 : svgWidth - 10} y2={svgHeight} stroke="black" stroke-width={4}></line>
