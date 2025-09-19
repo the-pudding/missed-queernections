@@ -1,20 +1,36 @@
 <script>
-    import { tick } from 'svelte';
+    import { getContext, onMount, tick } from 'svelte';
     import { writable, derived } from 'svelte/store';
     import * as d3 from 'd3';
     import { nodes, links } from '$utils/networkData.js'; // Rename to avoid conflict
-    import { tweened } from 'svelte/motion';
-    import { cubicOut } from 'svelte/easing';
+    import { spring, tweened } from 'svelte/motion';
+    import { fly } from 'svelte/transition';
+
+    let { scrollIndex } = $props();
+
+    const copy = getContext("copy");
 
     const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
+
+    let comments = $derived(copy.comments.find(d => +d.step === scrollIndex) ? copy.comments.find(d => +d.step === scrollIndex).text : []);
+    let eligibleNodes = $derived(scrollIndex <= 0 ? nodes.filter(n => n.index > 8) : nodes.filter(n => n.index <= 7));
+    let commentNodes = $derived(d3.shuffle(eligibleNodes).slice(0, 3).map((node, i) => ({
+            nodeIndex: node.index
+        })));
 
     // ANIMATION
     const nodeTweens = new Map();
     
     nodes.forEach(node => {
         nodeTweens.set(node.index, {
-            x: tweened(node.x, { duration: 800, easing: cubicOut }),
-            y: tweened(node.y, { duration: 800, easing: cubicOut }),
+            x: spring(node.x, {
+                stiffness: 0.05, // lower = looser bounce
+                damping: 0.25   // lower = more oscillation
+            }),
+            y: spring(node.y, {
+                stiffness: 0.05,
+                damping: 0.25
+            }),
         });
     });
 
@@ -47,8 +63,6 @@
         {} // ✅ start with empty object so Svelte has a fallback
     );
 
-    let { scrollIndex } = $props();
-
     // DIMENSIONS
     let svgEl = $state();
     let width = $state(0); // Initialize with 0
@@ -78,17 +92,24 @@
 
         simulation = d3.forceSimulation(nodes)
             .force('link', d3.forceLink(links).id(d => d.index).distance(50))
-            .force('charge', d3.forceManyBody().strength(-50))
+            .force('charge', d3.forceManyBody().strength(-30))
             .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(8).strength(0.6))
             .alpha(1)
-            .alphaDecay(0.01);
+            .alphaDecay(0.001);
 
         simulation.on('tick', () => {
             processedData.set([...nodes]);
             processedLinks.set([...links]);
 
-            if (simulation.alpha() < 0.01) {
-                simulation.stop();
+            if (scrollIndex == 0 || scrollIndex == undefined) {
+                for (const node of nodes) {
+                    const tween = nodeTweens.get(node.index);
+                    if (tween) {
+                        tween.x.set(node.x);
+                        tween.y.set(node.y);
+                    }
+                }
             }
         });
     }
@@ -127,15 +148,7 @@
     }
 
     function updateNodeTweens(scrollIndex) {
-        if (scrollIndex == 0 || scrollIndex == undefined) {
-            for (const node of nodes) {
-                const tween = nodeTweens.get(node.index);
-                if (tween) {
-                    tween.x.set(node.x);
-                    tween.y.set(node.y);
-                }
-            }
-        } else if (scrollIndex >= 1) {
+        if (scrollIndex >= 1) {
             for (const pos of outerPositions) {
                 const tween = nodeTweens.get(pos.id);
                 if (tween) {
@@ -211,87 +224,130 @@
     $effect(() => {
         updateScroll(scrollIndex);
     });
+
+    $effect(() => { 
+        console.log(comments)
+    })
 </script>
 
 <div id="network" bind:clientWidth={width} bind:clientHeight={height}>
     <figure style="transform: {scrollIndex >= 6 ? "translate(0%, 40%)" : "translate(0%, 0%)"};">
 
         {#if width && height}
-        <svg bind:this={svgEl} {width} {height} class="network-svg">
-            <filter id='noise' x='0%' y='0%' width='100%' height='100%'>
-                <feTurbulence baseFrequency="0.005" type="fractalNoise" />
-            </filter>
-  
-            <rect x="0" y="0" width="100%" height="100%" filter="url(#noise)" fill="none"></rect>
-            <g class="links">
-                {#each $processedLinks as link (link.index)}
-                    {#if $tweenedPositions[link.source.index] && $tweenedPositions[link.target.index]}
-                        <line
-                            class="link"
-                            class:outerLink={isNotInnerToInner(link)}
-                            x1={$tweenedPositions[link.source.index]?.x ?? link.source.x}
-                            y1={$tweenedPositions[link.source.index]?.y ?? link.source.y}
-                            x2={$tweenedPositions[link.target.index]?.x ?? link.target.x}
-                            y2={$tweenedPositions[link.target.index]?.y ?? link.target.y}
-                            opacity={scrollIndex >= 4 && !isNotInnerToInner(link) ? 0 : 1}
-                        />
-                    {/if}
-                {/each}
-            </g>
-
-            {#if scrollIndex >= 3 && outerRingLinks.length > 0}
-                <g class="circleLinks">
-                    {#each outerRingLinks as link, i (i)}
-                        <line
-                            class="link circleLink"
-                            x1={link.source.x}
-                            y1={link.source.y}
-                            x2={link.target.x}
-                            y2={link.target.y}
-                            opacity={scrollIndex >= 5 ? 0 : 1}
-                        />
+            <svg bind:this={svgEl} {width} {height} class="network-svg">
+                <!-- <filter id='noise' x='0%' y='0%' width='100%' height='100%'>
+                    <feTurbulence baseFrequency="0.005" type="fractalNoise" />
+                </filter>
+    
+                <rect x="0" y="0" width="100%" height="100%" filter="url(#noise)" fill="none"></rect> -->
+                <g class="links">
+                    {#each $processedLinks as link (link.index)}
+                        {#if $tweenedPositions[link.source.index] && $tweenedPositions[link.target.index]}
+                            <line
+                                class="link"
+                                class:outerLink={isNotInnerToInner(link)}
+                                x1={$tweenedPositions[link.source.index]?.x ?? link.source.x}
+                                y1={$tweenedPositions[link.source.index]?.y ?? link.source.y}
+                                x2={$tweenedPositions[link.target.index]?.x ?? link.target.x}
+                                y2={$tweenedPositions[link.target.index]?.y ?? link.target.y}
+                                opacity={scrollIndex >= 4 && !isNotInnerToInner(link) ? 0 : 1}
+                            />
+                        {/if}
                     {/each}
                 </g>
-            {/if}
 
-            {#if scrollIndex >= 4 && outerRingLinks.length > 0}
-                <g class="crossLinks">
-                    {#each outerCrossLinks as link, i (i)}
-                        <line
-                            class="link crossLink"
-                            x1={link.source.x}
-                            y1={link.source.y}
-                            x2={link.target.x}
-                            y2={link.target.y}
-                            opacity={
-                                scrollIndex >= 5 &&
-                                !((link.source.id === 0 && link.target.id === 45) ||
-                                (link.source.id === 0 && link.target.id === 5))
-                                ? 0
-                                : 1
-                            }
-                        />
+                {#if scrollIndex >= 3 && outerRingLinks.length > 0}
+                    <defs>
+                        {#each outerRingLinks as link, i (i)}
+                            <linearGradient id={"grad-" + i} gradientUnits="userSpaceOnUse"
+                                x1={link.source.x} y1={link.source.y}
+                                x2={link.target.x} y2={link.target.y}>
+                                <stop offset="0%" stop-color={colors[link.source.id]} />
+                                <stop offset="100%" stop-color={colors[link.target.id]} />
+                            </linearGradient>
+                        {/each}
+                    </defs>
+                    <g class="circleLinks">
+                        {#each outerRingLinks as link, i (i)}
+                            <line
+                                class="circleLink"
+                                x1={link.source.x}
+                                y1={link.source.y}
+                                x2={link.target.x}
+                                y2={link.target.y}
+                                stroke={"url(#grad-" + i + ")"}
+                                opacity={scrollIndex >= 5 ? 0 : 1}
+                            />
+                        {/each}
+                    </g>
+                {/if}
+
+                {#if scrollIndex >= 4 && outerRingLinks.length > 0}
+                    <defs>
+                        {#each outerCrossLinks as link, i (i)}
+                            <linearGradient id={"grad-cross-" + i} gradientUnits="userSpaceOnUse"
+                                x1={link.source.x} y1={link.source.y}
+                                x2={link.target.x} y2={link.target.y}>
+                                <stop offset="0%" stop-color={colors[link.source.id]} />
+                                <stop offset="100%" stop-color={colors[link.target.id]} />
+                            </linearGradient>
+                        {/each}
+                    </defs>
+                    <g class="crossLinks">
+                        {#each outerCrossLinks as link, i (i)}
+                            <line
+                                class="crossLink"
+                                x1={link.source.x}
+                                y1={link.source.y}
+                                x2={link.target.x}
+                                y2={link.target.y}
+                                stroke={"url(#grad-cross-" + i + ")"}
+                                opacity={
+                                    scrollIndex >= 5 &&
+                                    !((link.source.id === 0 && link.target.id === 45) ||
+                                    (link.source.id === 0 && link.target.id === 5))
+                                    ? 0
+                                    : 1
+                                }
+                            />
+                        {/each}
+                    </g>
+                {/if}
+
+                <g class="nodes">
+                    {#each $processedData as node (node.index)}
+                        {#if $tweenedPositions[node.index]}
+                            <circle
+                                r={scrollIndex >= 3 && node.index <= 7 ? 10 : 4}
+                                cx={$tweenedPositions[node.index]?.x ?? node.x}
+                                cy={$tweenedPositions[node.index]?.y ?? node.y}
+                                opacity={scrollIndex >= 4 && node.index > 7 ? 0 : 
+                                    scrollIndex >= 5 && node.index !== 0 && node.index !== 5 ? 0 : 1}
+                                fill={node.index <= 7 && scrollIndex >= 3 ? colors[node.index] : "#191919"}
+                            />
+                        {/if}
                     {/each}
                 </g>
-            {/if}
-
-            <g class="nodes">
-                {#each $processedData as node (node.index)}
-                    {#if $tweenedPositions[node.index]}
-                        <circle
-                            r={8}
-                            cx={$tweenedPositions[node.index]?.x ?? node.x}
-                            cy={$tweenedPositions[node.index]?.y ?? node.y}
-                            opacity={scrollIndex >= 4 && node.index > 9 ? 0 : 
-                                scrollIndex >= 5 && node.index !== 0 && node.index !== 5 ? 0 : 1}
-                            stroke={node.index <= 7 ? colors[node.index] : "#191919"}
-                            stroke-width={node.index <= 7 ? 5 : 1}
-                            fill={"white"}
-                        />
-                    {/if}
-                {/each}
-            </g>
-        </svg>
+            </svg>
+            {#each commentNodes as c, i (c.nodeIndex)}
+                {#if comments.length > 0}
+                    <div
+                        class="node-comment"
+                        style="position: absolute;
+                            top: {$tweenedPositions[c.nodeIndex].y + 'px'};
+                            left: {$tweenedPositions[c.nodeIndex].x + 'px'};
+                            transform: translate(-50%, -120%);
+                            background: white;
+                            padding: 4px 8px;
+                            border-radius: 4px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                            pointer-events: none;
+                            font-size: 12px;"
+                        transition:fly={{ y: -20, duration: 400, delay: i * 100 }}>
+                        {comments[i].value}
+                    </div>
+                {/if}
+            {/each}
         {/if}
     </figure>
 </div>
@@ -304,7 +360,6 @@
         align-items: center;
         justify-content: center;
         position: relative;
-        background-color: #f0f0f0;
     }
     figure {
         width: 100%;
@@ -315,6 +370,11 @@
         align-items: center;
         justify-content: center;
         transition: all 0.5s ease;
+    }
+    .node-comment {
+        font-family: var(--sans);
+        font-size: var(--12px);
+        max-width: 120px;
     }
     .network-svg {
         display: block;
@@ -329,14 +389,17 @@
         stroke-width: 1px;
         transition: opacity 0.5s ease, stroke-dashoffset 1s ease;
     }
-    :global(.circle) {
-        fill: var(--color-bg);
-        transition: opacity 0.5s ease, cy 1s ease, cx 1s ease;
+    .nodes circle {
+        transition: opacity 0.5s ease, r 0.5s ease, fill 0.5s ease;
     }
 
     :global(.outerLink, .circleLink) {
         stroke-dasharray: none;
         stroke-dashoffset: 0;
         transition: stroke-dashoffset 0.5s ease;
+    }
+
+    :global(.circleLink, .crossLink) {
+        stroke-width: 2;
     }
 </style>

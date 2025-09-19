@@ -6,6 +6,8 @@
 	const copy = getContext("copy");
 	// const data = getContext("data");
 
+	console.log(copy)
+
 	let scrollIndex = $state();
 </script>
 
