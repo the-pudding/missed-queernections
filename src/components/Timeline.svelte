@@ -14,6 +14,7 @@
     const spacing = margins.left;
     const startX = 40; // Increased startX to give left right padding
     const bulgeAmount = $derived(svgWidth/8);
+    const blackLineX = 20;
 
     // SCROLL
     let yScroll = $state(0);
@@ -56,8 +57,10 @@
             // Get all months in the data range
             const months = d3.timeMonth.range(
                 d3.timeMonth.floor(d3.min(data, d => d.date)),
-                d3.timeMonth.ceil(d3.max(data, d => d.date))
+                d3.timeMonth.offset(d3.timeMonth.ceil(d3.max(data, d => d.date)), 1)
             );
+
+            console.log(data, months)
 
             const points = months.map(month => {
                 // All events in this month
@@ -122,7 +125,8 @@
         const emptyDots = data
             .filter(d => {
                 const self = d[`${side}Themes`];
-                const hasEvent = self.event && self.event !== "START" && self.event !== "END";
+                const eventStr = Array.isArray(self.event) ? self.event[0] : self.event;
+                const hasEvent = eventStr && eventStr !== "START" && eventStr !== "END";
                 const allThemesZero = themes.every(theme => self[theme] !== '1');
                 return hasEvent && allThemesZero;
             })
@@ -130,7 +134,7 @@
                 const eventStr = String(d[`${side}Themes`].event || '').trim();
                 const reverse = side === "ashlee";
 
-                const baseX = reverse ? svgWidth - spacing - 5 : spacing + 5;
+                const baseX = reverse ? svgWidth - blackLineX : blackLineX;
 
                 return {
                     id: `${side}-${parseMonthYear(d.date)}-empty-${eventStr}`,
@@ -455,7 +459,7 @@
             {#if svgHeight > 0}
                 {#each ["jan", "ashlee"] as side}
                     <g class="g-{side}">
-                        <line x1={side == "jan" ? 20 : svgWidth - 20} y1=0 x2={side == "jan" ? 10 : svgWidth - 10} y2={svgHeight} stroke="black" stroke-width={4}></line>
+                        <line x1={side == "jan" ? blackLineX : svgWidth - blackLineX} y1=0 x2={side == "jan" ? blackLineX : svgWidth - blackLineX} y2={svgHeight} stroke="black" stroke-width={4}></line>
 
                         {#each allTimelineData[side].paths as themePath, i}
                             <path id="{themePath.theme}-{i}-path" d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
