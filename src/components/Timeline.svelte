@@ -60,8 +60,6 @@
                 d3.timeMonth.offset(d3.timeMonth.ceil(d3.max(data, d => d.date)), 1)
             );
 
-            console.log(data, months)
-
             const points = months.map(month => {
                 // All events in this month
                 const monthStr = d3.timeFormat("%B %Y")(month);
@@ -399,6 +397,8 @@
 
             lastScrollY = yScroll;
         }
+
+        console.log(addedEvents)
     });
 </script>
 
@@ -449,8 +449,10 @@
                     <div class="comment" 
                         transition:fly={{ y: 40, duration: 300 }}
                         style="left: {match.janComment ? '20px' : 'auto'}; right: {match.ashComment ? '20px' : 'auto'};"
-                    >
-                        {match.janComment ? match.janComment : match.ashComment}
+                    >   
+                    <p>{match.date}</p>
+                    <p>{match.event}</p>
+                    <p>{match.janComment ? match.janComment : match.ashComment}</p>
                     </div>
                 {/if}
             {/each}
@@ -700,6 +702,11 @@
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         transition: opacity 100ms linear;
         pointer-events: none;
+    }
+
+    .comment p {
+        margin: 0;
+        padding: 0;
     }
 
     :global(#timeline svg circle) {
