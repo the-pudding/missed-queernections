@@ -5,13 +5,14 @@
     import commentsData from "$data/comments.csv";
     import Key from "$components/Key.svelte";
     import Story from "$components/Story.svelte";
+    import Bands from "$components/BackgroundBands.svelte";
     import { fly } from 'svelte/transition';
 
     // DIMENSIONS
     let svgHeight = $state(0);
     let svgWidth = $state(0);
     const margins = {top: 0, right: 12, bottom: 0, left: 12}
-    const spacing = margins.left;
+    const spacing = 8;
     const startX = 40; // Increased startX to give left right padding
     const bulgeAmount = $derived(svgWidth/8);
     const blackLineX = 20;
@@ -47,6 +48,7 @@
     // COMPUTES PATHS AND DOTS FROM THE EVENT DATA
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
         const reverse = side === "ashlee";
+        const baseOffset = 10;
 
         // Paths
         const paths = themes.map((theme, i) => {
@@ -54,72 +56,81 @@
                 ? svgWidth - startX - i * spacing
                 : startX + i * spacing;
 
-            // Get all months in the data range
             const months = d3.timeMonth.range(
                 d3.timeMonth.floor(d3.min(data, d => d.date)),
                 d3.timeMonth.offset(d3.timeMonth.ceil(d3.max(data, d => d.date)), 1)
             );
 
-            const points = months.map(month => {
-                // All events in this month
+            // We now generate two sets of points for each path
+            const bulgedPoints = [];
+            const straightPoints = [];
+
+            months.forEach(month => {
+                const y = yScale(month);
                 const monthStr = d3.timeFormat("%B %Y")(month);
                 const monthEvents = data.filter(d => d3.timeFormat("%B %Y")(d.date) === monthStr);
 
-                // Check if any event in this month has theme on self/other
                 const hasSelf = monthEvents.some(d => d[`${side}Themes`][theme] === '1');
                 const hasOther = monthEvents.some(d => d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1');
 
-                // Compute bulge
-                let xOffset = 0;
-                if (hasSelf && hasOther) xOffset = 2 * bulgeAmount + i * 12;
-                else if (hasSelf) xOffset = bulgeAmount + i * 12;
+                const width = svgWidth;
+                let xOffset = baseX;
 
-                return [
-                    reverse ? baseX - xOffset : baseX + xOffset,
-                    yScale(month)
-                ];
+                if (hasSelf && hasOther) {
+                    xOffset = width / 2;
+                } else if (hasSelf && side === "jan") {
+                    xOffset = width / 4 + i * baseOffset;
+                } else if (hasSelf && side === "ashlee") {
+                    xOffset = (3 * width) / 4 - i * baseOffset;
+                }
+
+                bulgedPoints.push([xOffset, y]);
+                straightPoints.push([baseX, y]); // The straight path always uses baseX
             });
 
-            return { theme, points };
+            // Return both point arrays
+            return { theme, points: bulgedPoints, straightPoints };
         });
 
         // Rainbow line dots
         const dots = data.flatMap(d => {
-            const reverse = side === "ashlee";
             const otherSide = side === "jan" ? "ashlee" : "jan";
 
             return themes.flatMap((theme, themeIndex) => {
                 if (d[`${side}Themes`][theme] !== '1') return [];
 
-                // Find all events in this month for self and other
                 const dotMonthStr = d3.timeFormat("%B %Y")(d.date);
                 const monthEvents = data.filter(ev => d3.timeFormat("%B %Y")(ev.date) === dotMonthStr);
 
                 const hasSelf = monthEvents.some(ev => ev[`${side}Themes`][theme] === '1');
                 const hasOther = monthEvents.some(ev => ev[`${otherSide}Themes`][theme] === '1');
 
-                // Bulge calculation (same as paths)
-                let xOffset = 0;
-                if (hasSelf && hasOther) xOffset = 2 * bulgeAmount + themeIndex * 12;
-                else if (hasSelf) xOffset = bulgeAmount + themeIndex * 12;
+                const width = svgWidth; 
+                const baseX = reverse ? svgWidth - startX - themeIndex * spacing : startX + themeIndex * spacing;
+                let x = baseX;
 
-                const baseX = reverse
-                    ? svgWidth - startX - themeIndex * spacing
-                    : startX + themeIndex * spacing;
+                if (hasSelf && hasOther) {
+                    x = width / 2;
+                } else if (hasSelf && side === "jan") {
+                    x = width / 4 + themeIndex * baseOffset;
+                } else if (hasSelf && side === "ashlee") {
+                    x = (3 * width) / 4 - themeIndex * baseOffset;
+                }
 
                 return {
                     id: `${side}-${parseMonthYear(d.date)}-${theme}`,
                     date: d.date,
                     event: String(d[`${side}Themes`].event || '').trim(),
                     theme,
-                    bulge: xOffset,
-                    x: reverse ? baseX - xOffset : baseX + xOffset,
-                    y: yScale(d.date)
+                    x: x, // Final bulged X
+                    y: yScale(d.date),
+                    baseX: baseX, // Add the initial straight X
+                    monthStr: d3.timeFormat("%B %Y")(d.date) // Add month string for easier selection
                 };
             });
         });
         
-        // Black line
+        // Also update emptyDots to have baseX for consistency
         const emptyDots = data
             .filter(d => {
                 const self = d[`${side}Themes`];
@@ -130,17 +141,17 @@
             })
             .map(d => {
                 const eventStr = String(d[`${side}Themes`].event || '').trim();
-                const reverse = side === "ashlee";
-
                 const baseX = reverse ? svgWidth - blackLineX : blackLineX;
 
                 return {
                     id: `${side}-${parseMonthYear(d.date)}-empty-${eventStr}`,
                     date: d.date,
                     event: eventStr,
-                    x: baseX,
+                    x: baseX, // In this case, x and baseX are the same
                     y: yScale(d.date),
-                    r: 8
+                    r: 6,
+                    baseX: baseX,
+                    monthStr: d3.timeFormat("%B %Y")(d.date)
                 };
             });
 
@@ -155,6 +166,7 @@
         const allData = [];
 
         janData.forEach(e => {
+            if (!e.date) return;
             allData.push({
                 date: parseMonthYear(e.date),
                 janThemes: (() => {
@@ -167,6 +179,7 @@
         });
 
         ashleeData.forEach(e => {
+            if (!e.date) return;
             allData.push({
                 date: parseMonthYear(e.date),
                 janThemes: {}, // empty for Ashlee events
@@ -397,14 +410,91 @@
 
             lastScrollY = yScroll;
         }
+    });
 
-        console.log(addedEvents)
+    // REACTIVE: ANIMATE BULGE BASED ON HIGHLIGHTED TICK
+    $effect(() => {
+        if (!allTimelineData.jan.paths.length || !axisData.length) return;
+
+        const animationDuration = 300;
+        const animationEase = d3.easeCubicOut;
+        const sides = ['jan', 'ashlee'];
+
+        let startDate, endDate;
+        if (highlightedTickDate) {
+            startDate = d3.timeMonth.offset(highlightedTickDate, -2);
+            endDate = d3.timeMonth.offset(highlightedTickDate, 2);
+        }
+
+        // --- Animate Dots (More Efficiently) ---
+        d3.selectAll(".circle-group").each(function() {
+            const g = d3.select(this);
+            const monthStr = g.attr('data-month');
+            if (!monthStr) return;
+
+            const dotDate = parseMonthYear(monthStr);
+
+            // 1. Determine the TARGET state (should this dot be bulged?)
+            const shouldBeBulged = startDate && endDate && dotDate >= startDate && dotDate <= endDate;
+            
+            // 2. Get the CURRENT state (is it already bulged?)
+            const isCurrentlyBulged = g.classed('bulged');
+
+            // 3. Only animate if the state needs to change
+            if (shouldBeBulged && !isCurrentlyBulged) {
+                // Animate OUT to the bulged position
+                g.classed('bulged', true);
+                g.transition()
+                    .duration(animationDuration)
+                    .ease(animationEase)
+                    .attr("transform", `translate(${g.attr('data-x')}, ${g.attr('data-y')}) scale(1)`);
+            } else if (!shouldBeBulged && isCurrentlyBulged) {
+                // Animate IN to the straight position
+                g.classed('bulged', false);
+                g.transition()
+                    .duration(animationDuration)
+                    .ease(animationEase)
+                    .attr("transform", `translate(${g.attr('data-basex')}, ${g.attr('data-y')}) scale(1)`);
+            }
+        });
+        
+        // --- Animate Paths (More Efficiently) ---
+        // This same logic applies to the paths to prevent them from re-animating unnecessarily
+        d3.selectAll("path.timeline-path").each(function() {
+            const pathElement = d3.select(this);
+            const sideIndex = pathElement.attr('data-side-index');
+            const pathIndex = pathElement.attr('data-path-index');
+            const side = sides[sideIndex];
+            
+            const pathData = allTimelineData[side].paths[pathIndex];
+            if (!pathData) return;
+
+            const newPoints = pathData.straightPoints.map((point, i) => {
+                const monthForPoint = d3.timeMonth.offset(minDate, i);
+                if (startDate && endDate && monthForPoint >= startDate && monthForPoint <= endDate) {
+                    return pathData.points[i];
+                }
+                return point;
+            });
+            
+            const newPathD = lineGenerator(newPoints);
+            const currentPathD = pathElement.attr('d');
+
+            // Only start a transition if the path shape has actually changed
+            if (newPathD !== currentPathD) {
+                 pathElement.transition()
+                    .duration(animationDuration)
+                    .ease(animationEase)
+                    .attr("d", newPathD);
+            }
+        });
     });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
 
 <section id="timeline">
+    <Bands />
     <Story bind:isOpen={storyVisible} {highlightedTickDate}
         on:close={() => {
             storyVisible = false}} 
@@ -437,15 +527,12 @@
                 {@const hasComment = match && (match.janComment || match.ashComment)}
                 <div id="tick-{i}" class="axis-tick" 
                     style="top: {allTimelineData.yScale(tickValue) - margins.top}px;"
-                    class:highlighted={i === highlightedTickIndex}
                 >
                     {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
                         <p class="year">{formatYear(tickValue)}</p>
-                    {:else}
-                        <p class="month">{formatMonthYear(tickValue)}</p>
                     {/if}
                 </div>
-                {#if hasComment && i === highlightedTickIndex}
+                <!-- {#if hasComment && i === highlightedTickIndex}
                     <div class="comment" 
                         transition:fly={{ y: 40, duration: 300 }}
                         style="left: {match.janComment ? '20px' : 'auto'}; right: {match.ashComment ? '20px' : 'auto'};"
@@ -454,17 +541,26 @@
                     <p>{match.event}</p>
                     <p>{match.janComment ? match.janComment : match.ashComment}</p>
                     </div>
-                {/if}
+                {/if} -->
             {/each}
         </div>
-        <svg width={svgWidth} height={36000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
+        <svg width={svgWidth} height={60000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
-                {#each ["jan", "ashlee"] as side}
+                {#each ["jan", "ashlee"] as side, sideIndex}
                     <g class="g-{side}">
-                        <line x1={side == "jan" ? blackLineX : svgWidth - blackLineX} y1=0 x2={side == "jan" ? blackLineX : svgWidth - blackLineX} y2={svgHeight} stroke="black" stroke-width={4}></line>
+                        <line x1={side == "jan" ? blackLineX : svgWidth - blackLineX} y1=0 x2={side == "jan" ? blackLineX : svgWidth - blackLineX} y2={svgHeight} stroke="black" stroke-width={3}></line>
 
                         {#each allTimelineData[side].paths as themePath, i}
-                            <path id="{themePath.theme}-{i}-path" d={lineGenerator(themePath.points)} stroke={colors[i]} fill="none" stroke-width={8} />
+                            <path 
+                                class="timeline-path"
+                                data-side-index={sideIndex}
+                                data-path-index={i}
+                                id="{themePath.theme}-{i}-path" 
+                                d={lineGenerator(themePath.straightPoints)} 
+                                stroke={colors[i]} 
+                                fill="none" 
+                                stroke-width={6} 
+                            />
                         {/each}
 
                         {#each allTimelineData[side].dots as dot}
@@ -475,8 +571,10 @@
                                 data-id={normalizeEventKey(dot.event)}
                                 data-x={dot.x}
                                 data-y={dot.y}
+                                data-basex={dot.baseX}
+                                data-month={dot.monthStr}
                                 data-theme={dot.theme}
-                                transform={`translate(${dot.x}, ${dot.y}) scale(1)`}
+                                transform={`translate(${dot.baseX}, ${dot.y}) scale(1)`}
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
                                 onclick={(e) => circleClickAdd(e, dot)}
@@ -488,40 +586,27 @@
                                 }}
                             >
                                 <circle
-                                    r={12}
+                                    r={10}
                                     fill={colors[themes.indexOf(dot.theme)]}
                                 />
-                                <!-- Plus sign -->
-                                <g 
-                                    class="icon"
-                                    class:rotated={addedEvents.includes(dot.event)}>
-                                    <line
-                                        x1="0" y1="-4"
-                                        x2="0" y2="4"
-                                        stroke="white"
-                                        stroke-width="2"
-                                        pointer-events="none"
-                                    />
-                                    <line
-                                        x1="-4" y1="0"
-                                        x2="4" y2="0"
-                                        stroke="white"
-                                        stroke-width="2"
-                                        pointer-events="none"
-                                    />
+                                <g class="icon" class:rotated={addedEvents.includes(dot.event)}>
+                                    <line x1="0" y1="-4" x2="0" y2="4" stroke="white" stroke-width="2" pointer-events="none" />
+                                    <line x1="-4" y1="0" x2="4" y2="0" stroke="white" stroke-width="2" pointer-events="none" />
                                 </g>
                             </g>
                         {/each}
 
                         {#each allTimelineData[side].emptyDots as dot}
                             <g 
-                                class="circle-group"
+                                class="empty-dot-group"
                                 tabindex="0" 
                                 role="button"  
                                 data-id={normalizeEventKey(dot.event)}
                                 data-x={dot.x}
                                 data-y={dot.y}
-                                transform={`translate(${dot.x}, ${dot.y}) scale(1)`}
+                                data-basex={dot.baseX}
+                                data-month={dot.monthStr}
+                                transform={`translate(${dot.baseX}, ${dot.y}) scale(1)`}
                                 onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
                                 onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
                                 onclick={(e) => circleClickAdd(e, dot)}
@@ -532,28 +617,10 @@
                                     }
                                 }}
                             >
-                                <circle
-                                    r={8}
-                                    fill="black"
-                                />
-                                <!-- Plus sign -->
-                                <g 
-                                    class="icon"
-                                    class:rotated={addedEvents.includes(dot.event)}>
-                                    <line
-                                        x1="0" y1="-4"
-                                        x2="0" y2="4"
-                                        stroke="white"
-                                        stroke-width="2"
-                                        pointer-events="none"
-                                    />
-                                    <line
-                                        x1="-4" y1="0"
-                                        x2="4" y2="0"
-                                        stroke="white"
-                                        stroke-width="2"
-                                        pointer-events="none"
-                                    />
+                                <circle r={6} fill="black" />
+                                <g class="icon" class:rotated={addedEvents.includes(dot.event)}>
+                                    <line x1="0" y1="-3" x2="0" y2="3" stroke="white" stroke-width="2" pointer-events="none" />
+                                    <line x1="-3" y1="0" x2="3" y2="0" stroke="white" stroke-width="2" pointer-events="none" />
                                 </g>
                             </g>
                         {/each}
@@ -641,7 +708,7 @@
     }
 
     .circle-group {
-        transition: transform 150ms ease;
+        /* transition: transform 150ms ease; */
     }
 
     .icon {
@@ -678,10 +745,6 @@
         line-height: 1;
         font-size: var(--14px);
         font-weight: 500;
-    }
-
-    .year {
-       font-weight: 700; 
     }
 
     .highlighted p {
