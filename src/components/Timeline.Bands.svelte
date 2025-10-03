@@ -23,14 +23,14 @@
     }
 
     .outer {
-        background: var(--color-gray-50);
+        background: #FCFBFF;
     }
 
     .inner {
-        background: var(--color-gray-100);
+        background: #FAF6FF;
     }
 
     .middle {
-        background: var(--color-gray-200);
+        background: #F6F2FF;
     }
 </style>

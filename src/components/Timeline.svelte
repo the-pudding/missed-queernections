@@ -2,11 +2,12 @@
     import * as d3 from 'd3';
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
-    import commentsData from "$data/comments.csv";
     import Key from "$components/Key.svelte";
     import Story from "$components/Story.svelte";
-    import Bands from "$components/BackgroundBands.svelte";
-    import { fly } from 'svelte/transition';
+    import Bands from "$components/Timeline.Bands.svelte";
+    import Axis from "$components/Timeline.Axis.svelte";
+    import Side from "$components/Timeline.Side.svelte";
+    import { themes, colors, normalizeEventKey } from "$runes/misc.svelte.js";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -21,11 +22,55 @@
     let yScroll = $state(0);
     let lastScrollY = 0;
     let scrollTimeout = null;
-    let scrolling = false;
+    let scrolling = $state(false);
+    let bulgedMonthIndices = $state(new Set());
 
-    // ARRAYS
-    const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
-    const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
+    let addedEvents = $state([]);
+    let hoveredEventKey = $state(null);
+    let hoveredThemes = $state([]);
+
+    // NEW: Centralized event handlers
+    function handleDotHover(event) {
+        const { dot, clientX, clientY } = event.detail;
+        if (scrolling) return;
+
+        hoveredEventKey = normalizeEventKey(dot.event);
+        
+        // Find all themes associated with this event
+        const themesForEvent = new Set();
+        const allDots = allTimelineData.jan.dots.concat(allTimelineData.ashlee.dots);
+        allDots.forEach(d => {
+            if (normalizeEventKey(d.event) === hoveredEventKey) {
+                themesForEvent.add(d.theme);
+            }
+        });
+        hoveredThemes = Array.from(themesForEvent);
+
+        // Update tooltip
+        tooltipX = clientX > window.innerWidth / 2 ? clientX - 210 : clientX + 10;
+        tooltipY = clientY + 10;
+        tooltipVisible = true;
+        dotDate = d3.timeFormat("%b %Y")(dot.date);
+        dotEvent = dot.event;
+        dotTheme = hoveredThemes;
+    }
+
+    function handleDotLeave() {
+        hoveredEventKey = null;
+        hoveredThemes = [];
+        tooltipVisible = false;
+    }
+
+    function handleDotClick(event) {
+        const eventKey = String(event.detail.dot.event ?? '').trim();
+        if (!eventKey) return;
+        
+        if (addedEvents.includes(eventKey)) {
+            addedEvents = addedEvents.filter(ev => ev !== eventKey);
+        } else {
+            addedEvents = [...addedEvents, eventKey];
+        }
+    }
     
     // DOM ELEMENTS
     let figureElement;
@@ -34,16 +79,7 @@
     let storyVisible = $state(false);
 
     // DATA
-    let addedEvents = $state([]);
     const parseMonthYear = d3.timeParse("%B %Y");
-
-    // HELPER FUNCTIONS
-    function normalizeEventKey(str) {
-        return String(str || '')
-            .toLowerCase()              // optional: lowercase everything
-            .replace(/\s+/g, '')        // remove all whitespace
-            .replace(/[^a-z0-9\-]/g, ''); // remove all non-alphanumeric characters (keep dash if needed)
-    }
 
     // COMPUTES PATHS AND DOTS FROM THE EVENT DATA
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
@@ -224,151 +260,6 @@
     let dotDate = $state();
     let dotEvent = $state();
     let dotTheme = $state();
-    const formatMonthYear = d3.timeFormat("%b %Y");
-    const formatYear = d3.timeFormat("%Y");
-
-    // EVENT HANDLERS
-    function circleMouseEnter(e, dot, dotType) {
-        if (scrolling) return;
-
-        const eventKey = normalizeEventKey(dot.event);
-        if (!eventKey) return;
-
-        // Scales all related dots
-        const matchingDots = d3.selectAll(`.circle-group[data-id='${eventKey}']`);
-
-        matchingDots.attr("transform", function() {
-            const x = this.dataset.x;
-            const y = this.dataset.y;
-            return `translate(${x}, ${y}) scale(1.2)`;
-        });
-
-        // Sets tooltip info
-        tooltipX = e.x > svgWidth/2 ? e.x - 210 : e.x + 10;
-        tooltipY = e.y+10;;
-        tooltipVisible = true;
-        const themesLocal = [];
-        matchingDots.each(function(d) {
-            if (this.dataset.theme) {
-                themesLocal.push(this.dataset.theme);
-            }
-        });
-
-        dotTheme = Array.from(new Set(themesLocal));
-        dotDate = formatMonthYear(dot.date);
-        dotEvent = dot.event;
-
-        // Path lightness
-        // Resets
-        d3.selectAll("path").each(function() {
-            const pathId = this.getAttribute("id") || "";
-            const parts = pathId.split("-"); // ["theme", "index", "path"]
-            const themeIndex = parseInt(parts[1]);
-            if (!isNaN(themeIndex)) {
-                d3.select(this).attr("stroke", colors[themeIndex]);
-            }
-        });
-
-        // Lighten non-matching paths
-        const trimmedDotTheme = dotTheme.map(t => t.trim());
-
-        d3.selectAll("path").each(function() {
-            const pathId = this.getAttribute("id") || "";
-            const theme = pathId.split("-")[0]; // get the theme from the id
-
-            if (!trimmedDotTheme.includes(theme)) {
-                const pathColor = d3.color(this.getAttribute("stroke"));
-                if (pathColor) {
-                    pathColor.opacity = 0.2; // lighten by reducing opacity
-                    d3.select(this).attr("stroke", pathColor.formatRgb());
-                }
-            }
-        });
-
-        // Lighten non-matching circles
-        d3.selectAll(".circle-group circle").each(function() {
-            const parent = this.parentNode;
-            const eventId = parent.dataset.id; // normalized event key
-            const theme = parent.dataset.theme;
-            if (!theme) return;
-            const themeIndex = themes.indexOf(theme);
-
-            if (eventId !== eventKey && themeIndex !== -1) {
-                const originalColor = colors[themeIndex];
-                const color = d3.color(originalColor);
-                if (color) {
-                    color.opacity = 0.2; // lighten
-                    d3.select(this).attr("fill", color.formatRgb());
-                }
-            } else if (eventId === eventKey && themeIndex !== -1) {
-                // restore original color if this is the hovered event
-                d3.select(this).attr("fill", colors[themeIndex]);
-            }
-        });
-    
-        // Find the closest axis tick to the dot's date and highlight it
-        const dotDateValue = parseMonthYear(dot.date);
-            const dotMonthStr = d3.timeFormat("%B %Y")(parseMonthYear(dot.date));
-            let closestIndex = -1;
-
-            axisData.forEach((tickValue, i) => {
-                const tickStr = d3.timeFormat("%B %Y")(tickValue);
-                if (tickStr === dotMonthStr) {
-                    closestIndex = i;
-                }
-            });
-        
-        highlightedTickIndex = closestIndex;
-    }
-
-    function circleMouseExit(e, dot, dotType) {
-        const eventKey = normalizeEventKey(dot.event);
-        
-        // Reset dot scale
-        d3.selectAll(`.circle-group[data-id='${eventKey}']`)
-            .attr("transform", function() {
-                const x = this.dataset.x;
-                const y = this.dataset.y;
-                return `translate(${x}, ${y}) scale(1)`;
-            });
-
-        // Reset path lightness
-        d3.selectAll("path").each(function() {
-            const pathId = this.getAttribute("id") || "";
-            const parts = pathId.split("-"); // ["theme", "index", "path"]
-            const themeIndex = parseInt(parts[1]);
-            if (!isNaN(themeIndex)) {
-                d3.select(this).attr("stroke", colors[themeIndex]);
-            }
-        });
-
-        // Reset circle lightness
-        d3.selectAll(".circle-group circle").each(function() {
-            const parent = this.parentNode;
-            const theme = parent.dataset.theme; // may be undefined for emptyDots
-            if (!theme) return; // skip emptyDots
-            const themeIndex = themes.indexOf(theme);
-            if (themeIndex === -1) return;
-
-            // Restore original color
-            d3.select(this).attr("fill", colors[themeIndex]);
-        });
-
-        // Tooltip info
-        tooltipVisible = false;
-    }
-
-    function circleClickAdd(e, dot) {
-        const eventKey = String(dot.event ?? '').trim();
-        if (!eventKey) return;
-
-        // TO-DO push this to database
-        if (addedEvents.includes(eventKey)) {
-            addedEvents = addedEvents.filter(ev => ev !== eventKey);
-        } else {
-            addedEvents = [...addedEvents, eventKey];
-        }
-    }
 
     // REACTIVE: HIGHLIGHT TICK BASED ON SCROLL
     $effect(() => {
@@ -414,52 +305,62 @@
 
     // REACTIVE: ANIMATE BULGE BASED ON HIGHLIGHTED TICK
     $effect(() => {
-        if (!allTimelineData.jan.paths.length || !axisData.length) return;
+        if (!highlightedTickDate || !minDate) return;
+
+        // Get the index of the start of the 5-month bulge window
+        const windowStartDate = d3.timeMonth.offset(highlightedTickDate, -2);
+        const startIndex = d3.timeMonth.count(minDate, windowStartDate);
+        
+        let needsUpdate = false;
+        const newIndices = new Set(bulgedMonthIndices);
+
+        // Check the 5-month window and add any new indices
+        for (let i = 0; i < 3; i++) {
+            const currentIndex = startIndex + i;
+            if (currentIndex >= 0 && !newIndices.has(currentIndex)) {
+                newIndices.add(currentIndex);
+                needsUpdate = true;
+            }
+        }
+
+        // Only trigger the animation effect if there are new months to bulge
+        if (needsUpdate) {
+            bulgedMonthIndices = newIndices;
+        }
+    });
+
+
+    // REACTIVE: ANIMATE ELEMENTS WHEN THE SET OF BULGED MONTHS CHANGES
+    $effect(() => {
+        if (bulgedMonthIndices.size === 0 || !minDate) return;
 
         const animationDuration = 300;
         const animationEase = d3.easeCubicOut;
         const sides = ['jan', 'ashlee'];
 
-        let startDate, endDate;
-        if (highlightedTickDate) {
-            startDate = d3.timeMonth.offset(highlightedTickDate, -2);
-            endDate = d3.timeMonth.offset(highlightedTickDate, 2);
-        }
-
         // --- Animate Dots (More Efficiently) ---
-        d3.selectAll(".circle-group").each(function() {
-            const g = d3.select(this);
-            const monthStr = g.attr('data-month');
-            if (!monthStr) return;
+        // Select only dots that are in a bulged month AND haven't been animated yet
+        d3.selectAll(".circle-group:not(.bulged), .empty-dot-group:not(.bulged)")
+            .filter(function() {
+                const g = d3.select(this);
+                const monthStr = g.attr('data-month');
+                if (!monthStr) return false;
 
-            const dotDate = parseMonthYear(monthStr);
+                const dotDate = parseMonthYear(monthStr);
+                const monthIndex = d3.timeMonth.count(minDate, dotDate);
+                
+                return bulgedMonthIndices.has(monthIndex);
+            })
+            .classed('bulged', true) // Mark as bulged to prevent re-animating
+            .transition()
+            .duration(animationDuration)
+            .ease(animationEase)
+            .attr("transform", function() {
+                const g = d3.select(this);
+                return `translate(${g.attr('data-x')}, ${g.attr('data-y')}) scale(1)`;
+            });
 
-            // 1. Determine the TARGET state (should this dot be bulged?)
-            const shouldBeBulged = startDate && endDate && dotDate >= startDate && dotDate <= endDate;
-            
-            // 2. Get the CURRENT state (is it already bulged?)
-            const isCurrentlyBulged = g.classed('bulged');
-
-            // 3. Only animate if the state needs to change
-            if (shouldBeBulged && !isCurrentlyBulged) {
-                // Animate OUT to the bulged position
-                g.classed('bulged', true);
-                g.transition()
-                    .duration(animationDuration)
-                    .ease(animationEase)
-                    .attr("transform", `translate(${g.attr('data-x')}, ${g.attr('data-y')}) scale(1)`);
-            } else if (!shouldBeBulged && isCurrentlyBulged) {
-                // Animate IN to the straight position
-                g.classed('bulged', false);
-                g.transition()
-                    .duration(animationDuration)
-                    .ease(animationEase)
-                    .attr("transform", `translate(${g.attr('data-basex')}, ${g.attr('data-y')}) scale(1)`);
-            }
-        });
-        
-        // --- Animate Paths (More Efficiently) ---
-        // This same logic applies to the paths to prevent them from re-animating unnecessarily
+        // --- Animate Paths ---
         d3.selectAll("path.timeline-path").each(function() {
             const pathElement = d3.select(this);
             const sideIndex = pathElement.attr('data-side-index');
@@ -469,24 +370,18 @@
             const pathData = allTimelineData[side].paths[pathIndex];
             if (!pathData) return;
 
+            // Generate path using a quick Set lookup instead of a slow loop
             const newPoints = pathData.straightPoints.map((point, i) => {
-                const monthForPoint = d3.timeMonth.offset(minDate, i);
-                if (startDate && endDate && monthForPoint >= startDate && monthForPoint <= endDate) {
-                    return pathData.points[i];
-                }
-                return point;
+                return bulgedMonthIndices.has(i) ? pathData.points[i] : point;
             });
             
             const newPathD = lineGenerator(newPoints);
-            const currentPathD = pathElement.attr('d');
-
-            // Only start a transition if the path shape has actually changed
-            if (newPathD !== currentPathD) {
-                 pathElement.transition()
-                    .duration(animationDuration)
-                    .ease(animationEase)
-                    .attr("d", newPathD);
-            }
+            
+            // This transition will run for the whole path, but it's very fast
+            pathElement.transition()
+                .duration(animationDuration)
+                .ease(animationEase)
+                .attr("d", newPathD);
         });
     });
 </script>
@@ -518,113 +413,29 @@
         </div>
     </div>
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
-        <div class="axis-container" style="height: {svgHeight}px;">
-            {#each axisData as tickValue, i}
-                {@const match = commentsData.find(d => {
-                    const tickStr = d3.timeFormat("%B %Y")(tickValue); // "January 1989"
-                    return d.date.trim() === tickStr;
-                })}
-                {@const hasComment = match && (match.janComment || match.ashComment)}
-                <div id="tick-{i}" class="axis-tick" 
-                    style="top: {allTimelineData.yScale(tickValue) - margins.top}px;"
-                >
-                    {#if d3.timeMonth.floor(tickValue).getMonth() === 0}
-                        <p class="year">{formatYear(tickValue)}</p>
-                    {/if}
-                </div>
-                <!-- {#if hasComment && i === highlightedTickIndex}
-                    <div class="comment" 
-                        transition:fly={{ y: 40, duration: 300 }}
-                        style="left: {match.janComment ? '20px' : 'auto'}; right: {match.ashComment ? '20px' : 'auto'};"
-                    >   
-                    <p>{match.date}</p>
-                    <p>{match.event}</p>
-                    <p>{match.janComment ? match.janComment : match.ashComment}</p>
-                    </div>
-                {/if} -->
-            {/each}
-        </div>
+        <Axis {margins} {svgHeight} {allTimelineData} {axisData} />
         <svg width={svgWidth} height={60000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
             {#if svgHeight > 0}
                 {#each ["jan", "ashlee"] as side, sideIndex}
-                    <g class="g-{side}">
-                        <line x1={side == "jan" ? blackLineX : svgWidth - blackLineX} y1=0 x2={side == "jan" ? blackLineX : svgWidth - blackLineX} y2={svgHeight} stroke="black" stroke-width={3}></line>
-
-                        {#each allTimelineData[side].paths as themePath, i}
-                            <path 
-                                class="timeline-path"
-                                data-side-index={sideIndex}
-                                data-path-index={i}
-                                id="{themePath.theme}-{i}-path" 
-                                d={lineGenerator(themePath.straightPoints)} 
-                                stroke={colors[i]} 
-                                fill="none" 
-                                stroke-width={6} 
-                            />
-                        {/each}
-
-                        {#each allTimelineData[side].dots as dot}
-                            <g 
-                                class="circle-group"
-                                tabindex="0" 
-                                role="button"  
-                                data-id={normalizeEventKey(dot.event)}
-                                data-x={dot.x}
-                                data-y={dot.y}
-                                data-basex={dot.baseX}
-                                data-month={dot.monthStr}
-                                data-theme={dot.theme}
-                                transform={`translate(${dot.baseX}, ${dot.y}) scale(1)`}
-                                onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
-                                onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
-                                onclick={(e) => circleClickAdd(e, dot)}
-                                onkeydown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                        circleClickAdd(e, dot);
-                                        e.preventDefault();
-                                    }
-                                }}
-                            >
-                                <circle
-                                    r={10}
-                                    fill={colors[themes.indexOf(dot.theme)]}
-                                />
-                                <g class="icon" class:rotated={addedEvents.includes(dot.event)}>
-                                    <line x1="0" y1="-4" x2="0" y2="4" stroke="white" stroke-width="2" pointer-events="none" />
-                                    <line x1="-4" y1="0" x2="4" y2="0" stroke="white" stroke-width="2" pointer-events="none" />
-                                </g>
-                            </g>
-                        {/each}
-
-                        {#each allTimelineData[side].emptyDots as dot}
-                            <g 
-                                class="empty-dot-group"
-                                tabindex="0" 
-                                role="button"  
-                                data-id={normalizeEventKey(dot.event)}
-                                data-x={dot.x}
-                                data-y={dot.y}
-                                data-basex={dot.baseX}
-                                data-month={dot.monthStr}
-                                transform={`translate(${dot.baseX}, ${dot.y}) scale(1)`}
-                                onmouseenter={(e) => circleMouseEnter(e, dot, "theme")}
-                                onmouseleave={(e) => circleMouseExit(e, dot, "theme")}
-                                onclick={(e) => circleClickAdd(e, dot)}
-                                onkeydown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                        circleClickAdd(e, dot);
-                                        e.preventDefault();
-                                    }
-                                }}
-                            >
-                                <circle r={6} fill="black" />
-                                <g class="icon" class:rotated={addedEvents.includes(dot.event)}>
-                                    <line x1="0" y1="-3" x2="0" y2="3" stroke="white" stroke-width="2" pointer-events="none" />
-                                    <line x1="-3" y1="0" x2="3" y2="0" stroke="white" stroke-width="2" pointer-events="none" />
-                                </g>
-                            </g>
-                        {/each}
-                    </g>
+                    <Side 
+                        {side} 
+                        {sideIndex} 
+                        {svgWidth} 
+                        {svgHeight} 
+                        {allTimelineData} 
+                        {scrolling} 
+                        {tooltipVisible} 
+                        {tooltipX} 
+                        {tooltipY} 
+                        {axisData} 
+                        {highlightedTickIndex} 
+                        {bulgedMonthIndices}
+                        {hoveredEventKey}
+                        {hoveredThemes}
+                        {addedEvents}
+                        on:hover={handleDotHover}
+                        on:leave={handleDotLeave}
+                        on:click={handleDotClick} />
                 {/each}
             {/if}
         </svg>
@@ -703,78 +514,9 @@
         position: relative;
     }
 
-    :global(path.faded) {
-        opacity: 0.4;
-    }
-
-    .circle-group {
-        /* transition: transform 150ms ease; */
-    }
-
-    .icon {
-        transition: transform 150ms ease;
-        transform-box: fill-box;       /* make transform-origin use the box of the element */
-        transform-origin: 50% 50%;     /* center of the group */
-    }
-
-    .icon.rotated {
-        transform: rotate(45deg);
-    }
-
-    svg, .axis-container {
-        position: absolute;
-        width: 100%;
-        top: 0;
-        left: 0;
-    }
-
-    .axis-tick {
-        position: absolute;
-        left: 50%;
-        transform: translate(-50%, 0);
-    }
-
-    .axis-tick p {
-        transition: all 0.25s linear;
-    }
-
-    .year, .month {
-        font-family: var(--sans);
-        margin: 0;
-        padding: 0;
-        line-height: 1;
-        font-size: var(--14px);
-        font-weight: 500;
-    }
-
     .highlighted p {
         font-weight: 700;
         font-size: var(--36px);
-    }
-
-    .comment {
-        position: fixed;
-        top: 50%;
-        background: var(--color-bg);
-        width: 200px;
-        border-radius: 8px;
-        padding: 1rem;
-        z-index: 1000;
-        font-family: var(--sans);
-        font-size: var(--12px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        transition: opacity 100ms linear;
-        pointer-events: none;
-    }
-
-    .comment p {
-        margin: 0;
-        padding: 0;
-    }
-
-    :global(#timeline svg circle) {
-        cursor: pointer;
-        /* transition: all 0.3s linear; */
     }
 
     .theme-span {
