@@ -1,10 +1,17 @@
 <script>
     import janData from "$data/jan.csv";
     import { addedEvents } from "$runes/misc.svelte.js";
-    import { X } from "@lucide/svelte";
+    import { X, ChevronDown } from "@lucide/svelte";
+
+    let listVisible = $state(false);
+
+    function toggleShow() {
+        listVisible = !listVisible;
+    }
 
     function clearAll() {
         $addedEvents = [];
+        listVisible = false;
     }
 
     function clearSingle(eventToRemove) {
@@ -12,8 +19,14 @@
     }
 </script>
 
-<div class="events-wrapper">
-    <h5>Your Events</h5>
+<div class="events-wrapper" style="transform: translateY({listVisible ? 0 : '100%'})">
+    <button class="show-toggle" onclick={toggleShow} style="top: {listVisible ? '-0.25rem' : '-2.75rem'}">
+        <p>Your Events</p>
+        <div class="chevron-wrapper" style="transform: rotate({listVisible ? 0 : 180}deg);">
+            <ChevronDown />
+        </div>
+        <p class="count" style="top: {listVisible ? '2rem' : '-0.5rem'}">{$addedEvents.length}</p>
+    </button>
     <div class="events">
         {#each $addedEvents as eventName, i}
             {@const eventData = janData.find(d => d.event === eventName)}
@@ -37,13 +50,59 @@
     .events-wrapper {
         font-family: var(--sans);
         position: fixed;
-        top: 50%;
+        top: 0;
         right: 0;
-        width: 300px;
-        transform: translateY(-50%);
-        background: white;
+        width: 100%;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.98);
         z-index: 1000;
-        padding: 1rem;
+        padding: 10rem 4rem;
+        transition: transform 0.5s ease-out;
+    }
+
+    .show-toggle {
+        position: absolute;
+        width: 10rem;
+        height: 3rem;
+        top: -2.75rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--color-bg);
+        border: 3px solid var(--color-fg);
+        border-radius: 4px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    :global(.show-toggle svg) {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .count {
+        position: absolute;
+        right: -0.5rem;
+        background: var(--color-fg);
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 50%;
+        color: var(--color-bg);
+        font-size: 10px;
+        font-weight: 700;
+        padding: 0;
+        margin: 0;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chevron-wrapper {
+        transition: transform 150ms ease;
     }
 
     .events {
