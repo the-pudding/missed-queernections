@@ -7,7 +7,8 @@
     import Bands from "$components/Timeline.Bands.svelte";
     import Axis from "$components/Timeline.Axis.svelte";
     import Side from "$components/Timeline.Side.svelte";
-    import { themes, colors, normalizeEventKey } from "$runes/misc.svelte.js";
+    import YourEvents from "$components/YourEvents.svelte";
+    import { themes, colors, normalizeEventKey, addedEvents  } from "$runes/misc.svelte.js";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -25,7 +26,6 @@
     let scrolling = $state(false);
     let bulgedMonthIndices = $state(new Set());
 
-    let addedEvents = $state([]);
     let hoveredEventKey = $state(null);
     let hoveredThemes = $state([]);
 
@@ -65,10 +65,11 @@
         const eventKey = String(event.detail.dot.event ?? '').trim();
         if (!eventKey) return;
         
-        if (addedEvents.includes(eventKey)) {
-            addedEvents = addedEvents.filter(ev => ev !== eventKey);
+        if ($addedEvents.includes(eventKey)) {
+            // Reassigning the auto-subscribed variable updates the store
+            $addedEvents = $addedEvents.filter(ev => ev !== eventKey);
         } else {
-            addedEvents = [...addedEvents, eventKey];
+            $addedEvents = [...$addedEvents, eventKey];
         }
     }
     
@@ -161,7 +162,8 @@
                     x: x, // Final bulged X
                     y: yScale(d.date),
                     baseX: baseX, // Add the initial straight X
-                    monthStr: d3.timeFormat("%B %Y")(d.date) // Add month string for easier selection
+                    monthStr: d3.timeFormat("%B %Y")(d.date), // Add month string for easier selection
+                    monthIndex: d3.timeMonth.count(minDate, d.date)
                 };
             });
         });
@@ -187,7 +189,8 @@
                     y: yScale(d.date),
                     r: 6,
                     baseX: baseX,
-                    monthStr: d3.timeFormat("%B %Y")(d.date)
+                    monthStr: d3.timeFormat("%B %Y")(d.date),
+                    monthIndex: d3.timeMonth.count(minDate, d.date)
                 };
             });
 
@@ -328,62 +331,6 @@
             bulgedMonthIndices = newIndices;
         }
     });
-
-
-    // REACTIVE: ANIMATE ELEMENTS WHEN THE SET OF BULGED MONTHS CHANGES
-    $effect(() => {
-        if (bulgedMonthIndices.size === 0 || !minDate) return;
-
-        const animationDuration = 300;
-        const animationEase = d3.easeCubicOut;
-        const sides = ['jan', 'ashlee'];
-
-        // --- Animate Dots (More Efficiently) ---
-        // Select only dots that are in a bulged month AND haven't been animated yet
-        d3.selectAll(".circle-group:not(.bulged), .empty-dot-group:not(.bulged)")
-            .filter(function() {
-                const g = d3.select(this);
-                const monthStr = g.attr('data-month');
-                if (!monthStr) return false;
-
-                const dotDate = parseMonthYear(monthStr);
-                const monthIndex = d3.timeMonth.count(minDate, dotDate);
-                
-                return bulgedMonthIndices.has(monthIndex);
-            })
-            .classed('bulged', true) // Mark as bulged to prevent re-animating
-            .transition()
-            .duration(animationDuration)
-            .ease(animationEase)
-            .attr("transform", function() {
-                const g = d3.select(this);
-                return `translate(${g.attr('data-x')}, ${g.attr('data-y')}) scale(1)`;
-            });
-
-        // --- Animate Paths ---
-        d3.selectAll("path.timeline-path").each(function() {
-            const pathElement = d3.select(this);
-            const sideIndex = pathElement.attr('data-side-index');
-            const pathIndex = pathElement.attr('data-path-index');
-            const side = sides[sideIndex];
-            
-            const pathData = allTimelineData[side].paths[pathIndex];
-            if (!pathData) return;
-
-            // Generate path using a quick Set lookup instead of a slow loop
-            const newPoints = pathData.straightPoints.map((point, i) => {
-                return bulgedMonthIndices.has(i) ? pathData.points[i] : point;
-            });
-            
-            const newPathD = lineGenerator(newPoints);
-            
-            // This transition will run for the whole path, but it's very fast
-            pathElement.transition()
-                .duration(animationDuration)
-                .ease(animationEase)
-                .attr("d", newPathD);
-        });
-    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
@@ -412,6 +359,7 @@
             <p>Ashleé</p>
         </div>
     </div>
+    <YourEvents />
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
         <Axis {margins} {svgHeight} {allTimelineData} {axisData} />
         <svg width={svgWidth} height={60000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
@@ -432,7 +380,6 @@
                         {bulgedMonthIndices}
                         {hoveredEventKey}
                         {hoveredThemes}
-                        {addedEvents}
                         on:hover={handleDotHover}
                         on:leave={handleDotLeave}
                         on:click={handleDotClick} />
@@ -498,7 +445,7 @@
         font-family: var(--sans);
         font-weight: 700;
         font-size: var(--18px);
-        width: 140px;
+        width: 120px;
         height: 2.5rem;
         display: flex;
         align-items: center;

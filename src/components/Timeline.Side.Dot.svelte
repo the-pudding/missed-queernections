@@ -3,10 +3,11 @@
     import * as d3 from 'd3';
     import { themes, colors, normalizeEventKey } from "$runes/misc.svelte.js";
 
-    let {svgWidth, dot, dotType, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, isBulged, isHovered, isFaded, isAdded, addedEvents } = $props();
+    let {svgWidth, dot, dotType, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, isBulged, isHovered, isFaded, isAdded } = $props();
     let dotDate = $state();
     let dotEvent = $state();
     let dotTheme = $state();
+    let dotScale = $derived(isHovered ? 1.2 : 1);
 
     const formatMonthYear = d3.timeFormat("%b %Y");
     const parseMonthYear = d3.timeParse("%B %Y");
@@ -23,7 +24,6 @@
     }
 
     $effect(() => {
-        console.log(isAdded)
     })
 </script>
 
@@ -37,7 +37,7 @@
     data-basex={dot.baseX}
     data-month={dot.monthStr}
     data-theme={dot.theme}
-    transform={`translate(${dot.baseX}, ${dot.y}) scale(1)`}
+    transform={`translate(${isBulged ? dot.x : dot.baseX}, ${dot.y}) scale(${dotScale})`}
     onmouseenter={handleMouseEnter}
     onmouseleave={() => dispatch('leave')}
     onclick={handleClick}
@@ -60,7 +60,7 @@
 
 <style>
     .circle-group {
-        /* transition: transform 150ms ease; */
+        transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
 
     .icon {

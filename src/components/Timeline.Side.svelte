@@ -1,12 +1,12 @@
 <script>
     import { createEventDispatcher } from 'svelte';
     import * as d3 from 'd3';
-    import { themes, colors, normalizeEventKey } from "$runes/misc.svelte.js";
+    import { themes, colors, normalizeEventKey, addedEvents } from "$runes/misc.svelte.js";
     import Path from "$components/Timeline.Side.Path.svelte";
     import Dot from "$components/Timeline.Side.Dot.svelte";
     import BlackPath from "$components/Timeline.Side.BlackPath.svelte";
 
-    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, bulgedMonthIndices, hoveredEventKey, hoveredThemes, addedEvents} = $props();
+    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, bulgedMonthIndices, hoveredEventKey, hoveredThemes } = $props();
 
     const dispatch = createEventDispatcher();
 </script>
@@ -15,7 +15,7 @@
     <BlackPath {svgWidth} {svgHeight} {side}/>
     <g class="g-{side}-rainbow-paths">
         {#each allTimelineData[side].paths as themePath, i}
-            <Path {themePath} {i} {sideIndex}/>
+            <Path {themePath} {i} {sideIndex} {bulgedMonthIndices}/>
         {/each}
     </g>
 
@@ -32,11 +32,10 @@
                 {tooltipY} 
                 {axisData} 
                 {highlightedTickIndex} 
-                {addedEvents}
                 isBulged={bulgedMonthIndices.has(dot.monthIndex)}
                 isHovered={hoveredEventKey === eventKey}
                 isFaded={hoveredEventKey && hoveredEventKey !== eventKey}
-                isAdded={addedEvents.includes(dot.event)}
+                isAdded={$addedEvents.includes(dot.event)}
                 on:hover={(e) => dispatch('hover', e.detail)}
                 on:leave={() => dispatch('leave')}
                 on:click={(e) => dispatch('click', e.detail)}/>
@@ -59,7 +58,7 @@
                 isBulged={null}
                 isHovered={hoveredEventKey === eventKey}
                 isFaded={hoveredEventKey && hoveredEventKey !== eventKey}
-                isAdded={addedEvents.includes(dot.event)}
+                isAdded={$addedEvents.includes(dot.event)}
                 on:hover={(e) => dispatch('hover', e.detail)}
                 on:leave={() => dispatch('leave')}
                 on:click={(e) => dispatch('click', e.detail)}/>
