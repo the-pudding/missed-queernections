@@ -1,9 +1,9 @@
 <script>
     import { createEventDispatcher } from 'svelte';
     import * as d3 from 'd3';
-    import { themes, colors, normalizeEventKey } from "$runes/misc.svelte.js";
+    import { themes, colors, normalizeEventKey, instructionStep } from "$runes/misc.svelte.js";
 
-    let {svgWidth, dot, dotType, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, isBulged, isHovered, isFaded, isAdded } = $props();
+    let {eventKey, svgWidth, dot, dotType, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, isBulged, isHovered, isFaded, isAdded } = $props();
     let dotDate = $state();
     let dotEvent = $state();
     let dotTheme = $state();
@@ -47,14 +47,21 @@
             handleClick();
         }
     }}
->
+>   
+    {#if normalizeEventKey(dot.event) == "loriicefetrick" && dotType == "rainbow"}
+        <circle
+            r={10}
+            fill={colors[themes.indexOf(dot.theme)]}
+            class:pulse={$instructionStep === 5}
+        />
+    {/if}
     <circle
         r={dotType == "rainbow" ? 10 : 6}
         fill={dotType == "rainbow" ? colors[themes.indexOf(dot.theme)] : "black"}
     />
     <g class="icon" class:rotated={isAdded}>
-        <line x1="0" y1={dotType == "rainbow" ? "-4" : "-3"} x2="0" y2={dotType == "rainbow" ? 4 : 3} stroke="white" stroke-width="2" pointer-events="none" />
-        <line x1={dotType == "rainbow" ? "-4" : "-3"} y1="0" x2={dotType == "rainbow" ? 4 : 3} y2="0" stroke="white" stroke-width="2" pointer-events="none" />
+        <line x1="0" y1={dotType == "rainbow" ? "-4" : "-3"} x2="0" y2={dotType == "rainbow" ? 4 : 3} stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none" />
+        <line x1={dotType == "rainbow" ? "-4" : "-3"} y1="0" x2={dotType == "rainbow" ? 4 : 3} y2="0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none" />
     </g>
 </g>
 

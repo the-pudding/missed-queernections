@@ -1,6 +1,6 @@
 <script>
     import janData from "$data/jan.csv";
-    import { addedEvents } from "$runes/misc.svelte.js";
+    import { addedEvents, instructionStep } from "$runes/misc.svelte.js";
     import { X, ChevronDown } from "@lucide/svelte";
 
     let listVisible = $state(false);
@@ -19,7 +19,7 @@
     }
 </script>
 
-<div class="events-wrapper" style="transform: translateY({listVisible ? 0 : '100%'})">
+<div class="events-wrapper" class:wiggle={$instructionStep == 5} style="transform: translateY({listVisible ? 0 : '100%'})">
     <button class="show-toggle" onclick={toggleShow} style="top: {listVisible ? '-0.25rem' : '-2.75rem'}">
         <p>Your Events</p>
         <div class="chevron-wrapper" style="transform: rotate({listVisible ? 0 : 180}deg);">
@@ -60,6 +60,12 @@
         transition: transform 0.5s ease-out;
     }
 
+    @keyframes wiggle {
+        0%, 100% { transform: translateX(-50%) }
+        25% { transform: translateX(-51%) }
+        75% { transform: translateX(-49%) }
+    }
+
     .show-toggle {
         position: absolute;
         width: 10rem;
@@ -76,6 +82,11 @@
         justify-content: center;
         font-weight: 700;
         text-transform: uppercase;
+    }
+
+    .wiggle .show-toggle {
+        /* Apply the animation to the toggle button itself */
+        animation: wiggle 0.5s ease-in-out infinite; /* Runs the animation twice */
     }
 
     :global(.show-toggle svg) {

@@ -6,12 +6,12 @@
     import Dot from "$components/Timeline.Side.Dot.svelte";
     import BlackPath from "$components/Timeline.Side.BlackPath.svelte";
 
-    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, bulgedMonthIndices, hoveredEventKey, hoveredThemes } = $props();
+    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, bulgedMonthIndices, hoveredEventKey, isFaded } = $props();
 
     const dispatch = createEventDispatcher();
 </script>
 
-<g class="g-{side}">
+<g class="g-{side}" class:faded={isFaded}>
     <BlackPath {svgWidth} {svgHeight} {side}/>
     <g class="g-{side}-rainbow-paths">
         {#each allTimelineData[side].paths as themePath, i}
@@ -67,7 +67,16 @@
 </g>
 
 <style>
+
     :global(path.faded) {
         opacity: 0.4;
+    }
+
+    .g-jan, .g-ashlee {
+        transition: opacity 0.5s ease-in-out;
+    }
+
+    .faded {
+        opacity: 0.2;
     }
 </style>

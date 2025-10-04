@@ -1,35 +1,44 @@
 <script>
     import keyData from "$data/categories.csv";
     import * as d3 from 'd3';
+    import { instructionStep, colors } from "$runes/misc.svelte.js";
 
-    const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
+    let userHoveredIndex = $state(null); 
+    let animatedVisibleIndex = $state(null);
 
-    function circleMouseEnter(e) {
-        const dot = d3.select(e.currentTarget);
-        const desc = dot.node().nextElementSibling; // next sibling
+    $effect(() => {
+        let intervalId = null;
 
-        if (desc && desc.classList.contains("desc")) {
-            d3.select(desc).classed("visible", true);
+        // When the instruction step is 2, start the animation
+        if ($instructionStep === 2) {
+            let currentIndex = 0;
+            
+            // Start by showing the first item immediately
+            animatedVisibleIndex = 0;
+
+            // Set an interval to advance to the next item every second
+            intervalId = setInterval(() => {
+                currentIndex++;
+                
+                // If we've shown all items, reset and stop
+                if (currentIndex >= keyData.length) {
+                    animatedVisibleIndex = null; // Hide all
+                    clearInterval(intervalId);
+                } else {
+                    animatedVisibleIndex = currentIndex;
+                }
+            }, 1000); // 1000ms = 1 second
         }
-    }
 
-    function hexToRgba(hex, alpha) {
-        const bigint = parseInt(hex.slice(1), 16);
-        const r = (bigint >> 16) & 255;
-        const g = (bigint >> 8) & 255;
-        const b = bigint & 255;
-
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-
-    function circleMouseExit(e) {
-        const dot = d3.select(e.currentTarget);
-        const desc = dot.node().nextElementSibling;
-
-        if (desc && desc.classList.contains("desc")) {
-            d3.select(desc).classed("visible", false);
-        }
-    }
+        // Cleanup function: This is crucial!
+        // It runs when the component is unmounted or when the dependency changes.
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+            animatedVisibleIndex = null; // Reset animation state
+        };
+    });
 </script>
 
 <svg style="display:none">
@@ -54,13 +63,14 @@
                     class="dot"
                     role="tooltip"
                     style="background-color: {colors[i]}"
-                    onmouseenter={(e) => circleMouseEnter(e)}
-                    onmouseleave={(e) => circleMouseExit(e)}
+                    onmouseenter={() => userHoveredIndex = i}
+                    onmouseleave={() => userHoveredIndex = null}
                 >
                 </div>
                 <div 
                     class="desc"
                     style="background-color: {colors[i]}"
+                    class:visible={i === userHoveredIndex || i === animatedVisibleIndex}
                 >   
                     <p><span>{category.categoryLong}</span></p>
                     <p>{category.definition}</p>

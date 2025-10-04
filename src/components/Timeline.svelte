@@ -10,7 +10,7 @@
     import Tooltip from "$components/Timeline.Tooltip.svelte";
     import Instructions from "$components/Timeline.Instructions.svelte";
     import YourEvents from "$components/YourEvents.svelte";
-    import { themes, colors, normalizeEventKey, addedEvents  } from "$runes/misc.svelte.js";
+    import { themes, normalizeEventKey, addedEvents, instructionStep  } from "$runes/misc.svelte.js";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -27,15 +27,26 @@
     let scrollTimeout = null;
     let scrolling = $state(false);
 
+    // DOM ELEMENTS
+    let figureElement;
+    let highlightedTickIndex = $state(0);
+    let highlightedTickDate = $state(0);
+    let storyVisible = $state(false);
+    let bulgedMonthIndices = $state(new Set());
     let instructionsVisible = $state(true);
     let timelineSectionElement;
+    let animatedFadedSide = $state(null);
 
-    let bulgedMonthIndices = $state(new Set());
+    // TOOLTIP
+    let tooltipVisible = $state(false);
+    let tooltipX = $state();
+    let tooltipY = $state();
+    let tooltipData = $state();
 
+    // EVENTS
     let hoveredEventKey = $state(null);
     let hoveredThemes = $state([]);
 
-    // NEW: Centralized event handlers
     function handleDotHover(event) {
         const { dot, clientX, clientY } = event.detail;
         if (scrolling) return;
@@ -76,138 +87,94 @@
             $addedEvents = [...$addedEvents, eventKey];
         }
     }
-    
-    // DOM ELEMENTS
-    let figureElement;
-    let highlightedTickIndex = $state(0);
-    let highlightedTickDate = $state(0);
-    let storyVisible = $state(false);
 
     // DATA
     const parseMonthYear = d3.timeParse("%B %Y");
 
-    // COMPUTES PATHS AND DOTS FROM THE EVENT DATA
+    // Computes paths and dots from data
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
         const reverse = side === "ashlee";
         const baseOffset = 10;
 
+        const monthMap = new Map();
+        data.forEach(d => {
+            if (d.date) {
+                const monthStr = d3.timeFormat("%B %Y")(d.date);
+                if (!monthMap.has(monthStr)) monthMap.set(monthStr, []);
+                monthMap.get(monthStr).push(d);
+            }
+        });
+
         // Paths
         const paths = themes.map((theme, i) => {
-            const baseX = reverse
-                ? svgWidth - startX - i * spacing
-                : startX + i * spacing;
-
-            const months = d3.timeMonth.range(
-                d3.timeMonth.floor(d3.min(data, d => d.date)),
-                d3.timeMonth.offset(d3.timeMonth.ceil(d3.max(data, d => d.date)), 1)
-            );
-
-            // We now generate two sets of points for each path
+            const baseX = reverse ? svgWidth - startX - i * spacing : startX + i * spacing;
+            const months = d3.timeMonth.range(d3.min(data, d => d.date), d3.timeMonth.offset(d3.max(data, d => d.date), 1));
+            
             const bulgedPoints = [];
             const straightPoints = [];
 
             months.forEach(month => {
                 const y = yScale(month);
                 const monthStr = d3.timeFormat("%B %Y")(month);
-                const monthEvents = data.filter(d => d3.timeFormat("%B %Y")(d.date) === monthStr);
+                const monthEvents = monthMap.get(monthStr) || [];
 
                 const hasSelf = monthEvents.some(d => d[`${side}Themes`][theme] === '1');
                 const hasOther = monthEvents.some(d => d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1');
-
                 const width = svgWidth;
                 let xOffset = baseX;
-
-                if (hasSelf && hasOther) {
-                    xOffset = width / 2;
-                } else if (hasSelf && side === "jan") {
-                    xOffset = width / 4 + i * baseOffset;
-                } else if (hasSelf && side === "ashlee") {
-                    xOffset = (3 * width) / 4 - i * baseOffset;
-                }
-
+                if (hasSelf && hasOther) xOffset = width / 2;
+                else if (hasSelf && side === "jan") xOffset = width / 4 + i * baseOffset;
+                else if (hasSelf && side === "ashlee") xOffset = (3 * width) / 4 - i * baseOffset;
                 bulgedPoints.push([xOffset, y]);
-                straightPoints.push([baseX, y]); // The straight path always uses baseX
+                straightPoints.push([baseX, y]);
             });
-
-            // Return both point arrays
             return { theme, points: bulgedPoints, straightPoints };
         });
 
         // Rainbow line dots
         const dots = data.flatMap(d => {
             const otherSide = side === "jan" ? "ashlee" : "jan";
-
             return themes.flatMap((theme, themeIndex) => {
                 if (d[`${side}Themes`][theme] !== '1') return [];
-
                 const dotMonthStr = d3.timeFormat("%B %Y")(d.date);
-                const monthEvents = data.filter(ev => d3.timeFormat("%B %Y")(ev.date) === dotMonthStr);
+                const monthEvents = monthMap.get(dotMonthStr) || [];
 
                 const hasSelf = monthEvents.some(ev => ev[`${side}Themes`][theme] === '1');
                 const hasOther = monthEvents.some(ev => ev[`${otherSide}Themes`][theme] === '1');
-
                 const width = svgWidth; 
                 const baseX = reverse ? svgWidth - startX - themeIndex * spacing : startX + themeIndex * spacing;
                 let x = baseX;
-
-                if (hasSelf && hasOther) {
-                    x = width / 2;
-                } else if (hasSelf && side === "jan") {
-                    x = width / 4 + themeIndex * baseOffset;
-                } else if (hasSelf && side === "ashlee") {
-                    x = (3 * width) / 4 - themeIndex * baseOffset;
-                }
-
+                if (hasSelf && hasOther) x = width / 2;
+                else if (hasSelf && side === "jan") x = width / 4 + themeIndex * baseOffset;
+                else if (hasSelf && side === "ashlee") x = (3 * width) / 4 - themeIndex * baseOffset;
                 return {
-                    id: `${side}-${parseMonthYear(d.date)}-${theme}`,
-                    date: d.date,
-                    event: String(d[`${side}Themes`].event || '').trim(),
-                    eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(),
-                    theme,
-                    x: x, // Final bulged X
-                    y: yScale(d.date),
-                    baseX: baseX, // Add the initial straight X
-                    monthStr: d3.timeFormat("%B %Y")(d.date), // Add month string for easier selection
-                    monthIndex: d3.timeMonth.count(minDate, d.date)
+                    id: `${side}-${parseMonthYear(d.date)}-${theme}`, date: d.date, event: String(d[`${side}Themes`].event || '').trim(), eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(), theme, x, y: yScale(d.date), baseX, monthStr: d3.timeFormat("%B %Y")(d.date), monthIndex: d3.timeMonth.count(minDate, d.date)
                 };
             });
         });
         
-        // Also update emptyDots to have baseX for consistency
-        const emptyDots = data
-            .filter(d => {
-                const self = d[`${side}Themes`];
-                const eventStr = Array.isArray(self.event) ? self.event[0] : self.event;
-                const hasEvent = eventStr && eventStr !== "START" && eventStr !== "END";
-                const allThemesZero = themes.every(theme => self[theme] !== '1');
-                return hasEvent && allThemesZero;
-            })
-            .map(d => {
-                const eventStr = String(d[`${side}Themes`].event || '').trim();
-                const baseX = reverse ? svgWidth - blackLineX : blackLineX;
-
-                return {
-                    id: `${side}-${parseMonthYear(d.date)}-empty-${eventStr}`,
-                    date: d.date,
-                    event: eventStr,
-                    eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(),
-                    x: baseX, // In this case, x and baseX are the same
-                    y: yScale(d.date),
-                    r: 6,
-                    baseX: baseX,
-                    monthStr: d3.timeFormat("%B %Y")(d.date),
-                    monthIndex: d3.timeMonth.count(minDate, d.date)
-                };
-            });
+        // Black line dots
+        const emptyDots = data.filter(d => {
+            const self = d[`${side}Themes`];
+            const eventStr = Array.isArray(self.event) ? self.event[0] : self.event;
+            const hasEvent = eventStr && eventStr !== "START" && eventStr !== "END";
+            const allThemesZero = themes.every(theme => self[theme] !== '1');
+            return hasEvent && allThemesZero;
+        }).map(d => {
+            const eventStr = String(d[`${side}Themes`].event || '').trim();
+            const baseX = reverse ? svgWidth - blackLineX : blackLineX;
+            return {
+                id: `${side}-${parseMonthYear(d.date)}-empty-${eventStr}`, date: d.date, event: eventStr, eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(), x: baseX, y: yScale(d.date), r: 6, baseX, monthStr: d3.timeFormat("%B %Y")(d.date), monthIndex: d3.timeMonth.count(minDate, d.date)
+            };
+        });
 
         return { paths, dots, emptyDots };
     }
 
-    // PROCESS DATA AND GENERATE POINTS
+    // Processes the data
     function generateTimelineData(janData, ashleeData) {
         if (!janData || !ashleeData) return { jan: { paths: [], dots: [], emptyDots: [] }, ashlee: { paths: [], dots: [], emptyDots: [] } };
 
-        // Prepare data: each event stays as its own object
         const allData = [];
 
         janData.forEach(e => {
@@ -219,7 +186,7 @@
                     themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
                     return obj;
                 })(),
-                ashleeThemes: {} // empty for Jan events
+                ashleeThemes: {}
             });
         });
 
@@ -227,7 +194,7 @@
             if (!e.date) return;
             allData.push({
                 date: parseMonthYear(e.date),
-                janThemes: {}, // empty for Ashlee events
+                janThemes: {},
                 ashleeThemes: (() => {
                     const obj = { event: [e.event], eventSecondary: [e.eventSecondary] };
                     themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
@@ -237,14 +204,14 @@
         });
 
         return {
-            yScale, // pass the scale
-            monthlyData: allData, // just a flat array of events
+            yScale,
+            monthlyData: allData,
             jan: makePathsAndDots({ side: "jan", data: allData, svgWidth, spacing, startX, bulgeAmount, yScale }),
             ashlee: makePathsAndDots({ side: "ashlee", data: allData, svgWidth, spacing, startX, bulgeAmount, yScale })
         };
     }
 
-    // FULL DATASET + AXES
+    // Full dataset + axes
     const allDates = janData.concat(ashleeData).map(d => parseMonthYear(d.date));
     const minDate = d3.min(allDates);
     const maxDate = d3.max(allDates);
@@ -254,38 +221,43 @@
         .range([margins.top, svgHeight - margins.top - margins.bottom]));
 
     const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount));
+
     let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
 
-    // LINE GENERATOR
-    const lineGenerator = d3.line()
-        .x(d => d[0])
-        .y(d => d[1])
-        .curve(d3.curveBumpY);
-
-    // TOOLTIP
-    let tooltipVisible = $state(false);
-    let tooltipX = $state();
-    let tooltipY = $state();
-    let tooltipData = $state();
-
+    // HELPER FUNCTIONS
     function handleInstructionsClose() {
         instructionsVisible = false;
     }
 
-    // REACTIVE: HIGHLIGHT TICK BASED ON SCROLL
+    // REACTIVE
+
+    // Debounce hover on scroll
+    $effect(() => {
+        if (yScroll !== lastScrollY) {
+            scrolling = true;
+
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+
+            scrollTimeout = setTimeout(() => {
+                scrolling = false;
+            }, 100);
+
+            lastScrollY = yScroll;
+        }
+    });
+
+    // Highlight tick based on scroll
     $effect(() => {
         if (!allTimelineData || !axisData) return;
 
         const viewportCenterY = window.innerHeight / 2;
 
-        // Precompute tick positions
         const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
 
         let closestDistance = Infinity;
         let closestIndex = -1;
 
         tickPositions.forEach((tickY, i) => {
-            // tickY is relative to SVG container
             const distance = Math.abs(tickY - yScroll - viewportCenterY);
             if (distance < closestDistance) {
                 closestDistance = distance;
@@ -297,24 +269,7 @@
         highlightedTickDate = axisData[highlightedTickIndex];
     });
 
-    // REACTIVE: DEBOUNCE HOVER DURING SCROLL
-    $effect(() => {
-        if (yScroll !== lastScrollY) {
-            scrolling = true;
-
-            // clear previous timeout
-            if (scrollTimeout) clearTimeout(scrollTimeout);
-
-            // after 100ms of no scroll, consider scroll stable
-            scrollTimeout = setTimeout(() => {
-                scrolling = false;
-            }, 100);
-
-            lastScrollY = yScroll;
-        }
-    });
-
-    // REACTIVE: ANIMATE BULGE BASED ON HIGHLIGHTED TICK
+    // Animate line bulge based on highlight tick
     $effect(() => {
         if (!highlightedTickDate || !minDate) return;
 
@@ -340,6 +295,7 @@
         }
     });
 
+    // Lock scroll when instructions are visible
     $effect(() => {
         // If instructions are not visible or the element isn't mounted yet, do nothing.
         if (!instructionsVisible || !timelineSectionElement) return;
@@ -389,6 +345,59 @@
             window.removeEventListener('touchmove', preventTouchScroll);
         }
     });
+
+    // Instruction fade
+    $effect(() => {
+        let timeout1, timeout2, timeout3;
+
+        if ($instructionStep === 1) {
+            // Start the sequence
+            timeout1 = setTimeout(() => {
+                animatedFadedSide = 'jan';
+                console.log(animatedFadedSide); // Log after the change
+            }, 500);
+
+            timeout2 = setTimeout(() => {
+                animatedFadedSide = 'ashlee';
+                console.log(animatedFadedSide); // Log after the change
+            }, 1500);
+
+            timeout3 = setTimeout(() => {
+                animatedFadedSide = null;
+                console.log(animatedFadedSide); // Log after the change
+            }, 2500);
+        }
+
+        // Cleanup function
+        return () => {
+            clearTimeout(timeout1);
+            clearTimeout(timeout2);
+            clearTimeout(timeout3);
+            animatedFadedSide = null;
+        };
+    });
+
+    $effect(() => {
+        let targetDate;
+
+        // 1. Check for the instruction step and set the date
+
+        if ($instructionStep === 3) {
+            targetDate = parseMonthYear("August 1989");
+        } else if ($instructionStep === 4) {
+            targetDate = parseMonthYear("September 1990");
+        }
+
+        // 2. If a target date was set for the current step, scroll to it
+        if (targetDate && yScale) {
+            const targetY = yScale(targetDate);
+        
+            window.scrollTo({
+                top: targetY,
+                behavior: 'smooth'
+            });
+        }
+    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
@@ -429,6 +438,7 @@
                         {bulgedMonthIndices}
                         {hoveredEventKey}
                         {hoveredThemes}
+                        isFaded={animatedFadedSide === side}
                         on:hover={handleDotHover}
                         on:leave={handleDotLeave}
                         on:click={handleDotClick} />
@@ -489,5 +499,27 @@
     figure {
         width: 100%;
         position: relative;
+    }
+
+    @keyframes pulse-animation {
+        0% {
+            transform: scale(1);
+            opacity: 0.6;
+        }
+        80% {
+            transform: scale(2.5);
+            opacity: 0;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 0;
+        }
+    }
+
+    /* Create a class to apply the animation */
+    /* :global() is needed to target an element from the script tag */
+    :global(.pulse) {
+        /* Run the animation infinitely */
+        animation: pulse-animation 2s ease-in-out infinite;
     }
 </style>

@@ -12,3 +12,5 @@ export function normalizeEventKey(str) {
 }
 
 export const addedEvents = writable([]);
+
+export const instructionStep = writable(0);

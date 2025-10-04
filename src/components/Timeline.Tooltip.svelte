@@ -48,7 +48,7 @@
         margin: 0;
     }
 
-        .theme-span {
+    .theme-span {
         padding: 0.125rem 0.25rem;
         border-radius: 4px;
     }
