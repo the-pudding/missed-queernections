@@ -7,6 +7,8 @@
     import Bands from "$components/Timeline.Bands.svelte";
     import Axis from "$components/Timeline.Axis.svelte";
     import Side from "$components/Timeline.Side.svelte";
+    import Tooltip from "$components/Timeline.Tooltip.svelte";
+    import Instructions from "$components/Timeline.Instructions.svelte";
     import YourEvents from "$components/YourEvents.svelte";
     import { themes, colors, normalizeEventKey, addedEvents  } from "$runes/misc.svelte.js";
 
@@ -24,6 +26,10 @@
     let lastScrollY = 0;
     let scrollTimeout = null;
     let scrolling = $state(false);
+
+    let instructionsVisible = $state(true);
+    let timelineSectionElement;
+
     let bulgedMonthIndices = $state(new Set());
 
     let hoveredEventKey = $state(null);
@@ -50,9 +56,7 @@
         tooltipX = clientX > window.innerWidth / 2 ? clientX - 210 : clientX + 10;
         tooltipY = clientY + 10;
         tooltipVisible = true;
-        dotDate = d3.timeFormat("%b %Y")(dot.date);
-        dotEvent = dot.event;
-        dotTheme = hoveredThemes;
+        tooltipData = [dot, hoveredThemes];
     }
 
     function handleDotLeave() {
@@ -158,6 +162,7 @@
                     id: `${side}-${parseMonthYear(d.date)}-${theme}`,
                     date: d.date,
                     event: String(d[`${side}Themes`].event || '').trim(),
+                    eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(),
                     theme,
                     x: x, // Final bulged X
                     y: yScale(d.date),
@@ -185,6 +190,7 @@
                     id: `${side}-${parseMonthYear(d.date)}-empty-${eventStr}`,
                     date: d.date,
                     event: eventStr,
+                    eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(),
                     x: baseX, // In this case, x and baseX are the same
                     y: yScale(d.date),
                     r: 6,
@@ -209,7 +215,7 @@
             allData.push({
                 date: parseMonthYear(e.date),
                 janThemes: (() => {
-                    const obj = { event: [e.event] }; // keep event as array
+                    const obj = { event: [e.event], eventSecondary: [e.eventSecondary] };
                     themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
                     return obj;
                 })(),
@@ -223,7 +229,7 @@
                 date: parseMonthYear(e.date),
                 janThemes: {}, // empty for Ashlee events
                 ashleeThemes: (() => {
-                    const obj = { event: [e.event] };
+                    const obj = { event: [e.event], eventSecondary: [e.eventSecondary] };
                     themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
                     return obj;
                 })()
@@ -260,9 +266,11 @@
     let tooltipVisible = $state(false);
     let tooltipX = $state();
     let tooltipY = $state();
-    let dotDate = $state();
-    let dotEvent = $state();
-    let dotTheme = $state();
+    let tooltipData = $state();
+
+    function handleInstructionsClose() {
+        instructionsVisible = false;
+    }
 
     // REACTIVE: HIGHLIGHT TICK BASED ON SCROLL
     $effect(() => {
@@ -331,27 +339,68 @@
             bulgedMonthIndices = newIndices;
         }
     });
+
+    $effect(() => {
+        // If instructions are not visible or the element isn't mounted yet, do nothing.
+        if (!instructionsVisible || !timelineSectionElement) return;
+
+        // Get the absolute top position of the timeline section
+        const boundaryY = timelineSectionElement.offsetTop;
+
+        // Handler for mouse wheel events
+        const preventWheelScroll = (event) => {
+            // Check the scroll direction from the event itself
+            const isScrollingDown = event.deltaY > 0;
+            
+            // Use window.scrollY for the most up-to-date position
+            const isAtOrPastBoundary = window.scrollY >= boundaryY;
+
+            // If at the boundary AND trying to scroll down, prevent it
+            if (isAtOrPastBoundary && isScrollingDown) {
+                // Snap back to the boundary just in case the user scrolled past slightly
+                window.scrollTo({ top: boundaryY, behavior: 'instant' });
+                event.preventDefault();
+            }
+        };
+
+        // Handler for touch events on mobile (your existing code was good)
+        let lastTouchY = 0;
+        const preventTouchScroll = (event) => {
+            const touchY = event.touches[0].clientY;
+            const isScrollingDown = touchY < lastTouchY;
+            const isAtOrPastBoundary = window.scrollY >= boundaryY;
+            
+            if (isAtOrPastBoundary && isScrollingDown) {
+                event.preventDefault();
+            }
+            lastTouchY = touchY;
+        };
+
+        // Add the listeners
+        // { passive: false } is crucial for event.preventDefault() to work reliably
+        window.addEventListener('wheel', preventWheelScroll, { passive: false });
+        window.addEventListener('touchmove', preventTouchScroll, { passive: false });
+
+
+        // Cleanup function: THIS IS THE PART THAT RELEASES THE SCROLL LOCK
+        // It runs automatically when `instructionsVisible` becomes false.
+        return () => {
+            window.removeEventListener('wheel', preventWheelScroll);
+            window.removeEventListener('touchmove', preventTouchScroll);
+        }
+    });
 </script>
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
 
-<section id="timeline">
+<section id="timeline" bind:this={timelineSectionElement}>
     <Bands />
+    <Instructions {instructionsVisible} on:close={handleInstructionsClose} />
     <Story bind:isOpen={storyVisible} {highlightedTickDate}
         on:close={() => {
             storyVisible = false}} 
         />
-    <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
-        <p><strong>{dotDate}</strong></p>
-        {#if dotTheme}
-            <p>
-                {#each dotTheme as t}
-                    <span class="theme-span theme-{t}">{t}</span>{" "}
-                {/each}
-            </p>
-        {/if}
-        <p>{dotEvent}</p>
-    </div>
+    <Tooltip {tooltipVisible} {tooltipX} {tooltipY} {tooltipData} />
     <div class="sticky-header">
         <Key />
         <div class="names">
@@ -390,27 +439,8 @@
 </section>
 
 <style>
-    #tooltip {
-        position: fixed;
-        opacity: 0;
-        background: var(--color-bg);
-        width: 200px;
-        border-radius: 8px;
-        padding: 1rem;
-        z-index: 1000;
-        font-family: var(--sans);
-        font-size: var(--12px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        transition: opacity 100ms linear;
-        pointer-events: none;
-    }
-
-    #tooltip.visible {
-        opacity: 1;
-    }
-
-    #tooltip p {
-        margin: 0;
+    :global(body.no-scroll) {
+        overflow: hidden;
     }
 
     #timeline {
@@ -459,47 +489,5 @@
     figure {
         width: 100%;
         position: relative;
-    }
-
-    .highlighted p {
-        font-weight: 700;
-        font-size: var(--36px);
-    }
-
-    .theme-span {
-        padding: 0.125rem 0.25rem;
-        border-radius: 4px;
-    }
-
-    .theme-lust {
-        background: #FF69B4;
-    }
-
-    .theme-representation {
-        background: #FF0000;
-    }
-
-    .theme-beHer {
-        background: #FF8E00;
-    }
-
-    .theme-genderConstruct {
-        background: #FFCC00;
-    }
-
-    .theme-girlPower {
-        background: #008E00;
-    }
-
-    .theme-gaySeeGay {
-        background: #00C0C0;
-    }
-
-    .theme-publicOpinion {
-        background: #400098;
-    }
-
-    .theme-trueSelves {
-        background: #8E008E;
     }
 </style>
