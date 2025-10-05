@@ -4,7 +4,7 @@
     import copy from '$data/copy.json';
 
 
-    let { highlightedTickDate, isOpen } = $props();
+    let { highlightedTickDate, isOpen, origin, updateIsOpen  } = $props();
     let dateMatch = $derived(
         highlightedTickDate
             ? copy.expandedEvents.find(e => {
@@ -32,7 +32,8 @@
     const CLOSE_DURATION = 750;
 
     function onCloseClick() {
-        isOpen = false;
+        // 👇 Call the update function instead of assigning to isOpen
+        updateIsOpen(false);
         dispatch("close");
     }
 
@@ -47,11 +48,11 @@
             // immediate: set the active content and open the bubble
             activeMatch = dateMatch;
             keepContents = true;
-            isOpen = true;
+            updateIsOpen(true);
         } else {
             // no exact match: start closing sequence only if we currently have mounted contents
             if (keepContents) {
-                isOpen = false; // triggers CSS clip-path transition to close
+                updateIsOpen(false);  // triggers CSS clip-path transition to close
                 // wait until the visual transition finishes, then unmount and clear activeMatch
                 closeTimer = setTimeout(() => {
                     keepContents = false;
@@ -71,8 +72,12 @@
     <!-- Bubble as clipping mask -->
     <div 
         class="bubble-mask"
-        style="--clip-size: {isOpen ? Math.max(storyW, storyH) * 1.5 + 'px' : '0px'};
-        background: {activeMatch ? colors[themes.indexOf(activeMatch.theme)] : null};"
+        style="
+            --clip-size: {isOpen ? Math.max(storyW, storyH) * 1.5 + 'px' : '0px'};
+            --origin-x: {origin.x};
+            --origin-y: {origin.y};
+            background: {activeMatch ? colors[themes.indexOf(activeMatch.theme)] : 'transparent'};
+        "
     >   
         {#if keepContents}
             <div class="contents">
@@ -120,7 +125,10 @@
     width: 100%;
     height: 100%;
     transform: translate(-50%, -50%);
-    clip-path: circle(var(--clip-size, 0px) at 50% 50%);
+    
+    /* 👇 FIX: Use the CSS variables for the circle's origin */
+    clip-path: circle(var(--clip-size, 0px) at var(--origin-x, 50%) var(--origin-y, 50%));
+
     transition: clip-path 0.75s ease-in-out;
     opacity: 0.98;
     pointer-events: none;

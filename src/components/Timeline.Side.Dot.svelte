@@ -3,7 +3,7 @@
     import * as d3 from 'd3';
     import { themes, colors, normalizeEventKey, instructionStep } from "$runes/misc.svelte.js";
 
-    let {eventKey, svgWidth, dot, dotType, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, isBulged, isHovered, isFaded, isAdded } = $props();
+    let {eventKey, svgWidth, dot, dotType, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, isBulged, isHovered, isFaded, isAdded, isPulsing } = $props();
     let dotDate = $state();
     let dotEvent = $state();
     let dotTheme = $state();
@@ -22,9 +22,6 @@
     function handleClick() {
         dispatch('click', { dot: dot });
     }
-
-    $effect(() => {
-    })
 </script>
 
 <g 
@@ -53,6 +50,13 @@
             r={10}
             fill={colors[themes.indexOf(dot.theme)]}
             class:pulse={$instructionStep === 5}
+        />
+    {/if}
+    {#if isPulsing && dotType == "rainbow"}
+        <circle
+            r={10}
+            fill={colors[themes.indexOf(dot.theme)]}
+            class:pulseColor={isPulsing}
         />
     {/if}
     <circle

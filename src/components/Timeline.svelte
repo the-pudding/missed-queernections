@@ -1,5 +1,8 @@
 <script>
+    // DEPENDENCIES
     import * as d3 from 'd3';
+
+    // COMPONENTS
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
     import Nav from "$components/Timeline.Nav.svelte";
@@ -10,7 +13,9 @@
     import Tooltip from "$components/Timeline.Tooltip.svelte";
     import Instructions from "$components/Timeline.Instructions.svelte";
     import YourEvents from "$components/YourEvents.svelte";
-    import { themes, normalizeEventKey, addedEvents, instructionStep  } from "$runes/misc.svelte.js";
+
+    // STORES
+    import { themes, colors, normalizeEventKey, addedEvents, instructionStep  } from "$runes/misc.svelte.js";
 
     // DIMENSIONS
     let svgHeight = $state(0);
@@ -18,7 +23,6 @@
     const margins = {top: 0, right: 12, bottom: 0, left: 12}
     const spacing = 8;
     const startX = 40; // Increased startX to give left right padding
-    const bulgeAmount = $derived(svgWidth/8);
     const blackLineX = 20;
 
     // SCROLL
@@ -29,13 +33,26 @@
 
     // DOM ELEMENTS
     let figureElement;
+    let timelineSectionElement;
+
+    // DOM DATA
     let highlightedTickIndex = $state(0);
     let highlightedTickDate = $state(0);
-    let storyVisible = $state(false);
     let bulgedMonthIndices = $state(new Set());
-    let instructionsVisible = $state(true);
-    let timelineSectionElement;
+
+    // DOM ANIMATIONS
     let animatedFadedSide = $state(null);
+    let storyBubbleOrigin = $state({ x: '50%', y: '50%' });
+    let meetingEventAnimation = $state({
+        y: null,
+        color: null,
+        dotId: null,
+        active: false
+    });
+
+    // DOM VISIBILITY
+    let storyVisible = $state(false);
+    let instructionsVisible = $state(true);
 
     // TOOLTIP
     let tooltipVisible = $state(false);
@@ -88,11 +105,12 @@
         }
     }
 
-    // DATA
+    // HELPER FUNCTIONS
+    function handleInstructionsClose() { instructionsVisible = false; }
     const parseMonthYear = d3.timeParse("%B %Y");
 
     // Computes paths and dots from data
-    function makePathsAndDots({ side, data, svgWidth, spacing, startX, bulgeAmount, yScale }) {
+    function makePathsAndDots({ side, data, svgWidth, spacing, startX, yScale }) {
         const reverse = side === "ashlee";
         const baseOffset = 10;
 
@@ -112,14 +130,18 @@
             
             const bulgedPoints = [];
             const straightPoints = [];
+            const meetsInCenter = [];
 
-            months.forEach(month => {
+            months.forEach((month, monthIndex) => {
                 const y = yScale(month);
                 const monthStr = d3.timeFormat("%B %Y")(month);
                 const monthEvents = monthMap.get(monthStr) || [];
 
                 const hasSelf = monthEvents.some(d => d[`${side}Themes`][theme] === '1');
                 const hasOther = monthEvents.some(d => d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1');
+
+                meetsInCenter[monthIndex] = hasSelf && hasOther;
+
                 const width = svgWidth;
                 let xOffset = baseX;
                 if (hasSelf && hasOther) xOffset = width / 2;
@@ -128,7 +150,7 @@
                 bulgedPoints.push([xOffset, y]);
                 straightPoints.push([baseX, y]);
             });
-            return { theme, points: bulgedPoints, straightPoints };
+            return { theme, points: bulgedPoints, straightPoints, meetsInCenter };
         });
 
         // Rainbow line dots
@@ -206,8 +228,8 @@
         return {
             yScale,
             monthlyData: allData,
-            jan: makePathsAndDots({ side: "jan", data: allData, svgWidth, spacing, startX, bulgeAmount, yScale }),
-            ashlee: makePathsAndDots({ side: "ashlee", data: allData, svgWidth, spacing, startX, bulgeAmount, yScale })
+            jan: makePathsAndDots({ side: "jan", data: allData, svgWidth, spacing, startX, yScale }),
+            ashlee: makePathsAndDots({ side: "ashlee", data: allData, svgWidth, spacing, startX, yScale })
         };
     }
 
@@ -220,15 +242,10 @@
         .domain([minDate, maxDate])
         .range([margins.top, svgHeight - margins.top - margins.bottom]));
 
-    const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX, bulgeAmount));
+    const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX));
 
     let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
-
-    // HELPER FUNCTIONS
-    function handleInstructionsClose() {
-        instructionsVisible = false;
-    }
-
+    
     // REACTIVE
 
     // Debounce hover on scroll
@@ -269,57 +286,114 @@
         highlightedTickDate = axisData[highlightedTickIndex];
     });
 
-    // Animate line bulge based on highlight tick
+    // Animate line
     $effect(() => {
-        if (!highlightedTickDate || !minDate) return;
+        if (!highlightedTickDate || !minDate || !allTimelineData.jan?.paths) return;
 
-        // Get the index of the start of the 5-month bulge window
+        // --- Logic to find which new months to bulge ---
         const windowStartDate = d3.timeMonth.offset(highlightedTickDate, -2);
         const startIndex = d3.timeMonth.count(minDate, windowStartDate);
         
         let needsUpdate = false;
         const newIndices = new Set(bulgedMonthIndices);
+        const justAddedIndices = [];
 
-        // Check the 5-month window and add any new indices
         for (let i = 0; i < 3; i++) {
             const currentIndex = startIndex + i;
             if (currentIndex >= 0 && !newIndices.has(currentIndex)) {
                 newIndices.add(currentIndex);
+                justAddedIndices.push(currentIndex);
                 needsUpdate = true;
             }
         }
 
-        // Only trigger the animation effect if there are new months to bulge
+        // --- If a new bulge is happening, check for a "meet" event ---
         if (needsUpdate) {
             bulgedMonthIndices = newIndices;
+
+            let meetingEvent = null;
+            for (const pathData of allTimelineData.jan.paths) {
+                for (const monthIndex of justAddedIndices) {
+                    if (pathData.meetsInCenter[monthIndex]) {
+                        meetingEvent = { monthIndex, theme: pathData.theme };
+                        break;
+                    }
+                }
+                if (meetingEvent) break;
+            }
+
+            // 👇 If a "meet" is detected, trigger all animations
+            if (meetingEvent) {
+        const bulgeAnimationDuration = 300;
+        const totalAnimationTime = 3000;
+
+        setTimeout(() => {
+            // --- 1. Calculate all necessary data for the animations ---
+            const dotId = `${meetingEvent.monthIndex}-${meetingEvent.theme}`;
+            const targetDate = d3.timeMonth.offset(minDate, meetingEvent.monthIndex);
+            const yPosInSVG = yScale(targetDate);
+            const themeIndex = themes.indexOf(meetingEvent.theme);
+            const themeColor = colors[themeIndex];
+            
+            // 👇 THIS IS THE FIX: Get the position *right before* you use it
+            const figureRect = figureElement.getBoundingClientRect();
+            const originX = figureRect.left + (svgWidth / 2);
+            const originY = figureRect.top + yPosInSVG;
+            
+            // --- 2. Activate all animations by setting state ---
+            meetingEventAnimation = {
+                y: yPosInSVG,
+                color: themeColor,
+                dotId: dotId,
+                active: true
+            };
+            
+            storyBubbleOrigin = { x: `${originX}px`, y: `${originY}px` };
+            highlightedTickDate = targetDate;
+
+        }, bulgeAnimationDuration);
+
+        // --- 3. Schedule the cleanup (this part remains the same) ---
+        setTimeout(() => {
+            meetingEventAnimation = { y: null, color: null, dotId: null, active: false };
+        }, bulgeAnimationDuration + totalAnimationTime);
+    }
         }
     });
 
-    // Lock scroll when instructions are visible
     $effect(() => {
-        // If instructions are not visible or the element isn't mounted yet, do nothing.
-        if (!instructionsVisible || !timelineSectionElement) return;
+        if (storyVisible) {
+            console.log("should lock")
+            document.body.classList.add('no-scroll');
+        } else {
+            document.body.classList.remove('no-scroll');
+        }
 
-        // Get the absolute top position of the timeline section
+        // Cleanup function to ensure the class is removed if the component unmounts
+        return () => {
+            document.body.classList.remove('no-scroll');
+        };
+    });
+
+    // Instruction lock
+    $effect(() => {
+        if (!instructionsVisible || storyVisible || !timelineSectionElement) return;
+
         const boundaryY = timelineSectionElement.offsetTop;
 
-        // Handler for mouse wheel events
+        // Scroll
         const preventWheelScroll = (event) => {
-            // Check the scroll direction from the event itself
             const isScrollingDown = event.deltaY > 0;
             
-            // Use window.scrollY for the most up-to-date position
             const isAtOrPastBoundary = window.scrollY >= boundaryY;
 
-            // If at the boundary AND trying to scroll down, prevent it
             if (isAtOrPastBoundary && isScrollingDown) {
-                // Snap back to the boundary just in case the user scrolled past slightly
                 window.scrollTo({ top: boundaryY, behavior: 'instant' });
                 event.preventDefault();
             }
         };
 
-        // Handler for touch events on mobile (your existing code was good)
+        // Touch
         let lastTouchY = 0;
         const preventTouchScroll = (event) => {
             const touchY = event.touches[0].clientY;
@@ -332,14 +406,12 @@
             lastTouchY = touchY;
         };
 
-        // Add the listeners
-        // { passive: false } is crucial for event.preventDefault() to work reliably
+        // Listeners
         window.addEventListener('wheel', preventWheelScroll, { passive: false });
         window.addEventListener('touchmove', preventTouchScroll, { passive: false });
 
 
-        // Cleanup function: THIS IS THE PART THAT RELEASES THE SCROLL LOCK
-        // It runs automatically when `instructionsVisible` becomes false.
+        // Cleanup 
         return () => {
             window.removeEventListener('wheel', preventWheelScroll);
             window.removeEventListener('touchmove', preventTouchScroll);
@@ -354,21 +426,18 @@
             // Start the sequence
             timeout1 = setTimeout(() => {
                 animatedFadedSide = 'jan';
-                console.log(animatedFadedSide); // Log after the change
             }, 500);
 
             timeout2 = setTimeout(() => {
                 animatedFadedSide = 'ashlee';
-                console.log(animatedFadedSide); // Log after the change
             }, 1500);
 
             timeout3 = setTimeout(() => {
                 animatedFadedSide = null;
-                console.log(animatedFadedSide); // Log after the change
             }, 2500);
         }
 
-        // Cleanup function
+        // Cleanup
         return () => {
             clearTimeout(timeout1);
             clearTimeout(timeout2);
@@ -377,10 +446,9 @@
         };
     });
 
+    // Instructions date scroll
     $effect(() => {
         let targetDate;
-
-        // 1. Check for the instruction step and set the date
 
         if ($instructionStep === 3) {
             targetDate = parseMonthYear("August 1989");
@@ -388,7 +456,6 @@
             targetDate = parseMonthYear("September 1990");
         }
 
-        // 2. If a target date was set for the current step, scroll to it
         if (targetDate && yScale) {
             const targetY = yScale(targetDate);
         
@@ -405,10 +472,15 @@
 <section id="timeline" bind:this={timelineSectionElement}>
     <Bands />
     <Instructions {instructionsVisible} on:close={handleInstructionsClose} />
-    <Story bind:isOpen={storyVisible} {highlightedTickDate}
+    <Story 
+        isOpen={storyVisible} 
+        updateIsOpen={(newValue) => storyVisible = newValue}
+        {highlightedTickDate} 
+        origin={storyBubbleOrigin} 
         on:close={() => {
-            storyVisible = false}} 
-        />
+            storyVisible = false
+        }} 
+    />
     <Tooltip {tooltipVisible} {tooltipX} {tooltipY} {tooltipData} />
     <div class="sticky-header">
         <Nav {yScale} {axisData} {instructionsVisible} />
@@ -419,6 +491,16 @@
         <div class="svg-wrapper">
             <svg width={svgWidth} height={60000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
                 {#if svgHeight > 0}
+                    {#if meetingEventAnimation.active}
+                        <circle
+                            class="shockwave"
+                            cx={svgWidth / 2}
+                            cy={meetingEventAnimation.y}
+                            stroke={meetingEventAnimation.color}
+                            r="0"
+                        />
+                    {/if}
+
                     {#each ["jan", "ashlee"] as side, sideIndex}
                         <Side 
                             {side} 
@@ -435,9 +517,10 @@
                             {bulgedMonthIndices}
                             {hoveredEventKey}
                             {hoveredThemes}
+                            pulsingDotId={meetingEventAnimation.dotId}
                             isFaded={animatedFadedSide === side}
                             on:hover={handleDotHover}
-                            on:leave={handleDotLeave}
+                            on:leave={handleDotLeave} 
                             on:click={handleDotClick} />
                     {/each}
                 {/if}
@@ -495,10 +578,45 @@
         }
     }
 
+    @keyframes pulse-color {
+        from {
+            transform: scale(1);
+        }
+        to {
+            transform: scale(2.5);
+        }
+    }
+
     /* Create a class to apply the animation */
     /* :global() is needed to target an element from the script tag */
     :global(.pulse) {
         /* Run the animation infinitely */
         animation: pulse-animation 2s ease-in-out infinite;
+    }
+
+    :global(.pulseColor) {
+        /* Run the animation infinitely */
+        animation: pulse-color 1s ease-out forwards;
+        animation-iteration-count: 3;
+    }
+
+    @keyframes shockwave-animation {
+        from {
+            r: 0;
+            opacity: 0.8;
+            stroke-width: 4px;
+        }
+        to {
+            r: 300px; /* How far the ripple travels */
+            opacity: 0;
+            stroke-width: 0px;
+        }
+    }
+
+    .shockwave {
+        fill: none;
+        /* stroke is now set dynamically */
+        animation: shockwave-animation 1s ease-out forwards;
+        animation-iteration-count: 3; /* 👇 Run the animation three times */
     }
 </style>

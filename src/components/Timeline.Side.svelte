@@ -6,7 +6,7 @@
     import Dot from "$components/Timeline.Side.Dot.svelte";
     import BlackPath from "$components/Timeline.Side.BlackPath.svelte";
 
-    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, highlightedTickIndex, bulgedMonthIndices, hoveredEventKey, isFaded } = $props();
+    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, bulgedMonthIndices, hoveredEventKey, isFaded, pulsingDotId } = $props();
 
     const dispatch = createEventDispatcher();
 </script>
@@ -22,6 +22,7 @@
     <g class="g-{side}-rainbow-dots">
         {#each allTimelineData[side].dots as dot}
             {@const eventKey = normalizeEventKey(dot.event)}
+            {@const dotId = `${dot.monthIndex}-${dot.theme}`}
             <Dot 
                 {svgWidth} 
                 {dot} 
@@ -31,11 +32,11 @@
                 {tooltipX} 
                 {tooltipY} 
                 {axisData} 
-                {highlightedTickIndex} 
                 isBulged={bulgedMonthIndices.has(dot.monthIndex)}
                 isHovered={hoveredEventKey === eventKey}
                 isFaded={hoveredEventKey && hoveredEventKey !== eventKey}
                 isAdded={$addedEvents.includes(dot.event)}
+                isPulsing={dotId === pulsingDotId}
                 on:hover={(e) => dispatch('hover', e.detail)}
                 on:leave={() => dispatch('leave')}
                 on:click={(e) => dispatch('click', e.detail)}/>
@@ -54,7 +55,6 @@
                 {tooltipX} 
                 {tooltipY} 
                 {axisData} 
-                {highlightedTickIndex} 
                 isBulged={null}
                 isHovered={hoveredEventKey === eventKey}
                 isFaded={hoveredEventKey && hoveredEventKey !== eventKey}
