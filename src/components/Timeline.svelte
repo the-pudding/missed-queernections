@@ -2,7 +2,7 @@
     import * as d3 from 'd3';
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
-    import Key from "$components/Key.svelte";
+    import Nav from "$components/Timeline.Nav.svelte";
     import Story from "$components/Story.svelte";
     import Bands from "$components/Timeline.Bands.svelte";
     import Axis from "$components/Timeline.Axis.svelte";
@@ -411,40 +411,38 @@
         />
     <Tooltip {tooltipVisible} {tooltipX} {tooltipY} {tooltipData} />
     <div class="sticky-header">
-        <Key />
-        <div class="names">
-            <p>Jan</p>
-            <p>Ashleé</p>
-        </div>
+        <Nav {yScale} {axisData} {instructionsVisible} />
     </div>
     <YourEvents />
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
         <Axis {margins} {svgHeight} {allTimelineData} {axisData} />
-        <svg width={svgWidth} height={60000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
-            {#if svgHeight > 0}
-                {#each ["jan", "ashlee"] as side, sideIndex}
-                    <Side 
-                        {side} 
-                        {sideIndex} 
-                        {svgWidth} 
-                        {svgHeight} 
-                        {allTimelineData} 
-                        {scrolling} 
-                        {tooltipVisible} 
-                        {tooltipX} 
-                        {tooltipY} 
-                        {axisData} 
-                        {highlightedTickIndex} 
-                        {bulgedMonthIndices}
-                        {hoveredEventKey}
-                        {hoveredThemes}
-                        isFaded={animatedFadedSide === side}
-                        on:hover={handleDotHover}
-                        on:leave={handleDotLeave}
-                        on:click={handleDotClick} />
-                {/each}
-            {/if}
-        </svg>
+        <div class="svg-wrapper">
+            <svg width={svgWidth} height={60000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
+                {#if svgHeight > 0}
+                    {#each ["jan", "ashlee"] as side, sideIndex}
+                        <Side 
+                            {side} 
+                            {sideIndex} 
+                            {svgWidth} 
+                            {svgHeight} 
+                            {allTimelineData} 
+                            {scrolling} 
+                            {tooltipVisible} 
+                            {tooltipX} 
+                            {tooltipY} 
+                            {axisData} 
+                            {highlightedTickIndex} 
+                            {bulgedMonthIndices}
+                            {hoveredEventKey}
+                            {hoveredThemes}
+                            isFaded={animatedFadedSide === side}
+                            on:hover={handleDotHover}
+                            on:leave={handleDotLeave}
+                            on:click={handleDotClick} />
+                    {/each}
+                {/if}
+            </svg>
+        </div>
     </figure>
 </section>
 
@@ -461,7 +459,7 @@
 
     .sticky-header {
         position: sticky;
-        top: 1rem;
+        top: 0;
         left: 0;
         height: 1.75rem;
         width: 100%;
@@ -472,33 +470,14 @@
         z-index: 900;
     }
 
-    .sticky-header .names {
-        width: 100%;
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: -2rem;
-    }
-
-    .sticky-header p {
-        font-family: var(--sans);
-        font-weight: 700;
-        font-size: var(--18px);
-        width: 120px;
-        height: 2.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--color-bg);
-        border-radius: 1.25rem;
-        border: 2px solid var(--color-fg);
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-    }
-
     figure {
         width: 100%;
         position: relative;
+    }
+
+    .svg-wrapper {
+        position: relative;
+        z-index: 2;
     }
 
     @keyframes pulse-animation {

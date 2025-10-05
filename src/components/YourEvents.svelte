@@ -74,7 +74,7 @@
         left: 50%;
         transform: translateX(-50%);
         background: var(--color-bg);
-        border: 3px solid var(--color-fg);
+        border: 2px solid var(--color-fg);
         border-radius: 4px;
         display: flex;
         flex-direction: row;

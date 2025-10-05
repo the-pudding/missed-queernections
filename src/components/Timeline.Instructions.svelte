@@ -6,6 +6,11 @@
     const copy = getContext("copy");
 
     let currStep = $state(0);
+
+    const progressPercent = $derived(
+        ((currStep + 1) / copy.timelineInstructions.length) * 100
+    );
+
     let { instructionsVisible } = $props();
     const dispatch = createEventDispatcher();
 
@@ -30,12 +35,28 @@
     }
 
     $effect(() => {
-        console.log($instructionStep)
+        console.log(progressPercent)
     })
 </script>
 
 {#if instructionsVisible}
     <div class="instructions">
+        <div class="progress">
+            <div class="progress-dots background">
+                {#each copy.timelineInstructions as dot, i}
+                    <div class="progress-dot"></div>
+                {/each}
+            </div>
+
+            <div 
+                class="progress-dots filled" 
+                style="clip-path: inset(0 {100 - progressPercent}% 0 0);"
+            >
+                {#each copy.timelineInstructions as dot, i}
+                    <div class="progress-dot"></div>
+                {/each}
+            </div>
+        </div>
         <div class="steps">
             {#each copy.timelineInstructions as step, i}
                 {#if currStep == i}
@@ -51,7 +72,7 @@
                 onclick={prevClick}
                 disabled={currStep == 0}
             >   
-                <ChevronLeft />
+                <ChevronLeft size={24}/>
                 Prev
             </button>
             <button class="skip-btn" onclick={skipClick}>   
@@ -61,14 +82,9 @@
                 class="progress-btn"
                 onclick={nextClick}
             >
-                {currStep < copy.timelineInstructions.length - 1 ? "Next" : "Done"}
-                <ChevronRight />
+                {currStep < copy.timelineInstructions.length - 1 ? "Next" : "Let's go!"}
+                <ChevronRight size={24}/>
             </button>
-        </div>
-        <div class="progress">
-            {#each copy.timelineInstructions as dot, i}
-                <div class="progress-dot" style="width: {100/(copy.timelineInstructions.length - 1)}%; background: {currStep >= i ? "#191919" : "rgb(239, 239, 239)"}"></div>
-            {/each}
         </div>
     </div>
 {/if}
@@ -82,7 +98,6 @@
         width: 100%;
         max-width: 500px;
         background: rgba(255, 255, 255, 0.98);
-        border: 2px solid var(--color-fg);
         border-radius: 4px;
         display: flex; 
         flex-direction: column;
@@ -90,7 +105,7 @@
         gap: 1rem;
         z-index: 900;
         font-family: var(--sans);
-        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
 
     .steps {
@@ -129,38 +144,75 @@
         align-items: center;
         justify-content: space-between;
         width: 100%;
-        padding: 0 2rem;
+        padding: 2rem;
     }
 
     .progress {
+        display: flex; /* This can be changed */
+        width: 100%;
+        position: relative; /* Make it a positioning context for the layers */
+        padding: 0.5rem;
+        height: 1.5rem; 
+    }
+
+    /* A container for a set of dots */
+    .progress-dots {
+        /* Make both layers stack on top of each other */
+        position: absolute;
+        top: 0.5rem;
+        left: 0.5rem;
+        right: 0.5rem;
+        bottom: 0.5rem;
+
+        /* Use flexbox to lay out the dots inside */
         display: flex;
         flex-direction: row;
         align-items: center;
         gap: 1rem;
-        padding: 0.5rem;
-        width: 100%;
     }
 
+    /* Style for the individual dots */
     .progress-dot {
-        background: var(--color-fg);
+        flex: 1;
         height: 0.5rem;
         border-radius: 4px;
-        transition: transform 0.5s ease-out;
+    }
+
+    /* Set the colors for each layer */
+    .background .progress-dot {
+        background: #F2ECFF;
+    }
+
+    .filled .progress-dot {
+        background: var(--color-fg);
+    }
+
+    /* Animate the clip-path property */
+    .filled {
+        transition: clip-path 0.4s ease-out;
     }
 
     .progress-btn {
         display: flex;
         flex-direction: row;
         align-items: center;
+        justify-content: center;
         gap: 0.25rem;
         background: var(--color-fg);
         color: var(--color-bg);
-        width: 5rem;
+        width: 7rem;
+    }
+
+    .progress-btn:first-of-type {
+        padding-left: 0;
+    }
+
+    .progress-btn:last-of-type {
+        padding-right: 0;
     }
 
     :global(.instructions .progress-btn svg) {
-        width: 2rem;
-        height: 2rem;
+        width: auto;
     }
 
     .skip-btn {

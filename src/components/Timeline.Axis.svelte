@@ -33,16 +33,13 @@
         transform: translate(-50%, 0);
     }
 
-    .axis-tick p {
-        transition: all 0.25s linear;
-    }
-
     .year, .month {
         font-family: var(--sans);
         margin: 0;
         padding: 0;
         line-height: 1;
-        font-size: var(--14px);
-        font-weight: 500;
+        font-size: 300px;
+        font-weight: 700;
+        color: #F2ECFF;
     }
 </style>
