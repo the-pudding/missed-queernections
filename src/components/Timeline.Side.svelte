@@ -1,18 +1,22 @@
 <script>
+    // ------------------- IMPORTS -------------------
     import { createEventDispatcher } from 'svelte';
-    import * as d3 from 'd3';
-    import { themes, colors, normalizeEventKey, addedEvents } from "$runes/misc.svelte.js";
+    import { normalizeEventKey, addedEvents } from "$runes/misc.svelte.js";
+
+    // ------------------- COMPONENTS -------------------
     import Path from "$components/Timeline.Side.Path.svelte";
     import Dot from "$components/Timeline.Side.Dot.svelte";
     import BlackPath from "$components/Timeline.Side.BlackPath.svelte";
 
-    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, bulgedMonthIndices, hoveredEventKey, isFaded, pulsingDotId } = $props();
+    // ------------------- PROPS -------------------
+    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, bulgedMonthIndices, hoveredEventKey, isFaded, pulsingDotId, blackLineX } = $props();
 
+    // ------------------- HELPERS -------------------
     const dispatch = createEventDispatcher();
 </script>
 
 <g class="g-{side}" class:faded={isFaded}>
-    <BlackPath {svgWidth} {svgHeight} {side}/>
+    <BlackPath {svgWidth} {svgHeight} {side} {blackLineX}/>
     <g class="g-{side}-rainbow-paths">
         {#each allTimelineData[side].paths as themePath, i}
             <Path {themePath} {i} {sideIndex} {bulgedMonthIndices}/>
@@ -67,11 +71,6 @@
 </g>
 
 <style>
-
-    :global(path.faded) {
-        opacity: 0.4;
-    }
-
     .g-jan, .g-ashlee {
         transition: opacity 0.5s ease-in-out;
     }

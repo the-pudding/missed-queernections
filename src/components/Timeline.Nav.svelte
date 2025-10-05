@@ -1,16 +1,16 @@
 <script>
+    // ------------------- IMPORTS -------------------
     import keyData from "$data/categories.csv";
     import * as d3 from 'd3';
     import { instructionStep, colors } from "$runes/misc.svelte.js";
 
+    // ------------------- PROPS -------------------
     let { yScale, axisData, instructionsVisible } = $props();
+
+    // ------------------- VARIABLES -------------------
     let userHoveredIndex = $state(null); 
     let animatedVisibleIndex = $state(null);
     let year = $state("1989");
-
-    const formatYear = d3.timeFormat("%Y");
-    const parseMonthYear = d3.timeParse("%B %Y");
-
     const uniqueYears = $derived(() => {
         if (!axisData || axisData.length === 0) {
             return [];
@@ -20,6 +20,11 @@
         return Array.from(new Set(allYearStrings));
     });
 
+    // ------------------- HELPERS -------------------
+    const formatYear = d3.timeFormat("%Y");
+    const parseMonthYear = d3.timeParse("%B %Y");
+
+    // ------------------- EVENTS -------------------
     function yearChange() {
         let targetDateString = "January " + year;
         const targetDateObject = parseMonthYear(targetDateString);
@@ -34,37 +39,33 @@
         }
     }
 
+    // ------------------- REACTIVE -------------------
+
+    // INSTRUCTION: KEY ANIMATION
     $effect(() => {
         let intervalId = null;
 
-        // When the instruction step is 2, start the animation
         if ($instructionStep === 2) {
             let currentIndex = 0;
-            
-            // Start by showing the first item immediately
             animatedVisibleIndex = 0;
 
-            // Set an interval to advance to the next item every second
             intervalId = setInterval(() => {
                 currentIndex++;
                 
-                // If we've shown all items, reset and stop
                 if (currentIndex >= keyData.length) {
-                    animatedVisibleIndex = null; // Hide all
+                    animatedVisibleIndex = null;
                     clearInterval(intervalId);
                 } else {
                     animatedVisibleIndex = currentIndex;
                 }
-            }, 1000); // 1000ms = 1 second
+            }, 1000);
         }
 
-        // Cleanup function: This is crucial!
-        // It runs when the component is unmounted or when the dependency changes.
         return () => {
             if (intervalId) {
                 clearInterval(intervalId);
             }
-            animatedVisibleIndex = null; // Reset animation state
+            animatedVisibleIndex = null;
         };
     });
 </script>
@@ -133,6 +134,8 @@
         align-items: center;
         justify-content: space-between;
         width: 100%;
+        pointer-events: none;
+        padding: 0 0.5rem;
     }
 
     .middle-wrapper {
@@ -141,10 +144,12 @@
         align-items: center;
         gap: 0.5rem;
         padding-top: 1rem;
+        pointer-events: auto;
     }
 
     select {
         background-color: var(--color-bg);
+        pointer-events: auto;
     }
     
     .name {

@@ -1,10 +1,14 @@
 <script>
+    // ------------------- IMPORTS -------------------
     import { createEventDispatcher, onDestroy } from 'svelte';
     import * as d3 from 'd3';
     import copy from '$data/copy.json';
+    import { themes, colors } from "$runes/misc.svelte.js";
 
-
+    // ------------------- PROPS -------------------
     let { highlightedTickDate, isOpen, origin, updateIsOpen  } = $props();
+
+    // ------------------- VARIABLES -------------------
     let dateMatch = $derived(
         highlightedTickDate
             ? copy.expandedEvents.find(e => {
@@ -17,13 +21,6 @@
             })
             : null
         );
-
-    // ARRAYS
-    const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
-    const colors = ["#FF69B4", "#FF0000", "#FF8E00", "#FFCC00", "#008E00", "#00C0C0", "#400098", "#8E008E"];
-
-    const dispatch = createEventDispatcher();
-
     let storyW = $state(0);
     let storyH = $state(0);
     let keepContents = $state(false);
@@ -31,29 +28,29 @@
     let closeTimer = null;
     const CLOSE_DURATION = 750;
 
+    // ------------------- HELPERS -------------------
+    const dispatch = createEventDispatcher();
+    
+    // ------------------- EVENTS -------------------
     function onCloseClick() {
-        // 👇 Call the update function instead of assigning to isOpen
         updateIsOpen(false);
         dispatch("close");
     }
 
+    // ------------------- REACTIVE -------------------
     $effect(() => {
-        // clear any pending close timer whenever this effect runs
         if (closeTimer) {
             clearTimeout(closeTimer);
             closeTimer = null;
         }
 
         if (dateMatch) {
-            // immediate: set the active content and open the bubble
             activeMatch = dateMatch;
             keepContents = true;
             updateIsOpen(true);
         } else {
-            // no exact match: start closing sequence only if we currently have mounted contents
             if (keepContents) {
-                updateIsOpen(false);  // triggers CSS clip-path transition to close
-                // wait until the visual transition finishes, then unmount and clear activeMatch
+                updateIsOpen(false);
                 closeTimer = setTimeout(() => {
                     keepContents = false;
                     activeMatch = null;
@@ -69,7 +66,6 @@
 </script>
 
 <section class="story" bind:clientWidth={storyW} bind:clientHeight={storyH}>
-    <!-- Bubble as clipping mask -->
     <div 
         class="bubble-mask"
         style="
@@ -117,7 +113,6 @@
     pointer-events: none;
 }
 
-/* The mask grows as a circle */
 .bubble-mask {
     position: absolute;
     top: 50%;
@@ -125,16 +120,12 @@
     width: 100%;
     height: 100%;
     transform: translate(-50%, -50%);
-    
-    /* 👇 FIX: Use the CSS variables for the circle's origin */
     clip-path: circle(var(--clip-size, 0px) at var(--origin-x, 50%) var(--origin-y, 50%));
-
     transition: clip-path 0.75s ease-in-out;
     opacity: 0.98;
     pointer-events: none;
 }
 
-/* Contents inside mask */
 .contents {
     position: absolute;
     top: 0;

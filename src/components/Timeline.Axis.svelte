@@ -1,7 +1,11 @@
 <script>
+    // ------------------- IMPORTS -------------------
     import * as d3 from 'd3';
+
+    // ------------------- PROPS -------------------
     let {margins, svgHeight, allTimelineData, axisData} = $props();
 
+    // ------------------- HELPERS -------------------
     const formatYear = d3.timeFormat("%Y");
 </script>
 

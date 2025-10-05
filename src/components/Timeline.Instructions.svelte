@@ -1,19 +1,24 @@
 <script>
+    // ------------------- IMPORTS -------------------
     import { getContext, createEventDispatcher } from "svelte";
     import { ChevronLeft, ChevronRight } from "@lucide/svelte";
     import { instructionStep } from "$runes/misc.svelte.js";
 
+    // ------------------- COPY -------------------
     const copy = getContext("copy");
 
+    // ------------------- VARIABLES -------------------
     let currStep = $state(0);
-
     const progressPercent = $derived(
         ((currStep + 1) / copy.timelineInstructions.length) * 100
     );
-
     let { instructionsVisible } = $props();
+
+    // ------------------- HELPERS -------------------
     const dispatch = createEventDispatcher();
 
+
+    // ------------------- EVENTS -------------------
     function prevClick() {
         --currStep;
         $instructionStep = currStep;
@@ -33,10 +38,6 @@
         $instructionStep = null;
         dispatch('close');
     }
-
-    $effect(() => {
-        console.log(progressPercent)
-    })
 </script>
 
 {#if instructionsVisible}
@@ -148,37 +149,31 @@
     }
 
     .progress {
-        display: flex; /* This can be changed */
+        display: flex;
         width: 100%;
-        position: relative; /* Make it a positioning context for the layers */
+        position: relative;
         padding: 0.5rem;
         height: 1.5rem; 
     }
 
-    /* A container for a set of dots */
     .progress-dots {
-        /* Make both layers stack on top of each other */
         position: absolute;
         top: 0.5rem;
         left: 0.5rem;
         right: 0.5rem;
         bottom: 0.5rem;
-
-        /* Use flexbox to lay out the dots inside */
         display: flex;
         flex-direction: row;
         align-items: center;
         gap: 1rem;
     }
 
-    /* Style for the individual dots */
     .progress-dot {
         flex: 1;
         height: 0.5rem;
         border-radius: 4px;
     }
 
-    /* Set the colors for each layer */
     .background .progress-dot {
         background: #F2ECFF;
     }
@@ -187,7 +182,6 @@
         background: var(--color-fg);
     }
 
-    /* Animate the clip-path property */
     .filled {
         transition: clip-path 0.4s ease-out;
     }
@@ -248,7 +242,7 @@
         background-image: url('../svg/plus.svg');
         background-repeat: no-repeat;
         background-position: center;
-        background-size: 75%; /* Adjust size of SVG inside the circle */
+        background-size: 75%;
         border-radius: 50%;
         margin-right: 1rem;
     }

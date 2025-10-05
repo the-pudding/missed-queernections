@@ -1,10 +1,11 @@
 <script>
-    // DEPENDENCIES
+    // ------------------- IMPORTS -------------------
     import * as d3 from 'd3';
-
-    // COMPONENTS
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
+    import { themes, colors, normalizeEventKey, addedEvents, instructionStep  } from "$runes/misc.svelte.js";
+
+    // ------------------- COMPONENTS -------------------
     import Nav from "$components/Timeline.Nav.svelte";
     import Story from "$components/Story.svelte";
     import Bands from "$components/Timeline.Bands.svelte";
@@ -14,33 +15,30 @@
     import Instructions from "$components/Timeline.Instructions.svelte";
     import YourEvents from "$components/YourEvents.svelte";
 
-    // STORES
-    import { themes, colors, normalizeEventKey, addedEvents, instructionStep  } from "$runes/misc.svelte.js";
-
-    // DIMENSIONS
+    // ------------------- DIMENSIONS -------------------
     let svgHeight = $state(0);
     let svgWidth = $state(0);
     const margins = {top: 0, right: 12, bottom: 0, left: 12}
     const spacing = 8;
-    const startX = 40; // Increased startX to give left right padding
-    const blackLineX = 20;
+    const startX = 50;
+    const blackLineX = 30;
 
-    // SCROLL
+    // ------------------- SCROLL -------------------
     let yScroll = $state(0);
     let lastScrollY = 0;
     let scrollTimeout = null;
     let scrolling = $state(false);
 
-    // DOM ELEMENTS
+    // ------------------- DOM -------------------
     let figureElement;
     let timelineSectionElement;
 
-    // DOM DATA
+    // DATA
     let highlightedTickIndex = $state(0);
     let highlightedTickDate = $state(0);
     let bulgedMonthIndices = $state(new Set());
 
-    // DOM ANIMATIONS
+    // ANIMATIONS
     let animatedFadedSide = $state(null);
     let storyBubbleOrigin = $state({ x: '50%', y: '50%' });
     let meetingEventAnimation = $state({
@@ -50,7 +48,7 @@
         active: false
     });
 
-    // DOM VISIBILITY
+    // VISIBILITY
     let storyVisible = $state(false);
     let instructionsVisible = $state(true);
 
@@ -60,10 +58,11 @@
     let tooltipY = $state();
     let tooltipData = $state();
 
-    // EVENTS
+    // ------------------- EVENTS -------------------
     let hoveredEventKey = $state(null);
     let hoveredThemes = $state([]);
 
+    // DOT ENTER
     function handleDotHover(event) {
         const { dot, clientX, clientY } = event.detail;
         if (scrolling) return;
@@ -87,12 +86,14 @@
         tooltipData = [dot, hoveredThemes];
     }
 
+    // DOT EXIT
     function handleDotLeave() {
         hoveredEventKey = null;
         hoveredThemes = [];
         tooltipVisible = false;
     }
 
+    // DOT CLICK
     function handleDotClick(event) {
         const eventKey = String(event.detail.dot.event ?? '').trim();
         if (!eventKey) return;
@@ -105,11 +106,13 @@
         }
     }
 
-    // HELPER FUNCTIONS
+    // ------------------- HELPER FUNCTIONS -------------------
     function handleInstructionsClose() { instructionsVisible = false; }
     const parseMonthYear = d3.timeParse("%B %Y");
 
-    // Computes paths and dots from data
+    // ------------------- DATA PROCESSING -------------------
+    
+    // COMPUTE PATHS AND DOTS
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, yScale }) {
         const reverse = side === "ashlee";
         const baseOffset = 10;
@@ -193,7 +196,7 @@
         return { paths, dots, emptyDots };
     }
 
-    // Processes the data
+    // PROCESS DATA
     function generateTimelineData(janData, ashleeData) {
         if (!janData || !ashleeData) return { jan: { paths: [], dots: [], emptyDots: [] }, ashlee: { paths: [], dots: [], emptyDots: [] } };
 
@@ -233,7 +236,7 @@
         };
     }
 
-    // Full dataset + axes
+    // FULL DATA + AXES
     const allDates = janData.concat(ashleeData).map(d => parseMonthYear(d.date));
     const minDate = d3.min(allDates);
     const maxDate = d3.max(allDates);
@@ -246,9 +249,9 @@
 
     let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
     
-    // REACTIVE
+    // ------------------- DATA PROCESSING -------------------
 
-    // Debounce hover on scroll
+    // DEBOUNCE SCROLL HOVER
     $effect(() => {
         if (yScroll !== lastScrollY) {
             scrolling = true;
@@ -263,7 +266,7 @@
         }
     });
 
-    // Highlight tick based on scroll
+    // HIGHLIGHT TICK BY SCROLL
     $effect(() => {
         if (!allTimelineData || !axisData) return;
 
@@ -286,7 +289,7 @@
         highlightedTickDate = axisData[highlightedTickIndex];
     });
 
-    // Animate line
+    // TIMELINE: LINE/DOTS BULGE + COLLIDE
     $effect(() => {
         if (!highlightedTickDate || !minDate || !allTimelineData.jan?.paths) return;
 
@@ -361,6 +364,7 @@
         }
     });
 
+    // STORY: VISIBILITY
     $effect(() => {
         if (storyVisible) {
             console.log("should lock")
@@ -375,7 +379,7 @@
         };
     });
 
-    // Instruction lock
+    // INSTRUCTION: LOCK
     $effect(() => {
         if (!instructionsVisible || storyVisible || !timelineSectionElement) return;
 
@@ -418,7 +422,7 @@
         }
     });
 
-    // Instruction fade
+    // INSTRUCTION: SIDE FADE
     $effect(() => {
         let timeout1, timeout2, timeout3;
 
@@ -446,7 +450,7 @@
         };
     });
 
-    // Instructions date scroll
+    // INSTRUCTION: DATE SCROLL
     $effect(() => {
         let targetDate;
 
@@ -517,6 +521,7 @@
                             {bulgedMonthIndices}
                             {hoveredEventKey}
                             {hoveredThemes}
+                            {blackLineX}
                             pulsingDotId={meetingEventAnimation.dotId}
                             isFaded={animatedFadedSide === side}
                             on:hover={handleDotHover}
@@ -530,6 +535,7 @@
 </section>
 
 <style>
+    /* GLOBAL BODY */
     :global(body.no-scroll) {
         overflow: hidden;
     }
@@ -563,6 +569,7 @@
         z-index: 2;
     }
 
+    /* ANIMATIONS */
     @keyframes pulse-animation {
         0% {
             transform: scale(1);
@@ -578,6 +585,10 @@
         }
     }
 
+    :global(.pulse) {
+        animation: pulse-animation 2s ease-in-out infinite;
+    }
+
     @keyframes pulse-color {
         from {
             transform: scale(1);
@@ -587,15 +598,7 @@
         }
     }
 
-    /* Create a class to apply the animation */
-    /* :global() is needed to target an element from the script tag */
-    :global(.pulse) {
-        /* Run the animation infinitely */
-        animation: pulse-animation 2s ease-in-out infinite;
-    }
-
     :global(.pulseColor) {
-        /* Run the animation infinitely */
         animation: pulse-color 1s ease-out forwards;
         animation-iteration-count: 3;
     }
@@ -607,7 +610,7 @@
             stroke-width: 4px;
         }
         to {
-            r: 300px; /* How far the ripple travels */
+            r: 300px;
             opacity: 0;
             stroke-width: 0px;
         }
@@ -615,8 +618,7 @@
 
     .shockwave {
         fill: none;
-        /* stroke is now set dynamically */
         animation: shockwave-animation 1s ease-out forwards;
-        animation-iteration-count: 3; /* 👇 Run the animation three times */
+        animation-iteration-count: 3;
     }
 </style>

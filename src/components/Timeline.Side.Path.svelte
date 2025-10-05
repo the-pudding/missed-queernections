@@ -1,9 +1,12 @@
 <script>
+    // ------------------- IMPORTS -------------------
     import * as d3 from 'd3';
-    import { themes, colors } from "$runes/misc.svelte.js";
+    import { colors } from "$runes/misc.svelte.js";
 
-    let {themePath, i, sideIndex, bulgedMonthIndices} = $props();
+    // ------------------- PROPS -------------------
+    let { themePath, i, sideIndex, bulgedMonthIndices } = $props();
 
+    // ------------------- HELPERS -------------------
     const lineGenerator = d3.line()
         .x(d => d[0])
         .y(d => d[1])

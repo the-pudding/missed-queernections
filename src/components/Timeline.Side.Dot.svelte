@@ -1,20 +1,24 @@
 <script>
+    // ------------------- IMPORTS -------------------
     import { createEventDispatcher } from 'svelte';
     import * as d3 from 'd3';
     import { themes, colors, normalizeEventKey, instructionStep } from "$runes/misc.svelte.js";
 
-    let {eventKey, svgWidth, dot, dotType, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, isBulged, isHovered, isFaded, isAdded, isPulsing } = $props();
+    // ------------------- PROPS -------------------
+    let { dot, dotType, isBulged, isHovered, isAdded, isPulsing } = $props();
+
+    // ------------------- VARAIBLES -------------------
     let dotDate = $state();
     let dotEvent = $state();
     let dotTheme = $state();
     let dotScale = $derived(isHovered ? 1.2 : 1);
 
+    // ------------------- HELPERS -------------------
     const formatMonthYear = d3.timeFormat("%b %Y");
     const parseMonthYear = d3.timeParse("%B %Y");
-
-    // EVENT HANDLERS
     const dispatch = createEventDispatcher();
 
+    // ------------------- EVENTS -------------------
     function handleMouseEnter(e) {
         dispatch('hover', { dot: dot, clientX: e.clientX, clientY: e.clientY });
     }
@@ -76,8 +80,8 @@
 
     .icon {
         transition: transform 150ms ease;
-        transform-box: fill-box;       /* make transform-origin use the box of the element */
-        transform-origin: 50% 50%;     /* center of the group */
+        transform-box: fill-box;
+        transform-origin: 50% 50%;
     }
 
     .icon.rotated {
@@ -86,6 +90,5 @@
 
     :global(#timeline svg circle) {
         cursor: pointer;
-        /* transition: all 0.3s linear; */
     }
 </style>
