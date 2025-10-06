@@ -17,6 +17,8 @@
     import Instructions from "$components/Timeline.Instructions.svelte";
     import YourEvents from "$components/YourEvents.svelte";
 
+    let { introHeight } = $props();
+
     // ------------------- DIMENSIONS -------------------
     let svgHeight = $state(0);
     let svgWidth = $state(0);
@@ -30,8 +32,7 @@
     let lastScrollY = 0;
     let scrollTimeout = null;
     let scrolling = $state(false);
-    let throttledYScroll = $state(0);
-    let isThrottled = false;
+    let timelineOffset = $state(0);
 
     // ------------------- DOM -------------------
     let figureElement;
@@ -73,8 +74,15 @@
 
         hoveredEventKey = normalizeEventKey(dot.event);
         
-        // --- FASTER: Instant lookup using the map ---
-        hoveredThemes = Array.from(eventThemeMap.get(hoveredEventKey) || []);
+        // Find all themes associated with this event
+        const themesForEvent = new Set();
+        const allDots = allTimelineData.jan.dots.concat(allTimelineData.ashlee.dots);
+        allDots.forEach(d => {
+            if (normalizeEventKey(d.event) === hoveredEventKey) {
+                themesForEvent.add(d.theme);
+            }
+        });
+        hoveredThemes = Array.from(themesForEvent);
 
         // Update tooltip
         tooltipX = clientX > window.innerWidth / 2 ? clientX - 210 : clientX + 10;
@@ -106,6 +114,7 @@
     // ------------------- HELPER FUNCTIONS -------------------
     function handleInstructionsClose() { instructionsVisible = false; }
     const parseMonthYear = d3.timeParse("%B %Y");
+    const bisectDate = d3.bisector(d => d).left;
     function changeActiveSection(view) {
         const newSection = view === "enter" ? "timeline" : null;
         $activeSection = newSection;
@@ -237,7 +246,6 @@
             ashlee: makePathsAndDots({ side: "ashlee", data: allData, svgWidth, spacing, startX, yScale })
         };
     }
-    
 
     // FULL DATA + AXES
     const allDates = janData.concat(ashleeData).map(d => parseMonthYear(d.date));
@@ -251,20 +259,6 @@
     const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX));
 
     let axisData = $derived(allTimelineData?.yScale.ticks(d3.timeMonth.every(1)) || []);
-
-    const eventThemeMap = $derived(() => {
-    const map = new Map();
-    if (!allTimelineData?.jan?.dots) return map;
-
-    const allDots = allTimelineData.jan.dots.concat(allTimelineData.ashlee.dots);
-        allDots.forEach(dot => {
-            if (!dot.theme) return;
-            const eventKey = normalizeEventKey(dot.event);
-            if (!map.has(eventKey)) map.set(eventKey, new Set());
-            map.get(eventKey).add(dot.theme);
-        });
-        return map;
-    });
     
     // ------------------- DATA PROCESSING -------------------
 
@@ -283,56 +277,44 @@
         }
     });
 
+    $effect(() => {
+        if ($activeSection === 'timeline' && timelineSectionElement) {
+            timelineOffset = timelineSectionElement.offsetTop;
+        }
+    });
+
     // HIGHLIGHT TICK BY SCROLL
     $effect(() => {
-    yScroll; // Establish dependency on scroll
-
-    if (isThrottled) {
-        return; // An update is already scheduled, do nothing.
+    // This effect runs on every scroll
+    if ($activeSection !== 'timeline' || !allTimelineData?.yScale || !axisData || axisData.length === 0) {
+        return;
     }
 
-    // Set the lock
-    isThrottled = true;
-    
-    requestAnimationFrame(() => {
-        // --- The entire calculation now happens inside the animation frame ---
-        
-        if ($activeSection !== 'timeline' || !allTimelineData?.yScale || !axisData || axisData.length === 0 || !figureElement) {
-             isThrottled = false; // Release lock and exit
-             return;
+    const viewportCenterY = window.innerHeight / 2;
+    const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
+
+    let closestDistance = Infinity;
+    let closestIndex = -1;
+
+    tickPositions.forEach((tickY, i) => {
+        // 👇 This is the fast and accurate calculation
+        const distance = Math.abs((introHeight + tickY) - (yScroll + viewportCenterY));
+
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestIndex = i;
         }
-
-        const figureRect = figureElement.getBoundingClientRect();
-        const viewportCenterY = window.innerHeight / 2;
-        const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
-
-        let closestDistance = Infinity;
-        let closestIndex = -1;
-
-        tickPositions.forEach((tickY, i) => {
-            const tickScreenY = figureRect.top + tickY;
-            const distance = Math.abs(tickScreenY - viewportCenterY);
-
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestIndex = i;
-            }
-        });
-        
-        if (closestIndex !== -1) {
-            highlightedTickIndex = closestIndex;
-            highlightedTickDate = axisData[closestIndex];
-        }
-        
-        isThrottled = false; // Release the lock for the next frame
     });
+    
+    if (closestIndex !== -1) {
+        highlightedTickIndex = closestIndex;
+        highlightedTickDate = axisData[closestIndex];
+    }
 });
 
     // TIMELINE: LINE/DOTS BULGE + COLLIDE
     $effect(() => {
-        if ($activeSection !== 'timeline' || !highlightedTickDate || !minDate || !allTimelineData.jan?.paths) {
-            return;
-        }
+        if (!highlightedTickDate || !minDate || !allTimelineData.jan?.paths) return;
 
         // --- Logic to find which new months to bulge ---
         const windowStartDate = d3.timeMonth.offset(highlightedTickDate, -2);
