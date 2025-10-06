@@ -1,12 +1,9 @@
 <script>
 	import { getContext } from "svelte";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
-	import Network from "$components/NetworkSvelte.svelte";
+	import Network from "$components/Network.svelte";
 
 	const copy = getContext("copy");
-	// const data = getContext("data");
-
-	console.log(copy)
 
 	let scrollIndex = $state();
 </script>

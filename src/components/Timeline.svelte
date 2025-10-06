@@ -118,7 +118,6 @@
     function changeActiveSection(view) {
         const newSection = view === "enter" ? "timeline" : null;
         $activeSection = newSection;
-        console.log(`1. Active Section is now: ${$activeSection}`); 
     }
 
     // ------------------- DATA PROCESSING -------------------
@@ -390,7 +389,6 @@
     // STORY: VISIBILITY
     $effect(() => {
         if (storyVisible) {
-            console.log("should lock")
             document.body.classList.add('no-scroll');
         } else {
             document.body.classList.remove('no-scroll');
@@ -601,6 +599,11 @@
     .svg-wrapper {
         position: relative;
         z-index: 2;
+    }
+
+    svg {
+        width: 100%;
+        height: auto;
     }
 
     /* ANIMATIONS */
