@@ -26,9 +26,6 @@
 			</div>
 		{/each}
 	</Scrolly>
-	<div id="post-intro">
-		<p></p>
-	</div>
 </section>
 
 <style>

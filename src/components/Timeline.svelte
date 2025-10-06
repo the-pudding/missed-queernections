@@ -3,7 +3,9 @@
     import * as d3 from 'd3';
     import janData from "$data/jan.csv";
     import ashleeData from "$data/ashlee.csv";
-    import { themes, colors, normalizeEventKey, addedEvents, instructionStep  } from "$runes/misc.svelte.js";
+    import inView from "$actions/inView.js";
+    import { fade, fly } from 'svelte/transition';
+    import { themes, colors, normalizeEventKey, addedEvents, instructionStep, activeSection  } from "$runes/misc.svelte.js";
 
     // ------------------- COMPONENTS -------------------
     import Nav from "$components/Timeline.Nav.svelte";
@@ -28,6 +30,8 @@
     let lastScrollY = 0;
     let scrollTimeout = null;
     let scrolling = $state(false);
+    let throttledYScroll = $state(0);
+    let isThrottled = false;
 
     // ------------------- DOM -------------------
     let figureElement;
@@ -69,15 +73,8 @@
 
         hoveredEventKey = normalizeEventKey(dot.event);
         
-        // Find all themes associated with this event
-        const themesForEvent = new Set();
-        const allDots = allTimelineData.jan.dots.concat(allTimelineData.ashlee.dots);
-        allDots.forEach(d => {
-            if (normalizeEventKey(d.event) === hoveredEventKey) {
-                themesForEvent.add(d.theme);
-            }
-        });
-        hoveredThemes = Array.from(themesForEvent);
+        // --- FASTER: Instant lookup using the map ---
+        hoveredThemes = Array.from(eventThemeMap.get(hoveredEventKey) || []);
 
         // Update tooltip
         tooltipX = clientX > window.innerWidth / 2 ? clientX - 210 : clientX + 10;
@@ -109,6 +106,11 @@
     // ------------------- HELPER FUNCTIONS -------------------
     function handleInstructionsClose() { instructionsVisible = false; }
     const parseMonthYear = d3.timeParse("%B %Y");
+    function changeActiveSection(view) {
+        const newSection = view === "enter" ? "timeline" : null;
+        $activeSection = newSection;
+        console.log(`1. Active Section is now: ${$activeSection}`); 
+    }
 
     // ------------------- DATA PROCESSING -------------------
     
@@ -235,6 +237,7 @@
             ashlee: makePathsAndDots({ side: "ashlee", data: allData, svgWidth, spacing, startX, yScale })
         };
     }
+    
 
     // FULL DATA + AXES
     const allDates = janData.concat(ashleeData).map(d => parseMonthYear(d.date));
@@ -247,7 +250,21 @@
 
     const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX));
 
-    let axisData = $derived(allTimelineData.yScale.ticks(d3.timeMonth.every(1)));
+    let axisData = $derived(allTimelineData?.yScale.ticks(d3.timeMonth.every(1)) || []);
+
+    const eventThemeMap = $derived(() => {
+    const map = new Map();
+    if (!allTimelineData?.jan?.dots) return map;
+
+    const allDots = allTimelineData.jan.dots.concat(allTimelineData.ashlee.dots);
+        allDots.forEach(dot => {
+            if (!dot.theme) return;
+            const eventKey = normalizeEventKey(dot.event);
+            if (!map.has(eventKey)) map.set(eventKey, new Set());
+            map.get(eventKey).add(dot.theme);
+        });
+        return map;
+    });
     
     // ------------------- DATA PROCESSING -------------------
 
@@ -268,30 +285,54 @@
 
     // HIGHLIGHT TICK BY SCROLL
     $effect(() => {
-        if (!allTimelineData || !axisData) return;
+    yScroll; // Establish dependency on scroll
 
+    if (isThrottled) {
+        return; // An update is already scheduled, do nothing.
+    }
+
+    // Set the lock
+    isThrottled = true;
+    
+    requestAnimationFrame(() => {
+        // --- The entire calculation now happens inside the animation frame ---
+        
+        if ($activeSection !== 'timeline' || !allTimelineData?.yScale || !axisData || axisData.length === 0 || !figureElement) {
+             isThrottled = false; // Release lock and exit
+             return;
+        }
+
+        const figureRect = figureElement.getBoundingClientRect();
         const viewportCenterY = window.innerHeight / 2;
-
         const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
 
         let closestDistance = Infinity;
         let closestIndex = -1;
 
         tickPositions.forEach((tickY, i) => {
-            const distance = Math.abs(tickY - yScroll - viewportCenterY);
+            const tickScreenY = figureRect.top + tickY;
+            const distance = Math.abs(tickScreenY - viewportCenterY);
+
             if (distance < closestDistance) {
                 closestDistance = distance;
                 closestIndex = i;
             }
         });
-
-        highlightedTickIndex = closestIndex;
-        highlightedTickDate = axisData[highlightedTickIndex];
+        
+        if (closestIndex !== -1) {
+            highlightedTickIndex = closestIndex;
+            highlightedTickDate = axisData[closestIndex];
+        }
+        
+        isThrottled = false; // Release the lock for the next frame
     });
+});
 
     // TIMELINE: LINE/DOTS BULGE + COLLIDE
     $effect(() => {
-        if (!highlightedTickDate || !minDate || !allTimelineData.jan?.paths) return;
+        if ($activeSection !== 'timeline' || !highlightedTickDate || !minDate || !allTimelineData.jan?.paths) {
+            return;
+        }
 
         // --- Logic to find which new months to bulge ---
         const windowStartDate = d3.timeMonth.offset(highlightedTickDate, -2);
@@ -381,7 +422,9 @@
 
     // INSTRUCTION: LOCK
     $effect(() => {
-        if (!instructionsVisible || storyVisible || !timelineSectionElement) return;
+        if ($activeSection !== 'timeline' || !instructionsVisible || storyVisible || !timelineSectionElement) {
+            return; // Do nothing if the timeline is not in view
+        }
 
         const boundaryY = timelineSectionElement.offsetTop;
 
@@ -473,8 +516,17 @@
 
 <svelte:window bind:scrollY={yScroll}></svelte:window>
 
-<section id="timeline" bind:this={timelineSectionElement}>
-    <Bands />
+<section id="timeline" 
+    bind:this={timelineSectionElement}
+    use:inView={{ top: 0 }} 
+ 	onenter={() => changeActiveSection("enter")}
+    onexit={() => changeActiveSection("exit")}
+>
+    {#if $activeSection === 'timeline'}
+        <div in:fade={{ duration: 500, delay: 1000 }}>
+            <Bands />
+        </div>
+    {/if}
     <Instructions {instructionsVisible} on:close={handleInstructionsClose} />
     <Story 
         isOpen={storyVisible} 

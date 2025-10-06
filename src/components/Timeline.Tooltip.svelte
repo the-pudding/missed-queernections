@@ -1,26 +1,32 @@
 <script>
     import * as d3 from 'd3';
+    import { longThemes } from "$runes/misc.svelte.js";
 
     let {tooltipVisible, tooltipX, tooltipY, tooltipData} = $props();
 
-    $effect(() => {
-        console.log(tooltipData)
-    });
     const dateFormat = d3.timeFormat("%b %Y");
+    function getLongTheme(theme) {
+        const foundTheme = longThemes.find(item => item.theme === theme);
+        
+        return foundTheme ? foundTheme.longTheme : null;
+    }
 </script>
 
 {#if tooltipData}
     <div id="tooltip" class:visible={tooltipVisible} style="left: {tooltipX}px; top: {tooltipY}px">
         <p><strong>{dateFormat(tooltipData[0].date)}</strong></p>
+        <p>{tooltipData[0].event}
+            {#if tooltipData[0].eventSecondary}
+                , {tooltipData[0].eventSecondary}
+            {/if}
+        </p>
         {#if tooltipData[1]}
-            <p>
+            <div class="tags">
                 {#each tooltipData[1] as t}
-                    <span class="theme-span theme-{t}">{t}</span>{" "}
+                    <p class="theme-p theme-{t}">{getLongTheme(t)}</p>
                 {/each}
-            </p>
+            </div>
         {/if}
-        <p>{tooltipData[0].event}</p>
-        <p>{tooltipData[0].eventSecondary}</p>
     </div>
 {/if}
 
@@ -48,40 +54,44 @@
         margin: 0;
     }
 
-    .theme-span {
+    .theme-p {
         padding: 0.125rem 0.25rem;
         border-radius: 4px;
+        display: inline-block;
     }
 
     .theme-lust {
-        background: #FF69B4;
+        background: var(--mq-pink);
     }
 
     .theme-representation {
-        background: #FF0000;
+        background: var(--mq-red);
     }
 
     .theme-beHer {
-        background: #FF8E00;
+        background: var(--mq-orange);
     }
 
     .theme-genderConstruct {
-        background: #FFCC00;
+        background: var(--mq-yellow);
     }
 
     .theme-girlPower {
-        background: #008E00;
+        background: var(--mq-green);
+        color: var(--color-bg);
     }
 
     .theme-gaySeeGay {
-        background: #00C0C0;
+        background: var(--mq-teal);
     }
 
     .theme-publicOpinion {
-        background: #400098;
+        background: var(--mq-indigo);
+        color: var(--color-bg);
     }
 
     .theme-trueSelves {
-        background: #8E008E;
+        background: var(--mq-purple);
+        color: var(--color-bg);
     }
 </style>

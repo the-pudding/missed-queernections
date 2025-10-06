@@ -113,7 +113,7 @@
                         </div>
                         <div 
                             class="desc"
-                            style="background-color: {colors[i]}"
+                            style="background-color: {colors[i]}; color: {i == 4 || i >= 6 ? '#ffffff' : '#191919'}"
                             class:visible={i === userHoveredIndex || i === animatedVisibleIndex}
                         >   
                             <p><span>{category.categoryLong}</span></p>

@@ -2,7 +2,7 @@
     // ------------------- IMPORTS -------------------
     import { getContext, createEventDispatcher } from "svelte";
     import { ChevronLeft, ChevronRight } from "@lucide/svelte";
-    import { instructionStep } from "$runes/misc.svelte.js";
+    import { instructionStep, activeSection } from "$runes/misc.svelte.js";
 
     // ------------------- COPY -------------------
     const copy = getContext("copy");
@@ -92,8 +92,8 @@
 
 <style>
     .instructions {
-        position: fixed;
-        top: 50%;
+        position: absolute;
+        top: 25rem;
         left: 50%;
         transform: translate(-50%, -50%);
         width: 100%;
