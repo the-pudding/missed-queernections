@@ -3,6 +3,7 @@
     import * as d3 from 'd3';
     import { onMount } from 'svelte';
     import { spring } from 'svelte/motion';
+    import { fly } from 'svelte/transition';
     import { nodes, links } from '$utils/networkData.js';
     import { themes, colors } from "$runes/misc.svelte.js";
     import { springy } from '$actions/springy.js'; // 👈 Import the action
@@ -22,8 +23,12 @@
     let outerPositions = [];
     let outerRingLinks = [];
     let outerCrossLinks = [];
-    let visibleIndices = $state([]);
-
+    let commentIndexes = $derived(() => {
+        return scrollIndex !== undefined && scrollIndex < 3 ? JSON.parse(copy.comments[scrollIndex].indexes) : []});
+    
+    $effect(() => {
+        console.log(commentIndexes())
+    })
 
     // --- ANIMATION STORES ---
     const nodeSprings = new Map();
@@ -59,33 +64,6 @@
         }
         
         return { newOuterPositions, newOuterRingLinks, newOuterCrossLinks };
-    }
-
-    $effect(() => {
-        // This line makes the effect dependent on scrollIndex.
-        scrollIndex;
-        
-        // Generate new indices and assign them to the state variable.
-        visibleIndices = getThreeRandomIndices();
-    });
-
-    function getThreeRandomIndices(scrollIndex) {
-        scrollIndex;
-        // 1. Define the pool of numbers to choose from.
-        const source = [0, 1, 2, 3, 4, 5, 6, 7];
-
-        // 2. Shuffle the array using the Fisher-Yates (aka Knuth) shuffle algorithm.
-        // This is a highly efficient and unbiased way to shuffle.
-        for (let i = source.length - 1; i > 0; i--) {
-            // Pick a random index from the unshuffled portion of the array.
-            const j = Math.floor(Math.random() * (i + 1));
-
-            // Swap the element at the random index with the current element.
-            [source[i], source[j]] = [source[j], source[i]];
-        }
-
-        // 3. Return the first 3 elements of the now-shuffled array.
-        return source.slice(0, 3);
     }
 
     // --- EFFECTS ---
@@ -157,17 +135,18 @@
             {@const currentCommentsForStep = copy.comments[scrollIndex] || []}
             {@const commentTextsArray = currentCommentsForStep?.text || []}
             <div class="canvas-container" style="width: {size}px; height: {size}px;">
-                {#each nodes as node (node.index)}
-                    {#if node.index <= 7}
-                        {@const springs = nodeSprings.get(node.index)}
-                        {#if springs}
-                            <Comment
-                                {node}
-                                {springs}
-                                {scrollIndex}
-                            />
-                        {/if}
-                    {/if}
+                {#each commentIndexes() as comment, i (comment)}
+                    {@const springs = nodeSprings.get(comment)}
+                    <div class="comment-wrapper" 
+                        in:fly={{ duration: 250, y: 50, delay: i*500 }}
+                        out:fly={{ duration: 250, y: 100 }}>
+                        <Comment
+                            {comment}
+                            {i}
+                            {springs}
+                            {scrollIndex}
+                        />
+                    </div>
                 {/each}
             </div>
             <svg width={size} height={size} class="network-svg">
