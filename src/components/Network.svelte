@@ -1,4 +1,5 @@
 <script>
+    import { getContext } from "svelte";
     import * as d3 from 'd3';
     import { onMount } from 'svelte';
     import { spring } from 'svelte/motion';
@@ -9,6 +10,9 @@
     import Node from "$components/Network.Node.svelte";
     import RingLink from "$components/Network.RingLink.svelte";
     import CrossLink from "$components/Network.CrossLink.svelte";
+    import Comment from "$components/Network.Comment.svelte";
+
+    const copy = getContext("copy");
     
     let { scrollIndex } = $props();
 
@@ -18,9 +22,10 @@
     let outerPositions = [];
     let outerRingLinks = [];
     let outerCrossLinks = [];
+    let visibleIndices = $state([]);
+
 
     // --- ANIMATION STORES ---
-    // Re-introduce the spring stores. This will drive all animations.
     const nodeSprings = new Map();
     nodes.forEach(node => {
         nodeSprings.set(node.index, {
@@ -54,6 +59,33 @@
         }
         
         return { newOuterPositions, newOuterRingLinks, newOuterCrossLinks };
+    }
+
+    $effect(() => {
+        // This line makes the effect dependent on scrollIndex.
+        scrollIndex;
+        
+        // Generate new indices and assign them to the state variable.
+        visibleIndices = getThreeRandomIndices();
+    });
+
+    function getThreeRandomIndices(scrollIndex) {
+        scrollIndex;
+        // 1. Define the pool of numbers to choose from.
+        const source = [0, 1, 2, 3, 4, 5, 6, 7];
+
+        // 2. Shuffle the array using the Fisher-Yates (aka Knuth) shuffle algorithm.
+        // This is a highly efficient and unbiased way to shuffle.
+        for (let i = source.length - 1; i > 0; i--) {
+            // Pick a random index from the unshuffled portion of the array.
+            const j = Math.floor(Math.random() * (i + 1));
+
+            // Swap the element at the random index with the current element.
+            [source[i], source[j]] = [source[j], source[i]];
+        }
+
+        // 3. Return the first 3 elements of the now-shuffled array.
+        return source.slice(0, 3);
     }
 
     // --- EFFECTS ---
@@ -121,7 +153,24 @@
 <div id="network" bind:clientWidth={width} bind:clientHeight={height}>
     <figure>
         {#if width > 0 && height > 0}
-            <svg width={Math.min(width, height)} height={Math.min(width, height)} class="network-svg">
+            {@const size = Math.min(width, height)}
+            {@const currentCommentsForStep = copy.comments[scrollIndex] || []}
+            {@const commentTextsArray = currentCommentsForStep?.text || []}
+            <div class="canvas-container" style="width: {size}px; height: {size}px;">
+                {#each nodes as node (node.index)}
+                    {#if node.index <= 7}
+                        {@const springs = nodeSprings.get(node.index)}
+                        {#if springs}
+                            <Comment
+                                {node}
+                                {springs}
+                                {scrollIndex}
+                            />
+                        {/if}
+                    {/if}
+                {/each}
+            </div>
+            <svg width={size} height={size} class="network-svg">
                 <g class="links">
                     {#each simulationLinks as link, i (i)}
                         {@const sourceSprings = nodeSprings.get(link.source.index)}
@@ -167,6 +216,10 @@
         align-items: center;
         justify-content: center;
         position: relative;
+    }
+    .canvas-container {
+        position: absolute; /* This is the anchor for the absolute-positioned comments */
+        flex-shrink: 0; /* Prevents flexbox from shrinking it */
     }
     figure {
         width: 100%;
