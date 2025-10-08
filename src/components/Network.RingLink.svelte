@@ -28,7 +28,7 @@
 <line
     class="drawable-link"
     class:draw={readyToDraw}
-    style="stroke-dasharray: {lineLength};
+    style="stroke: {colors[i]}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};"
     x1={link.source.x} y1={link.source.y}
     x2={link.target.x} y2={link.target.y}

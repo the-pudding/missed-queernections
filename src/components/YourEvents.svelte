@@ -1,6 +1,6 @@
 <script>
     import janData from "$data/jan.csv";
-    import { addedEvents, instructionStep } from "$runes/misc.svelte.js";
+    import { addedEvents, instructionStep, activeSection } from "$runes/misc.svelte.js";
     import { X, ChevronDown } from "@lucide/svelte";
 
     let listVisible = $state(false);
@@ -19,7 +19,7 @@
     }
 </script>
 
-<div class="events-wrapper" class:wiggle={$instructionStep == 5} style="transform: translateY({listVisible ? 0 : '100%'})">
+<div class="events-wrapper" class:wiggle={$instructionStep == 5} style="transform: translateY({listVisible ? 0 : $activeSection == "timeline" ? '100%' : '120%'})">
     <button class="show-toggle" onclick={toggleShow} style="top: {listVisible ? '-0.25rem' : '-2.75rem'}">
         <p>Your Events</p>
         <div class="chevron-wrapper" style="transform: rotate({listVisible ? 0 : 180}deg);">

@@ -19,26 +19,31 @@
 
     let width = $state(0);
     let height = $state(0);
+    let spinningContainer;
     let simulationLinks = $state([]);
     let outerPositions = [];
     let outerRingLinks = [];
     let outerCrossLinks = [];
-    let commentIndexes = $derived(() => {
-        return scrollIndex !== undefined && scrollIndex < 3 ? JSON.parse(copy.comments[scrollIndex].indexes) : []});
+    // const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === scrollIndex));
     
-    $effect(() => {
-        console.log(commentIndexes())
-    })
+    // let commentIndexes = $derived(() => {
+    //     return matchingComment ? JSON.parse(matchingComment.indexes) : [];
+    // });
 
     // --- ANIMATION STORES ---
     const nodeSprings = new Map();
     nodes.forEach(node => {
         nodeSprings.set(node.index, {
-            // 👇 Give the springs an initial value of 0
             x: spring(0, { stiffness: 0.1, damping: 0.8 }),
             y: spring(0, { stiffness: 0.1, damping: 0.8 })
         });
     });
+
+    const rotation = spring(0, {
+        stiffness: 0.01, 
+        damping: 0.4   
+    });
+    let animationFrameId;
 
     // --- HELPER FUNCTIONS ---
     function computeOuterPositions(centerX, centerY) {
@@ -67,6 +72,10 @@
     }
 
     // --- EFFECTS ---
+
+    $effect(() => {
+        // console.log(commentIndexes())
+    })
 
     // This effect runs the simulation and calculates layouts
     $effect(() => {
@@ -104,6 +113,28 @@
         }
     });
 
+    // This effect controls the spin
+    $effect(() => {
+        const shouldSpin = scrollIndex >= 3;
+
+        function animate() {
+            if (scrollIndex >= 3) {
+                rotation.update(n => (n + 0.3));
+                animationFrameId = requestAnimationFrame(animate);
+            }
+        }
+
+        if (shouldSpin) {
+            animationFrameId = requestAnimationFrame(animate);
+        } else {
+            cancelAnimationFrame(animationFrameId);
+            rotation.set(0);
+        }
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+        };
+    });
+
     // This effect controls the animation based on scroll
     $effect(() => {
         if (outerPositions.length === 0) return;
@@ -135,7 +166,7 @@
             {@const currentCommentsForStep = copy.comments[scrollIndex] || []}
             {@const commentTextsArray = currentCommentsForStep?.text || []}
             <div class="canvas-container" style="width: {size}px; height: {size}px;">
-                {#each commentIndexes() as comment, i (comment)}
+                <!-- {#each commentIndexes() as comment, i (comment)}
                     {@const springs = nodeSprings.get(comment)}
                     <div class="comment-wrapper" 
                         in:fly={{ duration: 250, y: 50, delay: i*500 }}
@@ -147,7 +178,7 @@
                             {scrollIndex}
                         />
                     </div>
-                {/each}
+                {/each} -->
             </div>
             <svg width={size} height={size} class="network-svg">
                 <g class="links">
@@ -163,24 +194,44 @@
                         {/if}
                     {/each}
                 </g>
-                <g class="ring-links">
-                    {#each outerRingLinks as link, i}
-                        <RingLink {link} {i} {scrollIndex} />
-                    {/each}
-                </g>
-                <g class="cross-links">
-                    {#each outerCrossLinks as link, i}
-                        <CrossLink {link} {i} {scrollIndex} />
-                    {/each}
-                </g>
-                <g class="nodes">
-                    {#each nodes as node (node.index)}
-                        <Node 
-                            springs={nodeSprings.get(node.index)}
-                            {node}
-                            {scrollIndex}
-                        />
-                    {/each}
+                <g class="inner-nodes">
+                        {#each nodes as node (node.index)}
+                            {#if node.index > 7}
+                                <Node 
+                                    springs={nodeSprings.get(node.index)}
+                                    {node}
+                                    {scrollIndex}
+                                />
+                            {/if}
+                        {/each}
+                    </g>
+                <!-- SPINNING GROUP -->
+                <g 
+                    bind:this={spinningContainer} 
+                    class="spinning-container" 
+                    style="transform: rotate({$rotation}deg);"
+                >
+                    <g class="ring-links">
+                        {#each outerRingLinks as link, i}
+                            <RingLink {link} {i} {scrollIndex} />
+                        {/each}
+                    </g>
+                    <g class="cross-links">
+                        {#each outerCrossLinks as link, i}
+                            <CrossLink {link} {i} {scrollIndex} />
+                        {/each}
+                    </g>
+                    <g class="outer-nodes">
+                        {#each nodes as node (node.index)}
+                            {#if node.index <= 7}
+                                <Node 
+                                    springs={nodeSprings.get(node.index)}
+                                    {node}
+                                    {scrollIndex}
+                                />
+                            {/if}
+                        {/each}
+                    </g>
                 </g>
             </svg>
         {/if}
@@ -197,8 +248,9 @@
         position: relative;
     }
     .canvas-container {
-        position: absolute; /* This is the anchor for the absolute-positioned comments */
-        flex-shrink: 0; /* Prevents flexbox from shrinking it */
+        position: absolute;
+        flex-shrink: 0;
+        pointer-events: none;
     }
     figure {
         width: 100%;
@@ -213,5 +265,9 @@
 
     .network-svg {
         display: block;
+    }
+
+    .spinning-container {
+        transform-origin: center;
     }
 </style>
