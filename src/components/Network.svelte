@@ -24,11 +24,11 @@
     let outerPositions = [];
     let outerRingLinks = [];
     let outerCrossLinks = [];
-    // const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === scrollIndex));
+    const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === scrollIndex));
     
-    // let commentIndexes = $derived(() => {
-    //     return matchingComment ? JSON.parse(matchingComment.indexes) : [];
-    // });
+    let commentIndexes = $derived(() => {
+        return matchingComment ? JSON.parse(matchingComment.indexes) : [];
+    });
 
     // --- ANIMATION STORES ---
     const nodeSprings = new Map();
@@ -166,7 +166,7 @@
             {@const currentCommentsForStep = copy.comments[scrollIndex] || []}
             {@const commentTextsArray = currentCommentsForStep?.text || []}
             <div class="canvas-container" style="width: {size}px; height: {size}px;">
-                <!-- {#each commentIndexes() as comment, i (comment)}
+                {#each commentIndexes() as comment, i (comment)}
                     {@const springs = nodeSprings.get(comment)}
                     <div class="comment-wrapper" 
                         in:fly={{ duration: 250, y: 50, delay: i*500 }}
@@ -178,7 +178,7 @@
                             {scrollIndex}
                         />
                     </div>
-                {/each} -->
+                {/each}
             </div>
             <svg width={size} height={size} class="network-svg">
                 <g class="links">

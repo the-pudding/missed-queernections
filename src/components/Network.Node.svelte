@@ -8,9 +8,9 @@
 
 <circle
     class="node"
+    class:hidden={!isOuter && scrollIndex >= 4}
+    fill={isOuter && scrollIndex >= 3 ? colors[node.index] : "#191919"}
     r={6}
-    style="opacity: {scrollIndex >= 4 && !isOuter ? 0 : 1};
-        fill: {isOuter && scrollIndex >= 3 ? colors[node.index] : "#191919"}"
     use:springy={{
         cx: springs.x,
         cy: springs.y
@@ -19,6 +19,11 @@
 
 <style>
     .node {
-        transition: opacity 0.5s ease, fill 0.5s ease;
+        opacity: 1;
+        transition: opacity 0.5s ease;
+    }
+
+    .node.hidden {
+        opacity: 0;
     }
 </style>
