@@ -12,10 +12,11 @@
     import RingLink from "$components/Network.RingLink.svelte";
     import CrossLink from "$components/Network.CrossLink.svelte";
     import Comment from "$components/Network.Comment.svelte";
+    import GradientBG from "$components/Network.GradientBG.svelte";
 
     const copy = getContext("copy");
     
-    let { scrollIndex } = $props();
+    let { scrollIndex, maxSteps } = $props();
 
     let width = $state(0);
     let height = $state(0);
@@ -25,10 +26,25 @@
     let outerRingLinks = [];
     let outerCrossLinks = [];
     const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === scrollIndex));
+    let mousePos = $state(null);
+    let networkContainer = $state(null);
     
     let commentIndexes = $derived(() => {
         return matchingComment ? JSON.parse(matchingComment.indexes) : [];
     });
+
+    // --- EVENTS ---
+    function handleMouseMove(event) {
+        if (!networkContainer) return;
+        mousePos = {
+            x: event.clientX,
+            y: event.clientY
+        };
+    }
+
+    function handleMouseLeave() {
+        mousePos = null;
+    }
 
     // --- ANIMATION STORES ---
     const nodeSprings = new Map();
@@ -153,13 +169,17 @@
         // naturally pull the nodes back to their force-directed positions
         // when the simulation restarts or continues.
     });
-
-    $effect(() => {
-        console.log(scrollIndex);
-    })
 </script>
 
-<div id="network" bind:clientWidth={width} bind:clientHeight={height}>
+<div id="network" 
+    role="group"
+    bind:clientWidth={width} 
+    bind:clientHeight={height}
+    bind:this={networkContainer}
+    onmousemove={handleMouseMove}
+    onmouseleave={handleMouseLeave}
+>
+    <GradientBG {scrollIndex} {mousePos}/>
     <figure>
         {#if width > 0 && height > 0}
             {@const size = Math.min(width, height)}

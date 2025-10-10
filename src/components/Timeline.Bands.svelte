@@ -20,6 +20,7 @@
     .bands div {
         width: 25%;
         height: 100%;
+        mix-blend-mode: screen;
     }
 
     .outer {

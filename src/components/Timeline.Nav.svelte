@@ -1,16 +1,19 @@
 <script>
     // ------------------- IMPORTS -------------------
     import keyData from "$data/categories.csv";
+    import { onMount } from 'svelte';
     import * as d3 from 'd3';
     import { instructionStep, colors } from "$runes/misc.svelte.js";
 
     // ------------------- PROPS -------------------
-    let { yScale, axisData, instructionsVisible } = $props();
+    let { yScale, axisData, instructionsVisible, timelineSectionElement } = $props();
 
     // ------------------- VARIABLES -------------------
     let userHoveredIndex = $state(null); 
     let animatedVisibleIndex = $state(null);
     let year = $state("1989");
+    let isMounted = false;
+
     const uniqueYears = $derived(() => {
         if (!axisData || axisData.length === 0) {
             return [];
@@ -24,20 +27,33 @@
     const formatYear = d3.timeFormat("%Y");
     const parseMonthYear = d3.timeParse("%B %Y");
 
+
+    onMount(() => { 
+        isMounted = true;
+    });
+
     // ------------------- EVENTS -------------------
-    function yearChange() {
+    $effect(() => {
+        // This guard clause now waits for the element prop to arrive.
+        // It will re-run if the year changes OR if the element arrives later.
+        if (!year || !yScale || !timelineSectionElement) {
+            return;
+        }
+
         let targetDateString = "January " + year;
         const targetDateObject = parseMonthYear(targetDateString);
 
-        if (targetDateString && yScale) {
-            const targetY = yScale(targetDateObject);
+        // We can be sure timelineSectionElement exists here
+        const targetY = yScale(targetDateObject);
+        const timelineOffset = timelineSectionElement.offsetTop;
+        const finalScrollPosition = (timelineOffset + targetY) - (window.innerHeight / 2);
         
-            window.scrollTo({
-                top: targetY,
-                behavior: 'smooth'
-            });
-        }
-    }
+        console.log("Scrolling to:", targetDateObject, finalScrollPosition);
+        window.scrollTo({
+            top: finalScrollPosition,
+            behavior: 'smooth'
+        });
+    });
 
     // ------------------- REACTIVE -------------------
 
@@ -88,17 +104,12 @@
     <p class="name">Jan</p>
     <div class="middle-wrapper">
         <div class="select-wrapper">
-			<!-- <label for="year-select">Jump to a year</label> -->
-			<select bind:value={year} id="year-select" onchange={yearChange} disabled={instructionsVisible}>
-				{#each uniqueYears() as option}
-					<option
-						value={option}
-                        selected={option === year}
-						onclick={() => (year = option)}>{option}</option
-					>
-				{/each}
-			</select>
-		</div>
+            <select bind:value={year} id="year-select" disabled={instructionsVisible}>
+                {#each uniqueYears() as option}
+                    <option value={option}>{option}</option>
+                {/each}
+            </select>
+        </div>
         <div id="key">
             {#each keyData as category, i}
                 <div class="category category-{category.categoryShort}">

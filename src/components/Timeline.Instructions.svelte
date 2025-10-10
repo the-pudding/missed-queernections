@@ -12,7 +12,7 @@
     const progressPercent = $derived(
         ((currStep + 1) / copy.timelineInstructions.length) * 100
     );
-    let { instructionsVisible } = $props();
+    let { instructionsVisible, instructionsDone } = $props();
 
     // ------------------- HELPERS -------------------
     const dispatch = createEventDispatcher();
@@ -40,7 +40,7 @@
     }
 </script>
 
-{#if instructionsVisible}
+{#if instructionsVisible && !instructionsDone}
     <div class="instructions">
         <div class="progress">
             <div class="progress-dots background">
@@ -92,10 +92,10 @@
 
 <style>
     .instructions {
-        position: absolute;
-        top: 25rem;
+        position: fixed;
+        top: 10rem;
         left: 50%;
-        transform: translate(-50%, -50%);
+        transform: translate(-50%, 0);
         width: 100%;
         max-width: 500px;
         background: rgba(255, 255, 255, 0.98);

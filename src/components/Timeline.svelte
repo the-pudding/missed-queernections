@@ -55,7 +55,8 @@
 
     // VISIBILITY
     let storyVisible = $state(false);
-    let instructionsVisible = $state(true);
+    let instructionsVisible = $state(false);
+    let instructionsDone = $state(false);
 
     // TOOLTIP
     let tooltipVisible = $state(false);
@@ -112,7 +113,10 @@
     }
 
     // ------------------- HELPER FUNCTIONS -------------------
-    function handleInstructionsClose() { instructionsVisible = false; }
+    function handleInstructionsClose() { 
+        instructionsVisible = false; 
+        instructionsDone = true;
+    }
     const parseMonthYear = d3.timeParse("%B %Y");
     const bisectDate = d3.bisector(d => d).left;
     function changeActiveSection(view) {
@@ -279,6 +283,7 @@
     $effect(() => {
         if ($activeSection === 'timeline' && timelineSectionElement) {
             timelineOffset = timelineSectionElement.offsetTop;
+            instructionsVisible = true;
         }
     });
 
@@ -402,7 +407,7 @@
 
     // INSTRUCTION: LOCK
     $effect(() => {
-        if ($activeSection !== 'timeline' || !instructionsVisible || storyVisible || !timelineSectionElement) {
+        if ($activeSection !== 'timeline' || !instructionsVisible || storyVisible || !timelineSectionElement || instructionsDone) {
             return; // Do nothing if the timeline is not in view
         }
 
@@ -483,11 +488,14 @@
             targetDate = parseMonthYear("September 1990");
         }
 
-        if (targetDate && yScale) {
+        if (targetDate && yScale && timelineSectionElement) {
             const targetY = yScale(targetDate);
+            const timelineOffset = timelineSectionElement.offsetTop;
+            const absolutePosition = timelineOffset + targetY;
+            const finalScrollPosition = absolutePosition - (window.innerHeight / 1.5);
         
             window.scrollTo({
-                top: targetY,
+                top: finalScrollPosition,
                 behavior: 'smooth'
             });
         }
@@ -507,7 +515,7 @@
             <Bands />
         </div>
     {/if}
-    <Instructions {instructionsVisible} on:close={handleInstructionsClose} />
+    <Instructions {instructionsVisible} {instructionsDone} on:close={handleInstructionsClose} />
     <Story 
         isOpen={storyVisible} 
         updateIsOpen={(newValue) => storyVisible = newValue}
@@ -519,7 +527,7 @@
     />
     <Tooltip {tooltipVisible} {tooltipX} {tooltipY} {tooltipData} />
     <div class="sticky-header">
-        <Nav {yScale} {axisData} {instructionsVisible} />
+        <Nav {yScale} {axisData} {instructionsVisible} {timelineSectionElement} />
     </div>
     <YourEvents />
     <figure bind:this={figureElement} style="height: {svgHeight}px;">
@@ -528,13 +536,18 @@
             <svg width={svgWidth} height={60000} bind:clientHeight={svgHeight} bind:clientWidth={svgWidth}>
                 {#if svgHeight > 0}
                     {#if meetingEventAnimation.active}
-                        <circle
-                            class="shockwave"
-                            cx={svgWidth / 2}
-                            cy={meetingEventAnimation.y}
-                            stroke={meetingEventAnimation.color}
-                            r="0"
-                        />
+                        <g style="mix-blend-mode: screen;">
+                            {#each colors as color, i}
+                                <circle
+                                    class="shockwave"
+                                    cx={svgWidth / 2}
+                                    cy={meetingEventAnimation.y}
+                                    stroke={color}
+                                    r="0"
+                                    style="animation-delay: {i * 50}ms;"
+                                />
+                            {/each}
+                        </g>
                     {/if}
 
                     {#each ["jan", "ashlee"] as side, sideIndex}
@@ -627,11 +640,13 @@
     }
 
     @keyframes pulse-color {
-        from {
+        0% {
             transform: scale(1);
+            opacity: 1; /* Start fully visible */
         }
-        to {
-            transform: scale(2.5);
+        100% {
+            transform: scale(2.5); /* Grow */
+            opacity: 0; /* Fade out */
         }
     }
 
@@ -647,7 +662,7 @@
             stroke-width: 4px;
         }
         to {
-            r: 300px;
+            r: 100px;
             opacity: 0;
             stroke-width: 0px;
         }
@@ -655,6 +670,8 @@
 
     .shockwave {
         fill: none;
+        stroke-width: 4px; /* Set initial stroke-width */
+        opacity: 0.8; /* Set initial opacity */
         animation: shockwave-animation 1s ease-out forwards;
         animation-iteration-count: 3;
     }

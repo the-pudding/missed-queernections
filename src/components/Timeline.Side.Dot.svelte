@@ -28,6 +28,10 @@
     }
 </script>
 
+<defs>
+    <radialGradient id="rainbowGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+        <stop offset="0%" style="stop-color: {colors[0]};" />      <stop offset="14.28%" style="stop-color: {colors[1]};" /> <stop offset="28.56%" style="stop-color: {colors[2]};" /> <stop offset="42.84%" style="stop-color: {colors[3]};" /> <stop offset="57.12%" style="stop-color: {colors[4]};" /> <stop offset="71.40%" style="stop-color: {colors[5]};" /> <stop offset="85.68%" style="stop-color: {colors[6]};" /> <stop offset="100%" style="stop-color: {colors[7]};" />   </radialGradient>
+</defs>
 <g 
     class="circle-group"
     tabindex="0" 

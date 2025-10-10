@@ -37,8 +37,18 @@
 			}
 		}
 
-		if (maxRatio > 0) value = maxIndex;
-		else value = undefined;
+		if (maxRatio > 0) {
+			value = maxIndex;
+		} else {
+			// If nothing is in view, check if the last active item was the final one.
+			if (value === nodes.length - 1) {
+				// If so, we've scrolled past the end.
+				value = "exit";
+			} else {
+				// Otherwise, we are likely above the first item.
+				value = undefined;
+			}
+		}
 	};
 
 	function createObserver(node, index) {

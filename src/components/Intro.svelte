@@ -4,13 +4,14 @@
 	import Network from "$components/Network.svelte";
 
 	const copy = getContext("copy");
+	const scrollSteps = copy.scrollSteps.length;
 
 	let scrollIndex = $state();
 </script>
 
 <section id="intro">
     <div class="sticky">
-		<Network {scrollIndex}/>
+		<Network {scrollIndex} maxSteps={scrollSteps}/>
 	</div>
 	<!-- scrolly container to house steps -->
 	<Scrolly bind:value={scrollIndex}>
