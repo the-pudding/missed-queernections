@@ -36,7 +36,7 @@
 
     // ------------------- DOM -------------------
     let figureElement;
-    let timelineSectionElement;
+    let timelineSectionElement = $state(null);
 
     // DATA
     let highlightedTickIndex = $state(0);
