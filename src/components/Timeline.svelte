@@ -289,32 +289,32 @@
 
     // HIGHLIGHT TICK BY SCROLL
     $effect(() => {
-    // This effect runs on every scroll
-    if ($activeSection !== 'timeline' || !allTimelineData?.yScale || !axisData || axisData.length === 0) {
-        return;
-    }
+        // This effect runs on every scroll
+        if ($activeSection !== 'timeline' || !allTimelineData?.yScale || !axisData || axisData.length === 0) {
+            return;
+        }
 
-    const viewportCenterY = window.innerHeight / 2;
-    const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
+        const viewportCenterY = window.innerHeight / 2;
+        const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
 
-    let closestDistance = Infinity;
-    let closestIndex = -1;
+        let closestDistance = Infinity;
+        let closestIndex = -1;
 
-    tickPositions.forEach((tickY, i) => {
-        // 👇 This is the fast and accurate calculation
-        const distance = Math.abs((introHeight + tickY) - (yScroll + viewportCenterY));
+        tickPositions.forEach((tickY, i) => {
+            // 👇 This is the fast and accurate calculation
+            const distance = Math.abs((introHeight + tickY) - (yScroll + viewportCenterY));
 
-        if (distance < closestDistance) {
-            closestDistance = distance;
-            closestIndex = i;
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = i;
+            }
+        });
+        
+        if (closestIndex !== -1) {
+            highlightedTickIndex = closestIndex;
+            highlightedTickDate = axisData[closestIndex];
         }
     });
-    
-    if (closestIndex !== -1) {
-        highlightedTickIndex = closestIndex;
-        highlightedTickDate = axisData[closestIndex];
-    }
-});
 
     // TIMELINE: LINE/DOTS BULGE + COLLIDE
     $effect(() => {
@@ -674,5 +674,6 @@
         opacity: 0.8; /* Set initial opacity */
         animation: shockwave-animation 1s ease-out forwards;
         animation-iteration-count: 3;
+        pointer-events: none;
     }
 </style>

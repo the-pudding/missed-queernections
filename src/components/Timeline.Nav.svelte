@@ -33,28 +33,24 @@
     });
 
     // ------------------- EVENTS -------------------
-    $effect(() => {
-        // This guard clause now waits for the element prop to arrive.
-        // It will re-run if the year changes OR if the element arrives later.
-        if (!year || !yScale || !timelineSectionElement) {
-            return;
-        }
+    function yearChange() {
 
         let targetDateString = "January " + year;
         const targetDateObject = parseMonthYear(targetDateString);
 
-        // We can be sure timelineSectionElement exists here
-        const targetY = yScale(targetDateObject);
-        const timelineOffset = timelineSectionElement.offsetTop;
-        const finalScrollPosition = (timelineOffset + targetY) - (window.innerHeight / 2);
-        
-        console.log("Scrolling to:", targetDateObject, finalScrollPosition);
-        window.scrollTo({
-            top: finalScrollPosition,
-            behavior: 'smooth'
-        });
-    });
+        if (targetDateObject && yScale && timelineSectionElement) {
+            const targetY = yScale(targetDateObject);
+            const timelineOffset = timelineSectionElement.offsetTop;
+            const finalScrollPosition = (timelineOffset + targetY) - (window.innerHeight / 2);
 
+            console.log(targetDateObject, finalScrollPosition)
+
+            window.scrollTo({
+                top: finalScrollPosition,
+                behavior: 'smooth'
+            });
+        }
+    }
     // ------------------- REACTIVE -------------------
 
     // INSTRUCTION: KEY ANIMATION
@@ -104,10 +100,15 @@
     <p class="name">Jan</p>
     <div class="middle-wrapper">
         <div class="select-wrapper">
-            <select bind:value={year} id="year-select" disabled={instructionsVisible}>
-                {#each uniqueYears() as option}
-                    <option value={option}>{option}</option>
-                {/each}
+            <!-- <label for="year-select">Jump to a year</label> -->
+            <select bind:value={year} id="year-select" onchange={yearChange} disabled={instructionsVisible}>
+            {#each uniqueYears() as option}
+                <option
+                    value={option}
+                    selected={option === year}
+                    onclick={() => (year = option)}>{option}</option
+                >
+            {/each}
             </select>
         </div>
         <div id="key">
