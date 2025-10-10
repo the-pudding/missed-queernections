@@ -28,6 +28,7 @@
 <line
     class="drawable-link"
     class:draw={readyToDraw}
+    class:visible={scrollIndex <= 4}
     style="stroke: {colors[i]}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};"
     x1={link.source.x} y1={link.source.y}
@@ -39,6 +40,11 @@
     .drawable-link {
         stroke: var(--color-fg);
         stroke-width: 2;
-        transition: stroke-dashoffset 1s ease-in-out;
+        opacity: 0;
+        transition: stroke-dashoffset 1s ease-in-out, opacity 0.5s ease-in-out;
+    }
+
+    .drawable-link.visible {
+        opacity: 1;
     }
 </style>

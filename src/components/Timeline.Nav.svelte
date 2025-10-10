@@ -97,7 +97,7 @@
 </svg>
 
 <div class="timeline-nav">
-    <p class="name">Jan</p>
+    <p id="Jan-target-nameplate" class="name">Jan</p>
     <div class="middle-wrapper">
         <div class="select-wrapper">
             <!-- <label for="year-select">Jump to a year</label> -->
@@ -136,7 +136,7 @@
             {/each}
         </div>
     </div>
-    <p class="name">Ashleé</p>
+    <p id="Ashleé-target-nameplate" class="name">Ashleé</p>
 </div>
 
 <style>

@@ -22,6 +22,7 @@
     // ------------------- DIMENSIONS -------------------
     let svgHeight = $state(0);
     let svgWidth = $state(0);
+    let innerHeight = 0;
     const margins = {top: 0, right: 12, bottom: 0, left: 12}
     const spacing = 8;
     const startX = 50;
@@ -502,13 +503,19 @@
     });
 </script>
 
-<svelte:window bind:scrollY={yScroll}></svelte:window>
+<svelte:window bind:innerHeight={innerHeight} bind:scrollY={yScroll}></svelte:window>
 
 <section id="timeline" 
     bind:this={timelineSectionElement}
-    use:inView={{ top: 0 }} 
- 	onenter={() => changeActiveSection("enter")}
-    onexit={() => changeActiveSection("exit")}
+    use:inView={{ top: 0, bottom: innerHeight - 1 }} 
+ 	onenter={() => {
+        changeActiveSection("enter")
+        instructionsVisible = true;
+        }}
+    onexit={() => {
+        changeActiveSection("exit");
+        instructionsVisible = false;
+    }}
 >
     {#if $activeSection === 'timeline'}
         <div in:fade={{ duration: 500, delay: 1000 }}>

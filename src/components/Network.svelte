@@ -13,6 +13,7 @@
     import CrossLink from "$components/Network.CrossLink.svelte";
     import Comment from "$components/Network.Comment.svelte";
     import GradientBG from "$components/Network.GradientBG.svelte";
+    import Nameplate from "$components/Nameplate.svelte";
 
     const copy = getContext("copy");
     
@@ -60,6 +61,7 @@
         damping: 0.4   
     });
     let animationFrameId;
+    let isSpinningComplete = $state(false);
 
     // --- HELPER FUNCTIONS ---
     function computeOuterPositions(centerX, centerY) {
@@ -131,10 +133,10 @@
 
     // This effect controls the spin
     $effect(() => {
-        const shouldSpin = scrollIndex >= 3;
+        const shouldSpin = scrollIndex >= 3 && scrollIndex < 5;
 
         function animate() {
-            if (scrollIndex >= 3) {
+            if (scrollIndex >= 3 && scrollIndex < 5) {
                 rotation.update(n => (n + 0.3));
                 animationFrameId = requestAnimationFrame(animate);
             }
@@ -169,6 +171,10 @@
         // naturally pull the nodes back to their force-directed positions
         // when the simulation restarts or continues.
     });
+
+    $effect(() => {
+        console.log(scrollIndex);
+    })
 </script>
 
 <div id="network" 
@@ -198,6 +204,12 @@
                             {scrollIndex}
                         />
                     </div>
+                {/each}
+                {#each [{name: "Jan", id: 4}, {name: "Ashleé", id: 0}] as name, i}
+                    {@const springs = nodeSprings.get(name.id)}
+                    {#if springs}
+                        <Nameplate {scrollIndex} {springs} {name} {rotation} />
+                    {/if}
                 {/each}
             </div>
             <svg width={size} height={size} class="network-svg">
@@ -289,5 +301,16 @@
 
     .spinning-container {
         transform-origin: center;
+    }
+
+    .nameplate {
+        position: absolute;
+        /* This centers the div on its (left, top) coordinate */
+        transform: translate(-50%, -50%); 
+        background: rgba(255, 255, 255, 0.8);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        color: black;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 </style>
