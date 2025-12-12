@@ -60,38 +60,34 @@
         display: inline-block;
     }
 
-    .theme-lust {
+    .theme-representation {
         background: var(--mq-pink);
     }
 
-    .theme-representation {
+    .theme-beHer {
         background: var(--mq-red);
     }
 
-    .theme-beHer {
+    .theme-genderConstruct {
         background: var(--mq-orange);
     }
 
-    .theme-genderConstruct {
-        background: var(--mq-yellow);
-    }
-
     .theme-girlPower {
-        background: var(--mq-green);
+        background: var(--mq-yellow);
         color: var(--color-bg);
     }
 
     .theme-gaySeeGay {
-        background: var(--mq-teal);
+        background: var(--mq-green);
     }
 
     .theme-publicOpinion {
-        background: var(--mq-indigo);
+        background: var(--mq-teal);
         color: var(--color-bg);
     }
 
     .theme-trueSelves {
-        background: var(--mq-purple);
+        background: var(--mq-indigo);
         color: var(--color-bg);
     }
 </style>

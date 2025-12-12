@@ -188,7 +188,7 @@
     }
 
     .category {
-        width: 12.5%;
+        width: 14.28%;
         font-size: var(--12px);
         font-family: var(--sans);
         display: flex;

@@ -1,9 +1,8 @@
 import { writable } from 'svelte/store';
 
-export const themes = ["lust", "representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
+export const themes = ["representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
 
-export const longThemes = [{theme: "lust", longTheme: "Lust"},
-                            {theme: "representation", longTheme: "All representation matters"},
+export const longThemes = [ {theme: "representation", longTheme: "All representation matters"},
                             {theme: "beHer", longTheme: "Be her or be with her"},
                             {theme: "genderConstruct", longTheme: "Gender is a construct"},
                             {theme: "girlPower", longTheme: "Girl power"},
@@ -12,7 +11,7 @@ export const longThemes = [{theme: "lust", longTheme: "Lust"},
                             {theme: "trueSelves", longTheme: "Trying on our true selves"}
                         ];
 
-export const colors = ["#FF69B4", "#FF1818", "#FF8E00", "#FFCC00", "#008600", "#00C0C0", "#400098", "#8E008E"];
+export const colors = ["#FF69B4", "#FF1818", "#FF8E00", "#FFCC00", "#008600", "#00C0C0", "#400098"];
 
 export function normalizeEventKey(str) {
     return String(str || '')

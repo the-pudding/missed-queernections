@@ -1,8 +1,7 @@
 <script>
     // ------------------- IMPORTS -------------------
     import * as d3 from 'd3';
-    import janData from "$data/jan.csv";
-    import ashleeData from "$data/ashlee.csv";
+    import combinedData from "$data/combined.csv";
     import inView from "$actions/inView.js";
     import { fade, fly } from 'svelte/transition';
     import { themes, colors, normalizeEventKey, addedEvents, instructionStep, activeSection  } from "$runes/misc.svelte.js";
@@ -131,16 +130,12 @@
     function makePathsAndDots({ side, data, svgWidth, spacing, startX, yScale }) {
         const reverse = side === "ashlee";
         const baseOffset = 10;
+        const selfThemeKey = side === "jan" ? "janTheme" : "ashleéTheme";
+        const otherThemeKey = side === "jan" ? "ashleéTheme" : "janTheme";
 
-        const monthMap = new Map();
-        data.forEach(d => {
-            if (d.date) {
-                const monthStr = d3.timeFormat("%B %Y")(d.date);
-                if (!monthMap.has(monthStr)) monthMap.set(monthStr, []);
-                monthMap.get(monthStr).push(d);
-            }
-        });
-
+        // Group by month to calculate path bulges
+        const monthlyData = d3.group(data, d => d3.timeFormat("%B %Y")(d.date));
+        
         // Paths
         const paths = themes.map((theme, i) => {
             const baseX = reverse ? svgWidth - startX - i * spacing : startX + i * spacing;
@@ -153,10 +148,11 @@
             months.forEach((month, monthIndex) => {
                 const y = yScale(month);
                 const monthStr = d3.timeFormat("%B %Y")(month);
-                const monthEvents = monthMap.get(monthStr) || [];
+                const monthEvents = monthlyData.get(monthStr) || [];
 
-                const hasSelf = monthEvents.some(d => d[`${side}Themes`][theme] === '1');
-                const hasOther = monthEvents.some(d => d[`${side === "jan" ? "ashlee" : "jan"}Themes`][theme] === '1');
+                // Check for theme activity in the current month for self and other side
+                const hasSelf = monthEvents.some(d => d[selfThemeKey] === theme);
+                const hasOther = monthEvents.some(d => d[otherThemeKey] === theme);
 
                 meetsInCenter[monthIndex] = hasSelf && hasOther;
 
@@ -173,38 +169,58 @@
 
         // Rainbow line dots
         const dots = data.flatMap(d => {
-            const otherSide = side === "jan" ? "ashlee" : "jan";
-            return themes.flatMap((theme, themeIndex) => {
-                if (d[`${side}Themes`][theme] !== '1') return [];
-                const dotMonthStr = d3.timeFormat("%B %Y")(d.date);
-                const monthEvents = monthMap.get(dotMonthStr) || [];
+            const theme = d[selfThemeKey];
+            if (!theme) return []; // Only create a dot if there's a theme for this side
+            
+            const themeIndex = themes.indexOf(theme);
+            if (themeIndex === -1) return []; // Theme must be in the predefined themes array
 
-                const hasSelf = monthEvents.some(ev => ev[`${side}Themes`][theme] === '1');
-                const hasOther = monthEvents.some(ev => ev[`${otherSide}Themes`][theme] === '1');
-                const width = svgWidth; 
-                const baseX = reverse ? svgWidth - startX - themeIndex * spacing : startX + themeIndex * spacing;
-                let x = baseX;
-                if (hasSelf && hasOther) x = width / 2;
-                else if (hasSelf && side === "jan") x = width / 4 + themeIndex * baseOffset;
-                else if (hasSelf && side === "ashlee") x = (3 * width) / 4 - themeIndex * baseOffset;
-                return {
-                    id: `${side}-${parseMonthYear(d.date)}-${theme}`, date: d.date, event: String(d[`${side}Themes`].event || '').trim(), eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(), theme, x, y: yScale(d.date), baseX, monthStr: d3.timeFormat("%B %Y")(d.date), monthIndex: d3.timeMonth.count(minDate, d.date)
-                };
-            });
+            const dotMonthStr = d3.timeFormat("%B %Y")(d.date);
+            const monthEvents = monthlyData.get(dotMonthStr) || [];
+
+            // Check for theme match to determine position
+            const hasSelf = theme === d[selfThemeKey];
+            const hasOther = theme === d[otherThemeKey];
+            const width = svgWidth; 
+            const baseX = reverse ? svgWidth - startX - themeIndex * spacing : startX + themeIndex * spacing;
+            let x = baseX;
+            if (hasSelf && hasOther) x = width / 2;
+            else if (hasSelf && side === "jan") x = width / 4 + themeIndex * baseOffset;
+            else if (hasSelf && side === "ashlee") x = (3 * width) / 4 - themeIndex * baseOffset;
+            
+            const monthIndex = d3.timeMonth.count(minDate, d.date);
+
+            return {
+                id: `${side}-${dotMonthStr}-${theme}-${d.event}`, 
+                date: d.date, 
+                event: String(d.event || '').trim(), 
+                theme, 
+                x, 
+                y: yScale(d.date), 
+                baseX, 
+                monthStr: dotMonthStr, 
+                monthIndex
+            };
         });
         
-        // Black line dots
+        // Black line dots (for events with NO theme)
         const emptyDots = data.filter(d => {
-            const self = d[`${side}Themes`];
-            const eventStr = Array.isArray(self.event) ? self.event[0] : self.event;
-            const hasEvent = eventStr && eventStr !== "START" && eventStr !== "END";
-            const allThemesZero = themes.every(theme => self[theme] !== '1');
-            return hasEvent && allThemesZero;
+            const hasEvent = String(d.event || '').trim() !== "START" && String(d.event || '').trim() !== "END";
+            const noTheme = !d[selfThemeKey];
+            return hasEvent && noTheme;
         }).map(d => {
-            const eventStr = String(d[`${side}Themes`].event || '').trim();
+            const eventStr = String(d.event || '').trim();
             const baseX = reverse ? svgWidth - blackLineX : blackLineX;
             return {
-                id: `${side}-${parseMonthYear(d.date)}-empty-${eventStr}`, date: d.date, event: eventStr, eventSecondary: String(d[`${side}Themes`].eventSecondary || '').trim(), x: baseX, y: yScale(d.date), r: 6, baseX, monthStr: d3.timeFormat("%B %Y")(d.date), monthIndex: d3.timeMonth.count(minDate, d.date)
+                id: `${side}-${d3.timeFormat("%B %Y")(d.date)}-empty-${eventStr}`, 
+                date: d.date, 
+                event: eventStr, 
+                x: baseX, 
+                y: yScale(d.date), 
+                r: 6, 
+                baseX, 
+                monthStr: d3.timeFormat("%B %Y")(d.date), 
+                monthIndex: d3.timeMonth.count(minDate, d.date)
             };
         });
 
@@ -212,47 +228,26 @@
     }
 
     // PROCESS DATA
-    function generateTimelineData(janData, ashleeData) {
-        if (!janData || !ashleeData) return { jan: { paths: [], dots: [], emptyDots: [] }, ashlee: { paths: [], dots: [], emptyDots: [] } };
+    function generateTimelineData(combinedData) {
+        if (!combinedData || combinedData.length === 0) return { jan: { paths: [], dots: [], emptyDots: [] }, ashlee: { paths: [], dots: [], emptyDots: [] } };
 
-        const allData = [];
-
-        janData.forEach(e => {
-            if (!e.date) return;
-            allData.push({
-                date: parseMonthYear(e.date),
-                janThemes: (() => {
-                    const obj = { event: [e.event], eventSecondary: [e.eventSecondary] };
-                    themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
-                    return obj;
-                })(),
-                ashleeThemes: {}
-            });
-        });
-
-        ashleeData.forEach(e => {
-            if (!e.date) return;
-            allData.push({
-                date: parseMonthYear(e.date),
-                janThemes: {},
-                ashleeThemes: (() => {
-                    const obj = { event: [e.event], eventSecondary: [e.eventSecondary] };
-                    themes.forEach(t => obj[t] = e[t] === "1" ? "1" : "0");
-                    return obj;
-                })()
-            });
-        });
+        const parsedData = combinedData
+            .map(d => ({
+                ...d,
+                date: parseMonthYear(d.date) // Parse the date once
+            }))
+            .filter(d => d.date); // Filter out rows with invalid dates
 
         return {
             yScale,
-            monthlyData: allData,
-            jan: makePathsAndDots({ side: "jan", data: allData, svgWidth, spacing, startX, yScale }),
-            ashlee: makePathsAndDots({ side: "ashlee", data: allData, svgWidth, spacing, startX, yScale })
+            monthlyData: parsedData,
+            jan: makePathsAndDots({ side: "jan", data: parsedData, svgWidth, spacing, startX, yScale }),
+            ashlee: makePathsAndDots({ side: "ashlee", data: parsedData, svgWidth, spacing, startX, yScale })
         };
     }
 
     // FULL DATA + AXES
-    const allDates = janData.concat(ashleeData).map(d => parseMonthYear(d.date));
+    const allDates = combinedData.map(d => parseMonthYear(d.date)).filter(d => d);
     const minDate = d3.min(allDates);
     const maxDate = d3.max(allDates);
 
@@ -260,7 +255,7 @@
         .domain([minDate, maxDate])
         .range([margins.top, svgHeight - margins.top - margins.bottom]));
 
-    const allTimelineData = $derived(generateTimelineData(janData, ashleeData, themes, svgWidth, spacing, startX));
+    const allTimelineData = $derived(generateTimelineData(combinedData));
 
     let axisData = $derived(allTimelineData?.yScale.ticks(d3.timeMonth.every(1)) || []);
     

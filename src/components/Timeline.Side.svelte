@@ -12,6 +12,7 @@
     let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, bulgedMonthIndices, hoveredEventKey, isFaded, pulsingDotId, blackLineX } = $props();
 
     // ------------------- HELPERS -------------------
+    
     const dispatch = createEventDispatcher();
 </script>
 

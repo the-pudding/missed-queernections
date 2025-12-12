@@ -66,7 +66,7 @@
     // --- HELPER FUNCTIONS ---
     function computeOuterPositions(centerX, centerY) {
         const radius = Math.min(width, height) / 3;
-        const outerNodeIds = nodes.slice(0, 8).map(d => d.index);
+        const outerNodeIds = nodes.slice(0, 7).map(d => d.index);
         
         // 👇 The function now returns the calculated values instead of setting state
         const newOuterPositions = outerNodeIds.map((id, i) => {
@@ -221,7 +221,7 @@
                             <Link 
                                 {sourceSprings}
                                 {targetSprings}
-                                isOuter={link.source.index <= 7 || link.target.index <= 7}
+                                isOuter={link.source.index <= 6 || link.target.index <= 6}
                                 {scrollIndex} />
                         {/if}
                     {/each}
@@ -255,7 +255,7 @@
                     </g>
                     <g class="outer-nodes">
                         {#each nodes as node (node.index)}
-                            {#if node.index <= 7}
+                            {#if node.index <= 6}
                                 <Node 
                                     springs={nodeSprings.get(node.index)}
                                     {node}

@@ -3,7 +3,7 @@
     import { springy } from '$actions/springy.js';
     let { springs, node, scrollIndex } = $props();
 
-    const isOuter = node.index <= 7;
+    const isOuter = node.index <= 6;
 </script>
 
 <circle
