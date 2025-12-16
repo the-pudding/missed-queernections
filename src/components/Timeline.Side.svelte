@@ -9,8 +9,7 @@
     import BlackPath from "$components/Timeline.Side.BlackPath.svelte";
 
     // ------------------- PROPS -------------------
-    // PROP CHANGE: Renamed bulgedMonthIndices to bulgedDayIndices
-    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, bulgedDayIndices, hoveredEventKey, isFaded, pulsingDotId, blackLineX } = $props();
+    let {side, sideIndex, svgWidth, svgHeight, allTimelineData, scrolling, tooltipVisible, tooltipX, tooltipY, axisData, bulgedMonthIndices, hoveredEventKey, isFaded, pulsingDotId, blackLineX } = $props();
 
     // ------------------- HELPERS -------------------
     
@@ -21,20 +20,14 @@
     <BlackPath {svgWidth} {svgHeight} {side} {blackLineX}/>
     <g class="g-{side}-rainbow-paths">
         {#each allTimelineData[side].paths as themePath, i}
-            <Path 
-                {themePath} 
-                {i} 
-                {sideIndex} 
-                bulgedDayIndices={bulgedDayIndices}
-            />
+            <Path {themePath} {i} {sideIndex} {bulgedMonthIndices}/>
         {/each}
     </g>
 
     <g class="g-{side}-rainbow-dots">
         {#each allTimelineData[side].dots as dot}
             {@const eventKey = normalizeEventKey(dot.event)}
-            // DOT ID CHANGE: Use dot.dayIndex instead of dot.monthIndex
-            {@const dotId = `${dot.dayIndex}-${dot.theme}`}
+            {@const dotId = `${dot.monthIndex}-${dot.theme}`}
             <Dot 
                 {svgWidth} 
                 {dot} 
@@ -44,7 +37,7 @@
                 {tooltipX} 
                 {tooltipY} 
                 {axisData} 
-                isBulged={bulgedDayIndices.has(dot.dayIndex)}
+                isBulged={bulgedMonthIndices.has(dot.monthIndex)}
                 isHovered={hoveredEventKey === eventKey}
                 isFaded={hoveredEventKey && hoveredEventKey !== eventKey}
                 isAdded={$addedEvents.includes(dot.event)}

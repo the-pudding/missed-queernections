@@ -5,7 +5,6 @@
     import { themes, colors, normalizeEventKey, instructionStep } from "$runes/misc.svelte.js";
 
     // ------------------- PROPS -------------------
-    // No change to props needed, as the `isBulged` prop logic was updated in the parent.
     let { dot, dotType, isBulged, isHovered, isAdded, isPulsing } = $props();
 
     // ------------------- VARAIBLES -------------------
@@ -15,10 +14,8 @@
     let dotScale = $derived(isHovered ? 1.2 : 1);
 
     // ------------------- HELPERS -------------------
-    // DATE CHANGE 1: Use a format that shows the day
-    const formatFullDate = d3.timeFormat("%b %d, %Y");
-    // DATE CHANGE 2: Update parsing to match the root component's new format
-    const parseFullDate = d3.timeParse("%B %d, %Y"); 
+    const formatMonthYear = d3.timeFormat("%b %Y");
+    const parseMonthYear = d3.timeParse("%B %Y");
     const dispatch = createEventDispatcher();
 
     // ------------------- EVENTS -------------------
@@ -43,7 +40,7 @@
     data-x={dot.x}
     data-y={dot.y}
     data-basex={dot.baseX}
-    data-day={dot.dayStr}
+    data-month={dot.monthStr}
     data-theme={dot.theme}
     transform={`translate(${isBulged ? dot.x : dot.baseX}, ${dot.y}) scale(${dotScale})`}
     onmouseenter={handleMouseEnter}
