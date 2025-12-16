@@ -40,8 +40,10 @@
 
     // DATA
     let highlightedTickIndex = $state(0);
-    let highlightedTickDate = $state(0);
-    let bulgedMonthIndices = $state(new Set());
+    // FIX: Initialize highlightedTickDate to null
+    let highlightedTickDate = $state(null); 
+    // BULGE CHANGE: Now tracks day indices instead of month indices
+    let bulgedDayIndices = $state(new Set()); 
 
     // ANIMATIONS
     let animatedFadedSide = $state(null);
@@ -77,6 +79,7 @@
         
         // Find all themes associated with this event
         const themesForEvent = new Set();
+        // Accessing the dots from allTimelineData (already defined)
         const allDots = allTimelineData.jan.dots.concat(allTimelineData.ashlee.dots);
         allDots.forEach(d => {
             if (normalizeEventKey(d.event) === hoveredEventKey) {
@@ -117,7 +120,8 @@
         instructionsVisible = false; 
         instructionsDone = true;
     }
-    const parseMonthYear = d3.timeParse("%B %Y");
+    // FIX: Using the single, correct format for "Month Day, Year"
+    const parseMonthYear = d3.timeParse("%B %d, %Y");
     const bisectDate = d3.bisector(d => d).left;
     function changeActiveSection(view) {
         const newSection = view === "enter" ? "timeline" : null;
@@ -125,81 +129,134 @@
     }
 
     // ------------------- DATA PROCESSING -------------------
-    
-    // COMPUTE PATHS AND DOTS
-    function makePathsAndDots({ side, data, svgWidth, spacing, startX, yScale }) {
+
+    // COMPUTE PATHS AND DOTS (IMPLEMENTS PROJECTED BULGE SWEEP)
+    function makePathsAndDots({ side, data, svgWidth, spacing, startX, yScale, minDate, maxDate }) {
         const reverse = side === "ashlee";
         const baseOffset = 10;
         const selfThemeKey = side === "jan" ? "janTheme" : "ashleéTheme";
         const otherThemeKey = side === "jan" ? "ashleéTheme" : "janTheme";
-
-        // Group by month to calculate path bulges
-        const monthlyData = d3.group(data, d => d3.timeFormat("%B %Y")(d.date));
         
+        const dailyData = d3.group(data, d => d3.timeFormat("%Y-%m-%d")(d.date));
+        
+        const days = d3.timeDay.range(d3.timeDay.floor(minDate), d3.timeDay.offset(d3.timeDay.ceil(maxDate), 1));
+        const totalDays = days.length;
+
+        // CONFIG: How long (in days) the line should sweep back to the straight position after an event.
+        const sweepDurationDays = 120; // 120 days = approx 4 months
+        const bulgeVerticalOffset = 10; // Nudge to make the curve visually steeper/taller
+
         // Paths
         const paths = themes.map((theme, i) => {
             const baseX = reverse ? svgWidth - startX - i * spacing : startX + i * spacing;
-            const months = d3.timeMonth.range(d3.min(data, d => d.date), d3.timeMonth.offset(d3.max(data, d => d.date), 1));
             
             const bulgedPoints = [];
             const straightPoints = [];
             const meetsInCenter = [];
+            
+            // NEW: Array to track the projected X-position for every day index (default to baseX)
+            const projectedXPositions = new Array(totalDays).fill(baseX); 
+            
+            // PASS 1: DETERMINE MAX BULGE AND PROJECT BACKWARDS
+            for (let dayIndex = totalDays - 1; dayIndex >= 0; dayIndex--) {
+                const dayStr = d3.timeFormat("%Y-%m-%d")(days[dayIndex]);
+                const dailyEvents = dailyData.get(dayStr) || []; 
 
-            months.forEach((month, monthIndex) => {
-                const y = yScale(month);
-                const monthStr = d3.timeFormat("%B %Y")(month);
-                const monthEvents = monthlyData.get(monthStr) || [];
+                const hasSelf = dailyEvents.some(d => d[selfThemeKey] === theme);
+                const hasOther = dailyEvents.some(d => d[otherThemeKey] === theme);
+                
+                let targetX = baseX;
 
-                // Check for theme activity in the current month for self and other side
-                const hasSelf = monthEvents.some(d => d[selfThemeKey] === theme);
-                const hasOther = monthEvents.some(d => d[otherThemeKey] === theme);
+                // 1. Calculate the MAX horizontal shift for this specific day
+                if (hasSelf && hasOther) {
+                    targetX = svgWidth / 2;
+                } else if (hasSelf && side === "jan") {
+                    targetX = svgWidth / 4 + i * baseOffset;
+                } else if (hasSelf && side === "ashlee") {
+                    targetX = (3 * svgWidth) / 4 - i * baseOffset;
+                }
+                
+                // 2. If a bulge exists for this day, project it backwards for the sweepDurationDays
+                if (targetX !== baseX) {
+                    for (let j = 0; j < sweepDurationDays && dayIndex - j >= 0; j++) {
+                        const sweepIndex = dayIndex - j;
+                        const currentProjectedX = projectedXPositions[sweepIndex];
+                        
+                        // Use a safety check to ensure we only push the projection wider,
+                        // or if the current spot is still on the straight line.
+                        const currentDistance = Math.abs(currentProjectedX - (svgWidth / 2));
+                        const targetDistance = Math.abs(targetX - (svgWidth / 2));
+                        
+                        // Logic to ensure the path stays wide, simulating the desired visual sweep
+                        if (targetDistance <= currentDistance) {
+                             projectedXPositions[sweepIndex] = targetX;
+                        }
+                    }
+                }
+            }
 
-                meetsInCenter[monthIndex] = hasSelf && hasOther;
 
-                const width = svgWidth;
-                let xOffset = baseX;
-                if (hasSelf && hasOther) xOffset = width / 2;
-                else if (hasSelf && side === "jan") xOffset = width / 4 + i * baseOffset;
-                else if (hasSelf && side === "ashlee") xOffset = (3 * width) / 4 - i * baseOffset;
+            // PASS 2: GENERATE POINTS using the projected X positions
+            days.forEach((day, dayIndex) => {
+                const originalY = yScale(day);
+                
+                // Get the calculated X position from the projection map
+                const xOffset = projectedXPositions[dayIndex];
+                
+                // Track meets in center (still based on instantaneous day event, used for meetingEventAnimation)
+                const dayStr = d3.timeFormat("%Y-%m-%d")(day);
+                const dailyEvents = dailyData.get(dayStr) || []; 
+                const hasSelf = dailyEvents.some(d => d[selfThemeKey] === theme);
+                const hasOther = dailyEvents.some(d => d[otherThemeKey] === theme);
+                meetsInCenter[dayIndex] = hasSelf && hasOther;
+                
+                let y = originalY;
+                
+                // TALLER BULGE IMPLEMENTATION: Nudge Y position down if the path is shifted horizontally
+                if (xOffset !== baseX) {
+                    y = originalY + bulgeVerticalOffset;
+                }
+                
                 bulgedPoints.push([xOffset, y]);
-                straightPoints.push([baseX, y]);
+                straightPoints.push([baseX, originalY]); // Straight points must always use the true Y
             });
+            
             return { theme, points: bulgedPoints, straightPoints, meetsInCenter };
         });
 
         // Rainbow line dots
         const dots = data.flatMap(d => {
             const theme = d[selfThemeKey];
-            if (!theme) return []; // Only create a dot if there's a theme for this side
+            if (!theme) return []; 
             
             const themeIndex = themes.indexOf(theme);
-            if (themeIndex === -1) return []; // Theme must be in the predefined themes array
+            if (themeIndex === -1) return []; 
 
-            const dotMonthStr = d3.timeFormat("%B %Y")(d.date);
-            const monthEvents = monthlyData.get(dotMonthStr) || [];
+            const dotDayStr = d3.timeFormat("%Y-%m-%d")(d.date);
 
-            // Check for theme match to determine position
             const hasSelf = theme === d[selfThemeKey];
             const hasOther = theme === d[otherThemeKey];
             const width = svgWidth; 
             const baseX = reverse ? svgWidth - startX - themeIndex * spacing : startX + themeIndex * spacing;
             let x = baseX;
+            
             if (hasSelf && hasOther) x = width / 2;
             else if (hasSelf && side === "jan") x = width / 4 + themeIndex * baseOffset;
             else if (hasSelf && side === "ashlee") x = (3 * width) / 4 - themeIndex * baseOffset;
             
-            const monthIndex = d3.timeMonth.count(minDate, d.date);
+            const dotY = yScale(d.date); 
+            const dayIndex = d3.timeDay.count(minDate, d.date);
 
             return {
-                id: `${side}-${dotMonthStr}-${theme}-${d.event}`, 
+                id: `${side}-${dotDayStr}-${theme}-${d.event}`, 
                 date: d.date, 
                 event: String(d.event || '').trim(), 
                 theme, 
                 x, 
-                y: yScale(d.date), 
+                y: dotY,
                 baseX, 
-                monthStr: dotMonthStr, 
-                monthIndex
+                dayStr: dotDayStr, 
+                dayIndex
             };
         });
         
@@ -212,19 +269,19 @@
             const eventStr = String(d.event || '').trim();
             const baseX = reverse ? svgWidth - blackLineX : blackLineX;
             return {
-                id: `${side}-${d3.timeFormat("%B %Y")(d.date)}-empty-${eventStr}`, 
+                id: `${side}-${d3.timeFormat("%Y-%m-%d")(d.date)}-empty-${eventStr}`, 
                 date: d.date, 
                 event: eventStr, 
                 x: baseX, 
                 y: yScale(d.date), 
                 r: 6, 
                 baseX, 
-                monthStr: d3.timeFormat("%B %Y")(d.date), 
-                monthIndex: d3.timeMonth.count(minDate, d.date)
+                dayStr: d3.timeFormat("%Y-%m-%d")(d.date), 
+                dayIndex: d3.timeDay.count(minDate, d.date)
             };
         });
 
-        return { paths, dots, emptyDots };
+        return { paths, dots, emptyDots, totalDays }; 
     }
 
     // PROCESS DATA
@@ -234,20 +291,21 @@
         const parsedData = combinedData
             .map(d => ({
                 ...d,
-                date: parseMonthYear(d.date) // Parse the date once
+                date: parseMonthYear(d.date)
             }))
-            .filter(d => d.date); // Filter out rows with invalid dates
+            .filter(d => d.date); 
 
         return {
             yScale,
             monthlyData: parsedData,
-            jan: makePathsAndDots({ side: "jan", data: parsedData, svgWidth, spacing, startX, yScale }),
-            ashlee: makePathsAndDots({ side: "ashlee", data: parsedData, svgWidth, spacing, startX, yScale })
+            jan: makePathsAndDots({ side: "jan", data: parsedData, svgWidth, spacing, startX, yScale, minDate, maxDate }),
+            ashlee: makePathsAndDots({ side: "ashlee", data: parsedData, svgWidth, spacing, startX, yScale, minDate, maxDate })
         };
     }
 
     // FULL DATA + AXES
     const allDates = combinedData.map(d => parseMonthYear(d.date)).filter(d => d);
+
     const minDate = d3.min(allDates);
     const maxDate = d3.max(allDates);
 
@@ -257,11 +315,11 @@
 
     const allTimelineData = $derived(generateTimelineData(combinedData));
 
-    let axisData = $derived(allTimelineData?.yScale.ticks(d3.timeMonth.every(1)) || []);
+    let axisData = $derived(allTimelineData?.yScale.ticks(d3.timeDay.every(1)) || []);
     
     // ------------------- DATA PROCESSING -------------------
 
-    // DEBOUNCE SCROLL HOVER
+    // DEBOUNCE SCROLL HOVER (No change)
     $effect(() => {
         if (yScroll !== lastScrollY) {
             scrolling = true;
@@ -283,107 +341,124 @@
         }
     });
 
-    // HIGHLIGHT TICK BY SCROLL
+    // HIGHLIGHT TICK BY SCROLL (Monthly snap logic)
     $effect(() => {
-        // This effect runs on every scroll
         if ($activeSection !== 'timeline' || !allTimelineData?.yScale || !axisData || axisData.length === 0) {
             return;
         }
 
         const viewportCenterY = window.innerHeight / 2;
-        const tickPositions = axisData.map((tickValue) => allTimelineData.yScale(tickValue));
-
-        let closestDistance = Infinity;
-        let closestIndex = -1;
-
-        tickPositions.forEach((tickY, i) => {
-            // 👇 This is the fast and accurate calculation
-            const distance = Math.abs((introHeight + tickY) - (yScroll + viewportCenterY));
-
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestIndex = i;
-            }
-        });
         
-        if (closestIndex !== -1) {
-            highlightedTickIndex = closestIndex;
-            highlightedTickDate = axisData[closestIndex];
+        // Step 1: Find the Date at the exact viewport center
+        const centerAbsoluteY = yScroll + viewportCenterY - introHeight;
+        const dateAtCenter = allTimelineData.yScale.invert(centerAbsoluteY);
+
+        // Step 2: Snap the center date to the start of the current month
+        const newHighlightedDate = d3.timeMonth.floor(dateAtCenter);
+
+        // Step 3: Find the index of this snapped month-start date in the axisData (if needed)
+        let closestIndex = -1;
+        if (newHighlightedDate.getTime() !== highlightedTickDate?.getTime()) {
+            closestIndex = axisData.findIndex(d => d.getTime() === newHighlightedDate.getTime());
+        }
+
+        if (
+            newHighlightedDate &&
+            (
+                !highlightedTickDate ||
+                newHighlightedDate.getTime() !== highlightedTickDate.getTime()
+            )
+        ) {
+            highlightedTickDate = newHighlightedDate;
+            if (closestIndex !== -1) {
+                highlightedTickIndex = closestIndex;
+            }
         }
     });
 
-    // TIMELINE: LINE/DOTS BULGE + COLLIDE
+    // TIMELINE: LINE/DOTS BULGE + COLLIDE (21-Day Window centered on Month-Start)
     $effect(() => {
         if (!highlightedTickDate || !minDate || !allTimelineData.jan?.paths) return;
 
-        // --- Logic to find which new months to bulge ---
-        const windowStartDate = d3.timeMonth.offset(highlightedTickDate, -2);
-        const startIndex = d3.timeMonth.count(minDate, windowStartDate);
+        // --- 1. Define the Bulge Window based on the new Month-Hit logic ---
+        const bulgeDaysBefore = 10;
+        const bulgeDaysAfter = 10; 
+
+        const windowStartDate = d3.timeDay.offset(highlightedTickDate, -bulgeDaysBefore);
+        const windowEndDate = d3.timeDay.offset(highlightedTickDate, bulgeDaysAfter + 1);
+
+        const startIndex = d3.timeDay.count(d3.timeDay.floor(minDate), windowStartDate);
         
         let needsUpdate = false;
-        const newIndices = new Set(bulgedMonthIndices);
+        const newIndices = new Set();
         const justAddedIndices = [];
 
-        for (let i = 0; i < 3; i++) {
+        // --- 2. Populate the new set with indices in the 21-day window ---
+        const totalDays = allTimelineData.jan.totalDays; 
+        
+        for (let i = 0; i <= bulgeDaysBefore + bulgeDaysAfter; i++) {
             const currentIndex = startIndex + i;
-            if (currentIndex >= 0 && !newIndices.has(currentIndex)) {
+            
+            if (currentIndex >= 0 && currentIndex < totalDays) {
                 newIndices.add(currentIndex);
-                justAddedIndices.push(currentIndex);
-                needsUpdate = true;
+                if (!bulgedDayIndices.has(currentIndex)) {
+                    justAddedIndices.push(currentIndex);
+                }
             }
         }
 
-        // --- If a new bulge is happening, check for a "meet" event ---
-        if (needsUpdate) {
-            bulgedMonthIndices = newIndices;
+        if (newIndices.size !== bulgedDayIndices.size || justAddedIndices.length > 0) {
+            bulgedDayIndices = newIndices;
+            needsUpdate = true;
+        }
 
+        // --- 3. If a "meet" is detected in the new window, trigger all animations ---
+        if (needsUpdate && justAddedIndices.length > 0) {
             let meetingEvent = null;
+            
             for (const pathData of allTimelineData.jan.paths) {
-                for (const monthIndex of justAddedIndices) {
-                    if (pathData.meetsInCenter[monthIndex]) {
-                        meetingEvent = { monthIndex, theme: pathData.theme };
+                for (const dayIndex of justAddedIndices) {
+                    if (pathData.meetsInCenter[dayIndex]) { 
+                        meetingEvent = { dayIndex, theme: pathData.theme };
                         break;
                     }
                 }
                 if (meetingEvent) break;
             }
 
-            // 👇 If a "meet" is detected, trigger all animations
             if (meetingEvent) {
-        const bulgeAnimationDuration = 300;
-        const totalAnimationTime = 3000;
+                const bulgeAnimationDuration = 300;
+                const totalAnimationTime = 3000;
 
-        setTimeout(() => {
-            // --- 1. Calculate all necessary data for the animations ---
-            const dotId = `${meetingEvent.monthIndex}-${meetingEvent.theme}`;
-            const targetDate = d3.timeMonth.offset(minDate, meetingEvent.monthIndex);
-            const yPosInSVG = yScale(targetDate);
-            const themeIndex = themes.indexOf(meetingEvent.theme);
-            const themeColor = colors[themeIndex];
-            
-            // 👇 THIS IS THE FIX: Get the position *right before* you use it
-            const figureRect = figureElement.getBoundingClientRect();
-            const originX = figureRect.left + (svgWidth / 2);
-            const originY = figureRect.top + yPosInSVG;
-            
-            // --- 2. Activate all animations by setting state ---
-            meetingEventAnimation = {
-                y: yPosInSVG,
-                color: themeColor,
-                dotId: dotId,
-                active: true
-            };
-            
-            storyBubbleOrigin = { x: `${originX}px`, y: `${originY}px` };
-            highlightedTickDate = targetDate;
+                setTimeout(() => {
+                    // --- 1. Calculate all necessary data for the animations ---
+                    const dotId = `${meetingEvent.dayIndex}-${meetingEvent.theme}`;
+                    const targetDate = d3.timeDay.offset(d3.timeDay.floor(minDate), meetingEvent.dayIndex); 
+                    const yPosInSVG = yScale(targetDate);
+                    const themeIndex = themes.indexOf(meetingEvent.theme);
+                    const themeColor = colors[themeIndex];
+                    
+                    const figureRect = figureElement.getBoundingClientRect();
+                    const originX = figureRect.left + (svgWidth / 2);
+                    const originY = figureRect.top + yPosInSVG;
+                    
+                    // --- 2. Activate all animations by setting state ---
+                    meetingEventAnimation = {
+                        y: yPosInSVG,
+                        color: themeColor,
+                        dotId: dotId,
+                        active: true
+                    };
+                    
+                    storyBubbleOrigin = { x: `${originX}px`, y: `${originY}px` };
 
-        }, bulgeAnimationDuration);
+                }, bulgeAnimationDuration);
 
-        // --- 3. Schedule the cleanup (this part remains the same) ---
-        setTimeout(() => {
-            meetingEventAnimation = { y: null, color: null, dotId: null, active: false };
-        }, bulgeAnimationDuration + totalAnimationTime);
-    }
+                // --- 3. Schedule the cleanup (this part remains the same) ---
+                setTimeout(() => {
+                    meetingEventAnimation = { y: null, color: null, dotId: null, active: false };
+                }, bulgeAnimationDuration + totalAnimationTime);
+            }
         }
     });
 
@@ -395,24 +470,21 @@
             document.body.classList.remove('no-scroll');
         }
 
-        // Cleanup function to ensure the class is removed if the component unmounts
         return () => {
             document.body.classList.remove('no-scroll');
         };
     });
 
-    // INSTRUCTION: LOCK
+    // INSTRUCTION: LOCK (No change)
     $effect(() => {
         if ($activeSection !== 'timeline' || !instructionsVisible || storyVisible || !timelineSectionElement || instructionsDone) {
-            return; // Do nothing if the timeline is not in view
+            return;
         }
 
         const boundaryY = timelineSectionElement.offsetTop;
 
-        // Scroll
         const preventWheelScroll = (event) => {
             const isScrollingDown = event.deltaY > 0;
-            
             const isAtOrPastBoundary = window.scrollY >= boundaryY;
 
             if (isAtOrPastBoundary && isScrollingDown) {
@@ -421,7 +493,6 @@
             }
         };
 
-        // Touch
         let lastTouchY = 0;
         const preventTouchScroll = (event) => {
             const touchY = event.touches[0].clientY;
@@ -434,24 +505,21 @@
             lastTouchY = touchY;
         };
 
-        // Listeners
         window.addEventListener('wheel', preventWheelScroll, { passive: false });
         window.addEventListener('touchmove', preventTouchScroll, { passive: false });
 
 
-        // Cleanup 
         return () => {
             window.removeEventListener('wheel', preventWheelScroll);
             window.removeEventListener('touchmove', preventTouchScroll);
         }
     });
 
-    // INSTRUCTION: SIDE FADE
+    // INSTRUCTION: SIDE FADE (No change)
     $effect(() => {
         let timeout1, timeout2, timeout3;
 
         if ($instructionStep === 1) {
-            // Start the sequence
             timeout1 = setTimeout(() => {
                 animatedFadedSide = 'jan';
             }, 500);
@@ -465,7 +533,6 @@
             }, 2500);
         }
 
-        // Cleanup
         return () => {
             clearTimeout(timeout1);
             clearTimeout(timeout2);
@@ -474,14 +541,16 @@
         };
     });
 
-    // INSTRUCTION: DATE SCROLL
+    // INSTRUCTION: DATE SCROLL (No change)
     $effect(() => {
         let targetDate;
 
         if ($instructionStep === 3) {
-            targetDate = parseMonthYear("August 1989");
+            // Updated instruction dates to match the new parser
+            targetDate = parseMonthYear("August 1, 1989"); 
         } else if ($instructionStep === 4) {
-            targetDate = parseMonthYear("September 1990");
+            // Updated instruction dates to match the new parser
+            targetDate = parseMonthYear("September 1, 1990"); 
         }
 
         if (targetDate && yScale && timelineSectionElement) {
@@ -503,7 +572,7 @@
 <section id="timeline" 
     bind:this={timelineSectionElement}
     use:inView={{ top: 0, bottom: innerHeight - 1 }} 
- 	onenter={() => {
+    onenter={() => {
         changeActiveSection("enter")
         instructionsVisible = true;
         }}
@@ -565,7 +634,7 @@
                             {tooltipY} 
                             {axisData} 
                             {highlightedTickIndex} 
-                            {bulgedMonthIndices}
+                            bulgedDayIndices={bulgedDayIndices}
                             {hoveredEventKey}
                             {hoveredThemes}
                             {blackLineX}

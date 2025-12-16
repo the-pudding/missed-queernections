@@ -4,7 +4,8 @@
     import { colors } from "$runes/misc.svelte.js";
 
     // ------------------- PROPS -------------------
-    let { themePath, i, sideIndex, bulgedMonthIndices } = $props();
+    // PROP CHANGE: Renamed bulgedMonthIndices to bulgedDayIndices
+    let { themePath, i, sideIndex, bulgedDayIndices } = $props();
 
     // ------------------- HELPERS -------------------
     const lineGenerator = d3.line()
@@ -18,8 +19,10 @@
     data-side-index={sideIndex}
     data-path-index={i}
     id="{themePath.theme}-{i}-path" 
-    d={lineGenerator(themePath.straightPoints.map((point, i) => 
-            bulgedMonthIndices.has(i) ? themePath.points[i] : point
+    d={lineGenerator(themePath.straightPoints.map((point, index) => 
+            // The index `i` here corresponds to the index in themePath.straightPoints,
+            // which now represents a day index (since the path was generated day-by-day).
+            bulgedDayIndices.has(index) ? themePath.points[index] : point
         ))} 
     stroke={colors[i]} 
     fill="none" 
