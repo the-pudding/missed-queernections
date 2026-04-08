@@ -1,24 +1,55 @@
 <script>
-    import { themes, colors } from "$runes/misc.svelte.js";
+    import { addedEvents, colors } from "$runes/misc.svelte.js";
+    import { onMount } from 'svelte';
 
-    let {circle, fill, centerX } = $props();
+    let {circle, fill, centerX, maxScroll, onsettled, isDimmed, onhover, onleave, hoveredEventName } = $props();
 
     let queernection = $state(false);
+    let isAdded = $derived($addedEvents.includes(String(circle.event ?? '').trim()));
+    let isHoveredAcrossTimeline = $derived(hoveredEventName === circle.event);
+    const r = 10;
 
     function handleTransitionEnd(event) {
-        // 1. Only trigger if the horizontal position (cx) was what finished moving
-        if (event.propertyName === 'cx') {
+        if (event.propertyName.includes('transform')) {
             
-            // 2. Check if the current position is approximately the center
-            // We use a small buffer (1px) to account for floating point math
+            // 1. Calculate if this specific circle is actually "revealed" yet
+            // We can check if its vertical position is within the scrolled area
+            // (Using the same logic as the parent's activationY)
+            const isRevealed = circle.cy <= (maxScroll ?? 0);
+
+            if (!isRevealed) return; // Ignore transitions caused by resize or page load
+
             const isAtCenter = Math.abs(circle.cx - centerX) < 1;
 
             if (isAtCenter) {
-                console.log(`✅ Transition complete: "${circle.event}" has met in the center.`);
                 queernection = true;
             }
+            
+            onsettled();
         }
     }
+
+    function handleClick() {
+        console.log(`Clicked on circle: "${circle.event}"`);
+        const eventKey = String(circle.event ?? '').trim();
+        if (!eventKey) return;
+        
+        if ($addedEvents.includes(eventKey)) {
+            // Reassigning the auto-subscribed variable updates the store
+            $addedEvents = $addedEvents.filter(ev => ev !== eventKey);
+        } else {
+            $addedEvents = [...$addedEvents, eventKey];
+        }
+        console.log(`Current addedEvents:`, $addedEvents);
+    }
+
+    onMount(() => {
+        // Check if this circle was already scrolled past on load
+        const isRevealed = circle.cy <= (maxScroll ?? 0);
+        if (isRevealed) {
+            onsettled();
+        }
+    });
 </script>
 
 <defs>
@@ -29,21 +60,37 @@
     </radialGradient>
 </defs>
 
-<g class="circle-container">
+<g class="circle-container"
+    role="button"
+    tabindex="0" 
+    transform={`translate(${circle.cx}, ${circle.cy})`}
+    ontransitionend={handleTransitionEnd}
+    onclick={handleClick}
+    onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleClick();
+        }
+    }}
+    class:is-active-hover={isHoveredAcrossTimeline}
+    class:is-dimmed={isDimmed}
+    onmouseenter={onhover}
+    onmouseleave={onleave}
+>
     {#if queernection}
         <circle 
-            cx={circle.cx}
-            cy={circle.cy}
-            r="10" 
+            cx={0}
+            cy={0}
+            r={r} 
             fill={fill} 
             class="pulse"
         />
 
         {#each colors as color, i}
             <circle 
-                cx={circle.cx}
-                cy={circle.cy}
-                r="10" 
+                cx={0}
+                cy={0}
+                r={r} 
                 fill="none"
                 stroke={color}
                 stroke-width="1"
@@ -54,32 +101,48 @@
     {/if}
 
     <circle 
-        cx={circle.cx}
-        cy={circle.cy}
-        r="10" 
+        cx={0}
+        cy={0}
+        r={r} 
         fill={fill} 
         stroke-width="2"
-        ontransitionend={handleTransitionEnd}
-        onmouseenter={() => console.log(`📌 ${circle.event}`)}
+        style="transform: scale({isHoveredAcrossTimeline ? 1.25 : 1})"
     />
+
+    <g class="icon" 
+        class:rotated={isAdded}
+        style="transform: scale({isHoveredAcrossTimeline ? 1.25 : 1}) {isAdded ? 'rotate(45deg)' : ''}"
+    >
+        <line x1="0" y1={-r*0.375} x2="0" y2={r*0.375} stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none" />
+        <line x1={-r*0.375} y1="0" x2={r*0.375} y2="0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none" />
+    </g>
 </g>
 
 <style>
-    circle {
+    .circle-container {
         /*
             Animates cx (horizontal position) when a segment activates,
             matching the path transition timing exactly so dots and lines
             move together.
         */
-        transition: cx 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        transition: opacity 400ms ease, transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
         cursor: pointer;
         pointer-events: all;
         transform-box: fill-box;
         transform-origin: center;
+        outline: none;
     }
-    
-    circle:hover {
-        r: 13; /* grows on hover — also CSS-transitioned by the browser */
+
+    circle, .icon {
+       transition: all 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94); 
+    }
+
+    .circle-container.is-dimmed {
+        opacity: 0.1;
+    }
+
+    .icon.rotated {
+        transform: rotate(45deg);
     }
 
     /* THE CONTINUOUS PULSE (Solid/Aura) */
