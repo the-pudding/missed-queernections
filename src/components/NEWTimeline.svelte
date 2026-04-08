@@ -6,8 +6,10 @@
     import { onMount } from 'svelte';
     import combinedData from "$data/combined.csv";
     import { themes, colors } from "$runes/misc.svelte.js";
+    import Path from "$components/NEWTimeline.Side.Path.svelte";
+    import Circle from "$components/NEWTimeline.Side.Circle.svelte";
     // combinedData: flat array of event rows from CSV
-    // themes: ordered array of theme name strings, e.g. ["love", "loss", ...]
+    // themes: ordered array of theme name strings, e.g. ["beHer", "representation", ...]
     // colors: parallel array of hex colors, one per theme
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -15,7 +17,7 @@
     // All declared as $state so Svelte tracks changes and re-runs derived
     // computations when they update.
     // ─────────────────────────────────────────────────────────────────────────
-    let svgHeight = $state(60000);  // Fixed tall canvas — one long scrollable SVG
+    let svgHeight = $state(60000);  // Fixed tall canvas — one long scrollable SVG, change this to increase/decrease space between events
     let svgWidth = $state(0);       // Bound to SVG element width; updates on resize
     let scrollY = $state(0);        // Current scroll position (px from top)
     let windowHeight = $state(0);   // Viewport height
@@ -45,7 +47,7 @@
     //       side: "jan",
     //       themesData: [ // one entry per theme
     //         {
-    //           themeName: "love",
+    //           themeName: "representation",
     //           pathPoints: [...],   // thinned daily events for the SVG path
     //           circlePoints: [...], // only real (non-placeholder) events
     //         }, ...
@@ -363,43 +365,42 @@
             {#each renderedData as sideData}
                 <g class="side-{sideData.side}">
                     {#each sideData.themesData as theme, themeIndex (theme.themeName)}
-                        <!--
-                            themeIndex !== -1 guard: themes.indexOf() returns -1
-                            if the theme name isn't in the themes array.
-                            Shouldn't happen with clean data, but belt-and-suspenders.
-                        -->
-                        {#if themeIndex !== -1}
+                        <g class="paths-{sideData.side}-{theme.themeName}">
                             <!--
-                                pathD is a pre-computed string — no computation here.
-                                The CSS transition on `d` animates the path shape
-                                smoothly as segments snap into place on scroll.
+                                themeIndex !== -1 guard: themes.indexOf() returns -1
+                                if the theme name isn't in the themes array.
+                                Shouldn't happen with clean data, but belt-and-suspenders.
                             -->
-                            <path 
-                                d={theme.pathD}
-                                stroke={theme.themeColor}
-                                stroke-width="6"
-                                fill="none"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-
+                            {#if themeIndex !== -1}
+                                <!--
+                                    pathD is a pre-computed string — no computation here.
+                                    The CSS transition on `d` animates the path shape
+                                    smoothly as segments snap into place on scroll.
+                                -->
+                                <Path 
+                                    d={theme.pathD}
+                                    stroke={theme.themeColor}
+                                />
+                            {/if}
+                        </g>
+                    {/each}
+                    {#each sideData.themesData as theme, themeIndex (theme.themeName)}
+                        <g class="circles-{sideData.side}-{theme.themeName}">
                             <!--
                                 Circles sit at real event positions.
                                 cx is pre-computed; CSS transition animates it
                                 when the segment activates.
                             -->
-                            {#each theme.circles as circle}
-                                <circle 
-                                    cx={circle.cx}
-                                    cy={circle.cy}
-                                    r="10" 
-                                    fill={theme.themeColor} 
-                                    stroke="white"
-                                    stroke-width="2"
-                                    onmouseenter={() => console.log(`📌 ${circle.event}`)}
-                                />
-                            {/each}
-                        {/if}
+                            {#if themeIndex !== -1}
+                                {#each theme.circles as circle}
+                                    <Circle 
+                                        circle={circle}
+                                        fill={theme.themeColor} 
+                                        centerX={svgWidth / 2}
+                                    />
+                                {/each}
+                            {/if}
+                        </g>
                     {/each}
                 </g>
             {/each}

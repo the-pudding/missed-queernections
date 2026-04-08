@@ -1,33 +1,26 @@
 <script>
-    import * as d3 from 'd3';
-    let { theme, yScale, xPos, color } = $props();
-
-    // Create a simple vertical line generator
-    const lineGenerator = d3.line()
-        .x(xPos)
-        .y(d => yScale(d.parsedDate));
-
-    const pathData = $derived(lineGenerator(theme.events));
-
-    console.log(color)
+    let { d, stroke } = $props();
 </script>
 
-{#if theme.themeName !== "none" && theme.events.length > 1}
-    <path 
-        d={pathData} 
-        stroke={color}
-        fill="none"
-        stroke-width="3"
-        stroke-linecap="round"
-        opacity="0.8"
-    />
-{/if}
+<path 
+    d={d}
+    stroke={stroke}
+    stroke-width="6"
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+/>
 
-<!-- {#each theme.events as event}
-    <circle 
-        cx={xPos} 
-        cy={yScale(event.parsedDate)} 
-        r="4" 
-        fill={theme.themeName === "none" ? "#ccc" : color} 
-    />
-{/each} -->
+<style>
+    path { 
+        /*
+            Animates the SVG path shape (`d` attribute) when segments activate.
+            cubic-bezier gives a snappy-but-smooth feel.
+            shape-rendering: geometricPrecision prevents jagged edges on
+            diagonal strokes at sub-pixel positions.
+        */
+        transition: d 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        shape-rendering: geometricPrecision; 
+        pointer-events: none; /* clicks pass through to circles underneath */
+    }
+</style>
