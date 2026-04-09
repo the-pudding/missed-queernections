@@ -63,7 +63,6 @@
 <g class="circle-container"
     role="button"
     tabindex="0" 
-    data-event={circle.event}
     transform={`translate(${circle.cx}, ${circle.cy})`}
     ontransitionend={handleTransitionEnd}
     onclick={handleClick}
@@ -191,12 +190,4 @@
         animation-iteration-count: 2;
         pointer-events: none;
     }
-
-    circle {
-        /* cx animates to match path transition timing */
-        transition: cx 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        cursor: pointer;
-        pointer-events: all;
-    }
-    circle:hover { r: 13; }
 </style>
