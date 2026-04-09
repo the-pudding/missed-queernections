@@ -2,7 +2,7 @@
     import { addedEvents, colors } from "$runes/misc.svelte.js";
     import { onMount } from 'svelte';
 
-    let {circle, fill, centerX, maxScroll, onsettled, isDimmed, onhover, onleave, hoveredEventName } = $props();
+    let {circle, fill, centerX, maxScroll, onsettled, isPick, isDimmed, onhover, onleave, hoveredEventName } = $props();
 
     let queernection = $state(false);
     let isAdded = $derived($addedEvents.includes(String(circle.event ?? '').trim()));
@@ -63,6 +63,7 @@
 <g class="circle-container"
     role="button"
     tabindex="0" 
+    data-event={circle.event}
     transform={`translate(${circle.cx}, ${circle.cy})`}
     ontransitionend={handleTransitionEnd}
     onclick={handleClick}
@@ -74,6 +75,7 @@
     }}
     class:is-active-hover={isHoveredAcrossTimeline}
     class:is-dimmed={isDimmed}
+    class:is-pick={isPick}
     onmouseenter={onhover}
     onmouseleave={onleave}
 >
@@ -189,4 +191,12 @@
         animation-iteration-count: 2;
         pointer-events: none;
     }
+
+    circle {
+        /* cx animates to match path transition timing */
+        transition: cx 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        cursor: pointer;
+        pointer-events: all;
+    }
+    circle:hover { r: 13; }
 </style>

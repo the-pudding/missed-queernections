@@ -16,15 +16,10 @@
 />
 
 <style>
-    path { 
-        /*
-            Animates the SVG path shape (`d` attribute) when segments activate.
-            cubic-bezier gives a snappy-but-smooth feel.
-            shape-rendering: geometricPrecision prevents jagged edges on
-            diagonal strokes at sub-pixel positions.
-        */
+    path {
+        /* Animates path shape as segments activate on scroll */
         transition: d 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        shape-rendering: geometricPrecision; 
-        pointer-events: none; /* clicks pass through to circles underneath */
+        shape-rendering: geometricPrecision;
+        pointer-events: none;
     }
 </style>
