@@ -27,89 +27,148 @@
     // ─── TEXT / TOOLTIP STATE ─────────────────────────────────────────────────
     let settledSegments = $state(new Set());
 
-    // Called when a circle finishes animating into position.
-    // Checks if it's a "pick" event that should trigger a blowout.
-    function handleCircleSettled(circle, color) {
-        const key = circle.segmentKey || (circle.event + circle.cy);
-        if (settledSegments.has(key)) return;
-
-        settledSegments = new Set([...settledSegments, key]);
-
-        const isAtCenterLane = Math.abs(circle.cx - svgWidth / 2) < 1;
-        const isAtTriggerY = circle.cy <= scrollY + (windowHeight * 0.85);
-
-        if (circle.isPick && isAtCenterLane && isAtTriggerY) {
-            triggerPickAction(circle, color);
-        }
-    }
-
     // ─── BLOWOUT STATE ────────────────────────────────────────────────────────
     let activeBlowoutId = $state(null);
     let blowoutData = $state(null);
     let blowoutColor = $state(null);
-    let hasTriggeredForThisId = $state(null);
+    let blowoutOriginX = $state('50%');
+    let blowoutOriginY = $state('50%');
+    let currentPickIndex = $state(-1);
 
-    // Sequence: snap scroll → lock → poll until BOTH <g> elements reach centerX → pause → blowout
-    const MEET_PAUSE   = 500;  // ms — dramatic hold after both circles meet
-    const CENTER_SLOP  = 3;    // px — tolerance for "arrived at center"
-    const POLL_TIMEOUT = 1000; // ms — safety bail-out
+    let svgEl = $state(null);
 
-    // Reads the live animated translateX from a <g transform="translate(x,y)"> element.
-    // getComputedStyle reflects the mid-transition value, not the target value.
-    function getLiveX(gEl) {
-        const matrix = new DOMMatrix(getComputedStyle(gEl).transform);
-        return matrix.m41; // translateX in the computed matrix
-    }
+    // All pick events in chronological order — computed once from static baseData.
+    // Used for blowout prev/next navigation.
 
-    function triggerPickAction(circle, color) {
-        const targetScroll = circle.cy - (windowHeight / 2);
+    // ─── PRE-EMPTIVE SCROLL LOCK ──────────────────────────────────────────────
+    // Locks scroll as soon as an activated pick circle (cx ≈ centerX in renderedData,
+    // meaning its segment has fired) enters the visible viewport.
+    // This prevents the user scrolling past before the blowout fires.
+    let lockedForEvent = $state(null);
 
-        // 1. Snap viewport so the event sits at vertical center
-        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    $effect(() => {
+        if (activeBlowoutId !== null || lockedForEvent !== null) return;
 
-        // 2. Lock scroll immediately
-        document.body.style.overflow = 'hidden';
+        const top    = scrollY;
+        const bottom = scrollY + windowHeight;
 
-        // 3. Poll the <g data-event> elements live transform until both
-        //    sides have finished sliding to centerX, then pause and fire.
-        const eventName = circle.event;
-        const cx = svgWidth / 2;
-        const startTime = performance.now();
-        let metAt = null;
+        for (const sideData of renderedData) {
+            for (const theme of sideData.themesData) {
+                for (const circle of theme.circles) {
+                    if (!circle.isPick) continue;
+                    if (Math.abs(circle.cx - svgWidth / 2) > 2) continue; // segment not active
+                    if (firedBlowouts.has(circle.event)) continue;         // already shown this session
 
-        function fireBlowout() {
-            activeBlowoutId = circle.event + circle.cy;
-            blowoutData = { ...circle, color };
-            blowoutColor = color;
-        }
+                    if (circle.cy > top && circle.cy < bottom) {
+                        lockedForEvent = circle.event;
 
-        function poll() {
-            const els = [...document.querySelectorAll(`g[data-event]`)]
-                .filter(el => el.dataset.event === eventName);
+                        // Force maxScroll to reach the pick event's y-position NOW.
+                        // overflow:hidden prevents scrollY from updating via scrollTo,
+                        // so the blowout $effect would never see cy <= maxScroll otherwise.
+                        if (circle.cy > maxScroll) maxScroll = circle.cy;
 
-            const allAtCenter = els.length >= 2 && els.every(el => {
-                return Math.abs(getLiveX(el) - cx) < CENTER_SLOP;
-            });
-
-            if (allAtCenter) {
-                if (!metAt) metAt = performance.now();
-                if (performance.now() - metAt >= MEET_PAUSE) { fireBlowout(); return; }
-            } else {
-                metAt = null;
+                        document.body.style.overflow = 'hidden';
+                        return;
+                    }
+                }
             }
+        }
+    });
 
-            if (performance.now() - startTime > POLL_TIMEOUT) { fireBlowout(); return; }
+    // ─── PICK BLOWOUT TRIGGER ─────────────────────────────────────────────────
+    // Watches for both sides' pick circles to be activated (cx ≈ center) AND
+    // revealed (cy ≤ maxScroll). Fires once both conditions are met.
+    // Gated on lockedForEvent so it only fires inside an active scroll lock.
+    //
+    // This replaces transitionend-based detection, which was unreliable when one
+    // side's segment activated much earlier than the other (no transition fires
+    // for a circle that was already at center).
+    const firedBlowouts = new Set();
 
-            requestAnimationFrame(poll);
+    $effect(() => {
+        if (activeBlowoutId !== null || lockedForEvent === null) return;
+        if (firedBlowouts.has(lockedForEvent)) return;
+
+        const ms   = maxScroll;
+        const half = svgWidth / 2;
+        const eventName = lockedForEvent;
+
+        const sidesReady = new Set();
+        let firstCircle = null;
+        let firstColor  = null;
+
+        for (const sideData of renderedData) {
+            for (const theme of sideData.themesData) {
+                for (const circle of theme.circles) {
+                    if (circle.event !== eventName || !circle.isPick) continue;
+                    if (Math.abs(circle.cx - half) > 2) continue; // not at center
+                    if (circle.cy > ms) continue;                  // not yet revealed
+
+                    if (!sidesReady.has(sideData.side)) {
+                        sidesReady.add(sideData.side);
+                        if (!firstCircle) { firstCircle = circle; firstColor = theme.themeColor; }
+                    }
+                }
+            }
         }
 
-        requestAnimationFrame(poll);
+        if (sidesReady.size >= 2) {
+            firedBlowouts.add(eventName);
+            // Small pause so the circles are visually at center before the reveal.
+            setTimeout(() => {
+                const rect = svgEl?.getBoundingClientRect();
+                blowoutOriginX = rect ? `${firstCircle.cx}px` : '50%';
+                blowoutOriginY = rect ? `${rect.top + firstCircle.cy}px` : '50%';
+                activeBlowoutId = firstCircle.event + firstCircle.cy;
+                blowoutData = { ...firstCircle, color: firstColor };
+                blowoutColor = firstColor;
+                currentPickIndex = allPickEvents.findIndex(p => p.event === firstCircle.event);
+            }, 350);
+        }
+    });
+
+    // Called when a circle finishes its CSS transition.
+    // Only used for tooltip settled-segment tracking now;
+    // blowout detection is handled by the $effect above.
+    function handleCircleSettled(circle) {
+        const key = circle.segmentKey || (circle.event + circle.cy);
+        if (settledSegments.has(key)) return;
+        settledSegments = new Set([...settledSegments, key]);
     }
 
     function closeBlowout() {
         activeBlowoutId = null;
         blowoutData = null;
+        lockedForEvent = null;
+        currentPickIndex = -1;
+        // firedBlowouts intentionally NOT cleared — prevents immediate re-lock
+        // when the same pick circle is still in the viewport after close.
         document.body.style.overflow = 'auto';
+    }
+
+    function navigateBlowout(direction) {
+        const newIndex = currentPickIndex + direction;
+        if (newIndex < 0 || newIndex >= allPickEvents.length) return;
+        currentPickIndex = newIndex;
+        const pick = allPickEvents[newIndex];
+        firedBlowouts.add(pick.event); // prevent scroll re-trigger
+        blowoutData = { ...pick };
+        blowoutColor = pick.color;
+        activeBlowoutId = pick.event + pick.cy;
+
+        // Activate the pick's segment if not yet revealed
+        if (pick.cy > maxScroll) maxScroll = pick.cy;
+
+        // Scroll so the pick circles are centered in the viewport.
+        // Must briefly unlock overflow since body is locked during blowout.
+        const targetScrollY = Math.max(0, pick.cy - windowHeight / 2);
+        document.body.style.overflow = 'auto';
+        window.scrollTo({ top: targetScrollY });
+        document.body.style.overflow = 'hidden';
+
+        // Update close origin: circle is now at horizontal center, vertical center of viewport
+        blowoutOriginX = `${svgWidth / 2}px`;
+        blowoutOriginY = `${windowHeight / 2}px`;
     }
 
     // ─── HOVER STATE ──────────────────────────────────────────────────────────
@@ -266,47 +325,34 @@
     // Static base data — computed once, never reactive
     const baseData = processData(combinedData);
 
+    // All pick events in chronological order — used for blowout prev/next navigation.
+    const allPickEvents = (() => {
+        const seen = new Set();
+        const picks = [];
+        for (const sideData of baseData) {
+            for (const [themeIndex, theme] of sideData.themesData.entries()) {
+                for (const d of theme.circlePoints) {
+                    if (d.isPick && !seen.has(d.event)) {
+                        seen.add(d.event);
+                        picks.push({
+                            event: d.event,
+                            date: d.date,
+                            eventSecondary: d.eventSecondary,
+                            color: colors[themeIndex],
+                            cy: yScale(d.parsedDate)
+                        });
+                    }
+                }
+            }
+        }
+        return picks.sort((a, b) => a.cy - b.cy);
+    })();
+
     // ─── SCROLL HIGH-WATER MARK ───────────────────────────────────────────────
     // maxScroll only ever increases, so revealed segments stay revealed on scroll-up.
     $effect(() => {
         const threshold = scrollY + (windowHeight * 0.5);
         if (threshold > maxScroll) maxScroll = threshold;
-    });
-
-    // ─── PICK EVENT TRIGGER ───────────────────────────────────────────────────
-    // Watches scroll position and fires blowout when a "pick" circle
-    // aligns with the viewport center. Resets lock when viewport moves away.
-    $effect(() => {
-        const viewportCenterY = scrollY + (windowHeight / 2);
-        const TOLERANCE = 20;
-
-        renderedData.forEach(side => {
-            side.themesData.forEach(theme => {
-                theme.circles.forEach(circle => {
-                    if (!circle.isPick) return;
-                    const id = circle.event + circle.cy;
-                    const distToCenter = Math.abs(circle.cy - viewportCenterY);
-                    const isAtCenterLane = Math.abs(circle.cx - svgWidth / 2) < 2;
-
-                    if (isAtCenterLane && distToCenter < TOLERANCE && hasTriggeredForThisId !== id) {
-                        hasTriggeredForThisId = id;
-                        triggerPickAction(circle, theme.themeColor);
-                    }
-                });
-            });
-        });
-
-        // Reset trigger lock when viewport drifts away from the active event
-        if (hasTriggeredForThisId) {
-            const activeEvent = baseData.flatMap(s => s.themesData)
-                .flatMap(t => t.circlePoints)
-                .find(c => (c.event + yScale(c.parsedDate)) === hasTriggeredForThisId);
-
-            if (activeEvent) {
-                const dist = Math.abs(yScale(activeEvent.parsedDate) - viewportCenterY);
-                if (dist > 70) hasTriggeredForThisId = null;
-            }
-        }
     });
 
     // ─── DERIVED RENDER DATA ──────────────────────────────────────────────────
@@ -367,11 +413,19 @@
     {activeBlowoutId}
     {blowoutData}
     {blowoutColor}
+    originX={blowoutOriginX}
+    originY={blowoutOriginY}
     onClose={closeBlowout}
+    onPrev={() => navigateBlowout(-1)}
+    onNext={() => navigateBlowout(1)}
+    canGoPrev={currentPickIndex > 0}
+    canGoNext={currentPickIndex < allPickEvents.length - 1}
+    currentIndex={currentPickIndex}
+    total={allPickEvents.length}
 />
 
 <section id="timeline">
-    <figure style="height: {svgHeight}px;">
+    <figure style="height: {svgHeight}px;" bind:clientWidth={svgWidth}>
 
         <!-- HTML tooltip layer: sits above SVG, shown once circle has settled -->
         <div class="html-overlay" style="height: {svgHeight}px;">
@@ -400,7 +454,8 @@
             {(occupiedCenters.clear(), "")}
         </div>
 
-        <svg width="100%" height={svgHeight} bind:clientWidth={svgWidth}>
+        {#if svgWidth > 0}
+        <svg width="100%" height={svgHeight} bind:this={svgEl}>
             {#each renderedData as sideData}
                 <g class="side-{sideData.side}">
 
@@ -408,7 +463,7 @@
                     {#each sideData.themesData as theme, themeIndex (theme.themeName)}
                         {#if themeIndex !== -1}
                             <g class="paths-{sideData.side}-{theme.themeName}">
-                                <Path 
+                                <Path
                                     d={theme.pathD}
                                     stroke={theme.themeColor}
                                     isDimmed={hoveredEventName !== null && !activeHoverThemes.includes(theme.themeName)}
@@ -422,9 +477,9 @@
                         {#if themeIndex !== -1}
                             <g class="circles-{sideData.side}-{theme.themeName}">
                                 {#each theme.circles as circle}
-                                    <Circle 
+                                    <Circle
                                         {circle}
-                                        fill={theme.themeColor} 
+                                        fill={theme.themeColor}
                                         centerX={svgWidth / 2}
                                         {maxScroll}
                                         {hoveredEventName}
@@ -448,6 +503,7 @@
                 </g>
             {/each}
         </svg>
+        {/if}
 
     </figure>
 </section>
