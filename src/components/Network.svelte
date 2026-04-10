@@ -4,7 +4,6 @@
     import { spring } from 'svelte/motion';
     import { fly } from 'svelte/transition';
     import { nodes, links } from '$utils/networkData.js';
-    import { themes, colors } from "$runes/misc.svelte.js";
     import Link from "$components/Network.Link.svelte";
     import Node from "$components/Network.Node.svelte";
     import RingLink from "$components/Network.RingLink.svelte";
@@ -14,7 +13,7 @@
 
     const copy = getContext("copy");
 
-    let { scrollIndex, maxSteps } = $props();
+    let { scrollIndex } = $props();
 
     let width = $state(0);
     let height = $state(0);
@@ -43,9 +42,10 @@
     const rotation = spring(0, { stiffness: 0.01, damping: 0.4 });
     let animationFrameId;
 
+
     // --- AMBIENT DRIFT ---
-    const DRIFT_AMOUNT = 8;  // px — max displacement from resting position
-    const DRIFT_SPEED = 0.0004; // how fast nodes wander (lower = slower)
+    const DRIFT_AMOUNT = 10;  // px — max displacement from resting position
+    const DRIFT_SPEED = 0.001; // how fast nodes wander (lower = slower)
 
     // Each inner node gets a unique phase offset so they don't move in sync
     const driftPhases = new Map();
@@ -63,6 +63,11 @@
     let driftFrameId;
 
     $effect(() => {
+        // Pause drift when user has scrolled past the network into the timeline
+        const active = scrollIndex !== 'exit';
+
+        if (!active) return;
+
         function tick(t) {
             nodeSprings.forEach((s, index) => {
                 if (index <= 6) return;
@@ -149,10 +154,10 @@
 
     // Controls the spin animation
     $effect(() => {
-        const shouldSpin = scrollIndex >= 3 && scrollIndex < 5;
+        const shouldSpin = scrollIndex >= 5 && scrollIndex < 6;
 
         function animate() {
-            if (scrollIndex >= 3 && scrollIndex < 5) {
+            if (scrollIndex >= 5 && scrollIndex < 6) {
                 rotation.update(n => (n + 0.3));
                 animationFrameId = requestAnimationFrame(animate);
             }
@@ -167,24 +172,33 @@
         return () => cancelAnimationFrame(animationFrameId);
     });
 
-    // Animates outer nodes to octagon positions on scroll
+    // Animates outer nodes to octagon positions on scroll, and back on reverse
     $effect(() => {
-        if (outerPositions.length === 0) return;
+        if (outerPositions.length === 0 || width === 0 || height === 0) return;
 
-        if (scrollIndex >= 1) {
-            outerPositions.forEach(pos => {
-                const s = nodeSprings.get(pos.id);
-                const target = nodeTargets.get(pos.id);
-                if (s && target) {
-                    target.x = pos.x;
-                    target.y = pos.y;
-                    s.x.set(pos.x);
-                    s.y.set(pos.y);
-                }
-            });
-        }
-        // No 'else' needed — the simulation's tick handler pulls nodes back
-        // to force-directed positions naturally.
+        const size = Math.min(width, height);
+        const centerY = size / 2;
+
+        outerPositions.forEach(pos => {
+            const s = nodeSprings.get(pos.id);
+            const target = nodeTargets.get(pos.id);
+            if (!s || !target) return;
+
+            if (scrollIndex >= 6 && (pos.id === 0 || pos.id === 4)) {
+                // Align the surviving pair to the vertical center
+                s.y.set(centerY);
+            } else if (scrollIndex >= 2) {
+                // Move to octagon position
+                target.x = pos.x;
+                target.y = pos.y;
+                s.x.set(pos.x);
+                s.y.set(pos.y);
+            } else {
+                // Return to force-directed position (simulation keeps nodeTargets current)
+                s.x.set(target.x);
+                s.y.set(target.y);
+            }
+        });
     });
 </script>
 
@@ -224,7 +238,7 @@
                 </g>
                 <g class="inner-nodes">
                     {#each nodes as node (node.index)}
-                        {#if node.index > 7}
+                        {#if node.index > 6}
                             <Node springs={nodeSprings.get(node.index)} {node} {scrollIndex} />
                         {/if}
                     {/each}
@@ -238,7 +252,8 @@
                     </g>
                     <g class="cross-links">
                         {#each outerCrossLinks as link, i}
-                            <CrossLink {link} {i} {scrollIndex} />
+                            {@const isSpecial = (link.source.id === 0 && link.target.id === 4) || (link.source.id === 4 && link.target.id === 0)}
+                            <CrossLink {link} {i} {scrollIndex} overrideY={isSpecial && scrollIndex >= 6 ? size / 2 : null} />
                         {/each}
                     </g>
                     <g class="outer-nodes">
@@ -276,7 +291,6 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.5s ease;
     }
     .network-svg {
         display: block;

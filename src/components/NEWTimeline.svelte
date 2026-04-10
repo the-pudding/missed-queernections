@@ -124,7 +124,7 @@
             // Small pause so the circles are visually at center before the reveal.
             setTimeout(() => {
                 const rect = svgEl?.getBoundingClientRect();
-                blowoutOriginX = rect ? `${firstCircle.cx}px` : '50%';
+                blowoutOriginX = rect ? `${rect.left + firstCircle.cx}px` : '50%';
                 blowoutOriginY = rect ? `${rect.top + firstCircle.cy}px` : '50%';
                 activeBlowoutId = firstCircle.event + firstCircle.cy;
                 blowoutData = { ...firstCircle, color: firstColor };
@@ -163,11 +163,12 @@
         blowoutColor = pick.color;
         activeBlowoutId = pick.event + pick.cy;
         if (pick.cy > maxScroll) maxScroll = pick.cy;
-        const targetScrollY = Math.max(0, pick.cy - windowHeight / 2);
+        const targetScrollY = Math.max(0, introHeight + pick.cy - windowHeight / 2);
         document.body.style.overflow = 'auto';
         window.scrollTo({ top: targetScrollY });
         document.body.style.overflow = 'hidden';
-        blowoutOriginX = `${svgWidth / 2}px`;
+        const rect = svgEl?.getBoundingClientRect();
+        blowoutOriginX = rect ? `${rect.left + svgWidth / 2}px` : '50%';
         blowoutOriginY = `${windowHeight / 2}px`;
     }
 
@@ -186,13 +187,13 @@
 
         // Scroll so the pick circles are centered in the viewport.
         // Must briefly unlock overflow since body is locked during blowout.
-        const targetScrollY = Math.max(0, pick.cy - windowHeight / 2);
+        const targetScrollY = Math.max(0, introHeight + pick.cy - windowHeight / 2);
         document.body.style.overflow = 'auto';
         window.scrollTo({ top: targetScrollY });
         document.body.style.overflow = 'hidden';
 
-        // Update close origin: circle is now at horizontal center, vertical center of viewport
-        blowoutOriginX = `${svgWidth / 2}px`;
+        const rect = svgEl?.getBoundingClientRect();
+        blowoutOriginX = rect ? `${rect.left + svgWidth / 2}px` : '50%';
         blowoutOriginY = `${windowHeight / 2}px`;
     }
 

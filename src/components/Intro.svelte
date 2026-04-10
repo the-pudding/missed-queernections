@@ -4,26 +4,30 @@
 	import Network from "$components/Network.svelte";
 
 	const copy = getContext("copy");
-	const scrollSteps = copy.scrollSteps.length;
+	let scrollIndex = $state(0);
 
-	let scrollIndex = $state();
+	$effect(() => {
+		console.log(scrollIndex)
+	});
 </script>
 
 <section id="intro">
     <div class="sticky">
-		<Network {scrollIndex} maxSteps={scrollSteps}/>
+		<Network {scrollIndex} />
 	</div>
-	<!-- scrolly container to house steps -->
+	<!-- Pull steps up to overlap the sticky so step 0 is visible on load -->
+	<div class="scrolly-container">
 	<Scrolly bind:value={scrollIndex}>
 		<!-- for each paragraph in the steps object in the copy, add another step -->
 		{#each copy.scrollSteps as step, i}
 			<div class="step">
-			<div class="step-inner">
-				<p>{step.value}</p>
-			</div>
+				<div class="step-inner">
+					<p>{step.value}</p>
+				</div>
 			</div>
 		{/each}
 	</Scrolly>
+	</div>
 </section>
 
 <style>
@@ -37,8 +41,12 @@
         overflow: hidden;
 	}
 
+	.scrolly-container {
+		margin-top: -50svh;
+	}
+
 	.step {
-		height: 100vh;
+		height: 100svh;
         z-index: 1000;
         max-width: 550px;
         margin: 0 auto;
@@ -46,6 +54,7 @@
         pointer-events: none;
         z-index: 1000;
 	}
+
 
 	.step-inner {
         padding: 2rem; 

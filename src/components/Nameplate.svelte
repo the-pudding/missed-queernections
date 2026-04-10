@@ -1,24 +1,42 @@
 <script>
-    import { fade } from 'svelte/transition';
+    import { fly } from 'svelte/transition';
 
     let { scrollIndex, springs, name } = $props();
 
     let x = $state(0);
     let y = $state(0);
-    let isVisible = $derived((scrollIndex === 6) || 
-                      (scrollIndex === 7 && name.name === "Jan") || 
-                      (scrollIndex === 8 && name.name === "Ashleé") || 
+    let isVisible = $derived((scrollIndex === 6) ||
+                      (scrollIndex === 7 && name.name === "Jan") ||
+                      (scrollIndex === 8 && name.name === "Ashleé") ||
                       (scrollIndex >= 9));
 
-    let nameplateEl = $state(null);
-    let isOverlapping = $state(false);
+    let settled = $state(false);
+    let prevVisible = false;
 
     $effect(() => {
-        if (springs && springs.x && springs.y) {
-            const unsubX = springs.x.subscribe(x_val => { x = x_val; });
-            const unsubY = springs.y.subscribe(y_val => { y = y_val; });
-            return () => { unsubX(); unsubY(); };
+        if (isVisible && !prevVisible) {
+            // Just became visible — start the timer. Capture scrollIndex now so
+            // future scrollIndex changes don't re-run this block.
+            const entryStep = scrollIndex;
+            settled = false;
+            const delay = entryStep === 6 ? 2200 : 0;
+            const t = setTimeout(() => { settled = true; }, delay);
+            prevVisible = true;
+            return () => clearTimeout(t);
+        } else if (!isVisible) {
+            settled = false;
+            prevVisible = false;
         }
+    });
+
+    let nameplateEl = $state(null);
+    let isOverlapping = $state(true);
+
+    $effect(() => {
+        if (!(springs && springs.x && springs.y)) return;
+        const unsubX = springs.x.subscribe(x_val => { x = x_val; });
+        const unsubY = springs.y.subscribe(y_val => { y = y_val; });
+        return () => { unsubX(); unsubY(); };
     });
 
     $effect(() => {
@@ -41,17 +59,18 @@
     });
 </script>
 
-{#if isVisible}
+{#if isVisible && settled}
     <div
         bind:this={nameplateEl}
         id="{name.name}-nameplate"
         class="nameplate"
         class:hidden={!isOverlapping}
-        class:is-static={scrollIndex >= 9}
+        class:is-static={scrollIndex >= 10}
         class:jan={name.name === 'Jan'}
         class:ashlee={name.name === 'Ashleé'}
         style="--x: {x}px; --y: {y}px;"
-        transition:fade={{ duration: 500 }}
+        in:fly={{ duration: scrollIndex === 6 ? 1000 : 500, x: name.name === 'Jan' ? -20 : 20 }}
+        out:fly={{ duration: 300, x: name.name === 'Jan' ? -20 : 20 }}
     >
         <p>{name.name}</p>
     </div>
@@ -67,7 +86,7 @@
         top: var(--y);
 
         /* 5. A transition on left/top will animate any changes to them */
-        transition: top 0.8s ease-in-out, left 0.8s ease-in-out, right 0.8s ease-in-out, bottom 0.8s ease-in-out, opacity 0.5s ease;
+        transition: top 0.8s ease-in-out, left 0.8s ease-in-out, opacity 0.5s ease;
         
         /* ... other styles ... */
         font-family: var(--sans);
@@ -101,7 +120,7 @@
 
     .nameplate.hidden {
         opacity: 0;
-        transition: top 0.8s ease-in-out, left 0.8s ease-in-out, right 0.8s ease-in-out, bottom 0.8s ease-in-out, opacity 0s ease;
+        transition: top 0.8s ease-in-out, left 0.8s ease-in-out, opacity 0s ease;
         pointer-events: none; /* Make it unclickable when hidden */
     }
 </style>

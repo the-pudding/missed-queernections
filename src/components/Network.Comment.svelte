@@ -1,10 +1,19 @@
 <script>
     import { springy } from '$actions/springy.js';
     import { getContext } from "svelte";
-    import { fade } from 'svelte/transition';
 
     let { comment, i, springs, scrollIndex } = $props();
     const copy = getContext("copy");
+
+    let x = $state(0);
+    let y = $state(0);
+
+    $effect(() => {
+        if (!(springs && springs.x && springs.y)) return;
+        const unsubX = springs.x.subscribe(v => { x = v; });
+        const unsubY = springs.y.subscribe(v => { y = v; });
+        return () => { unsubX(); unsubY(); };
+    });
 
     const commentText = $derived(
         copy.comments.find(c => parseInt(c.step) === scrollIndex)?.text[i]?.value ?? ''
@@ -13,15 +22,27 @@
 
 <div
     class="node-label"
-    use:springy={{
-        left: springs.x,
-        top: springs.y
-    }}
+    use:springy={{ left: springs.x, top: springs.y }}
 >
     <p>{commentText}</p>
 </div>
 
 <style>
+    .connector-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+    }
+
+    .connector-line {
+        stroke: var(--color-fg);
+        stroke-width: 1.5;
+        opacity: 0.3;
+    }
+
     .node-label {
         color: var(--color-fg);
         position: absolute;

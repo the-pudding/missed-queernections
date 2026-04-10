@@ -2,7 +2,7 @@
     import { tick } from 'svelte';
     import { colors } from "$runes/misc.svelte.js";
 
-    let { link, i, scrollIndex } = $props();
+    let { link, i, scrollIndex, overrideY = null } = $props();
 
     let readyToDraw = $state(false);
 
@@ -12,20 +12,20 @@
 
     const strokeColor = $derived(colors[i % 2 === 0 ? link.source.id : link.target.id]);
 
-    const isSpecialLink = 
-            (link.source.id === 0 && link.target.id === 4) || 
+    const isSpecialLink =
+            (link.source.id === 0 && link.target.id === 4) ||
             (link.source.id === 4 && link.target.id === 0);
 
-    // This effect controls the animation trigger
     $effect(() => {
-        if (scrollIndex >= 4) {
-            // Wait for the DOM to update
+        if (scrollIndex >= 5) {
+            let cancelled = false;
+            let timeoutId;
             tick().then(() => {
-                // Then wait for your desired delay before starting the animation
-                setTimeout(() => {
-                    readyToDraw = true;
-                }, 500); // 500ms = 0.5 second delay
+                if (!cancelled) {
+                    timeoutId = setTimeout(() => { if (!cancelled) readyToDraw = true; }, 500);
+                }
             });
+            return () => { cancelled = true; clearTimeout(timeoutId); };
         } else {
             readyToDraw = false;
         }
@@ -36,11 +36,11 @@
     class="drawable-link"
     class:draw={readyToDraw}
     class:specialLink={isSpecialLink}
-    style="stroke: {scrollIndex <= 4 ? strokeColor : "#191919"}; stroke-dasharray: {lineLength};
+    style="stroke: {scrollIndex <= 5 ? strokeColor : "#191919"}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};
-    opacity: {(scrollIndex <= 4) || (isSpecialLink && scrollIndex < 7) ? 1 : 0}"
-    x1={link.source.x} y1={link.source.y}
-    x2={link.target.x} y2={link.target.y}
+    opacity: {(scrollIndex <= 5) || (isSpecialLink && scrollIndex < 10) ? 1 : 0}"
+    x1={link.source.x} y1={overrideY ?? link.source.y}
+    x2={link.target.x} y2={overrideY ?? link.target.y}
 />
 
 <style>
