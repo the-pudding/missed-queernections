@@ -24,6 +24,8 @@
         .domain([minDate, maxDate])
         .range([100, svgHeight - 100]);
 
+    const yearTicks = d3.timeYear.range(minDate, d3.timeYear.offset(maxDate, 1));
+
     // ─── TEXT / TOOLTIP STATE ─────────────────────────────────────────────────
     let settledSegments = $state(new Set());
 
@@ -144,6 +146,24 @@
         // firedBlowouts intentionally NOT cleared — prevents immediate re-lock
         // when the same pick circle is still in the viewport after close.
         document.body.style.overflow = 'auto';
+    }
+
+    function navigateToIndex(index) {
+        const newIndex = index;
+        if (newIndex < 0 || newIndex >= allPickEvents.length || newIndex === currentPickIndex) return;
+        currentPickIndex = newIndex;
+        const pick = allPickEvents[newIndex];
+        firedBlowouts.add(pick.event);
+        blowoutData = { ...pick };
+        blowoutColor = pick.color;
+        activeBlowoutId = pick.event + pick.cy;
+        if (pick.cy > maxScroll) maxScroll = pick.cy;
+        const targetScrollY = Math.max(0, pick.cy - windowHeight / 2);
+        document.body.style.overflow = 'auto';
+        window.scrollTo({ top: targetScrollY });
+        document.body.style.overflow = 'hidden';
+        blowoutOriginX = `${svgWidth / 2}px`;
+        blowoutOriginY = `${windowHeight / 2}px`;
     }
 
     function navigateBlowout(direction) {
@@ -410,6 +430,7 @@
 
 <!-- Blowout overlay: expands via clip-path from center when a pick event fires -->
 <Blowout
+    {allPickEvents}
     {activeBlowoutId}
     {blowoutData}
     {blowoutColor}
@@ -418,10 +439,10 @@
     onClose={closeBlowout}
     onPrev={() => navigateBlowout(-1)}
     onNext={() => navigateBlowout(1)}
+    onNavigateTo={navigateToIndex}
     canGoPrev={currentPickIndex > 0}
     canGoNext={currentPickIndex < allPickEvents.length - 1}
     currentIndex={currentPickIndex}
-    total={allPickEvents.length}
 />
 
 <section id="timeline">
@@ -456,6 +477,14 @@
 
         {#if svgWidth > 0}
         <svg width="100%" height={svgHeight} bind:this={svgEl}>
+
+            <g class="year-axis">
+                {#each yearTicks as year}
+                    {@const y = yScale(year)}
+                    <text x={svgWidth / 2} y={y}>{year.getFullYear()}</text>
+                {/each}
+            </g>
+
             {#each renderedData as sideData}
                 <g class="side-{sideData.side}">
 
@@ -513,6 +542,21 @@
     #timeline { width: 100%; background: transparent; }
     figure { width: 100%; margin: 0; }
     svg { display: block; overflow: visible; }
+
+    .year-axis line {
+        stroke: rgba(0, 0, 0, 0.2);
+        stroke-width: 1;
+    }
+
+    .year-axis text {
+        font-family: var(--sans);
+        font-size: 250px;
+        font-weight: bold;
+        fill: rgba(0, 0, 0, 0.03);
+        text-anchor: middle;
+        dominant-baseline: middle;
+        transform: translateY(10px);
+    }
 
     /* ── HTML tooltip overlay ────────────────────────────────────────────── */
     .html-overlay {

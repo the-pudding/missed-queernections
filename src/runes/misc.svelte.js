@@ -11,7 +11,7 @@ export const longThemes = [ {theme: "representation", longTheme: "All representa
                             {theme: "trueSelves", longTheme: "Trying on our true selves"}
                         ];
 
-export const colors = ["#FF69B4", "#FF1818", "#FF8E00", "#FFCC00", "#008600", "#00C0C0", "#400098"];
+export const colors = ["#FF69B4", "#FF1818", "#FF8E00", "#FFCC00", "#400098", "#00C0C0", "#008600"];
 
 export function normalizeEventKey(str) {
     return String(str || '')
