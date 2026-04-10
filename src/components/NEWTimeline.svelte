@@ -8,12 +8,17 @@
     import Tooltip from "$components/NEWTimeline.Side.Tooltip.svelte";
     import Blowout from "$components/NEWTimeline.Side.Blowout.svelte";
 
+    let { introHeight = 0 } = $props();
+
     // ─── SVG + SCROLL STATE ───────────────────────────────────────────────────
     let svgHeight = $state(60000);  // Tall canvas — adjust to control spacing between events
     let svgWidth = $state(0);       // Bound to SVG element; updates on resize
     let scrollY = $state(0);
     let windowHeight = $state(0);
     let maxScroll = $state(0);      // High-water mark: only increases, driving one-way reveal
+
+    // scrollY relative to the timeline's own top edge
+    const timelineScroll = $derived(scrollY - introHeight);
 
     // ─── DATE SCALE ───────────────────────────────────────────────────────────
     // Maps JS Date → y-pixel on the SVG canvas. Built once, never changes.
@@ -51,8 +56,8 @@
     $effect(() => {
         if (activeBlowoutId !== null || lockedForEvent !== null) return;
 
-        const top    = scrollY;
-        const bottom = scrollY + windowHeight;
+        const top    = timelineScroll;
+        const bottom = timelineScroll + windowHeight;
 
         for (const sideData of renderedData) {
             for (const theme of sideData.themesData) {
@@ -371,7 +376,7 @@
     // ─── SCROLL HIGH-WATER MARK ───────────────────────────────────────────────
     // maxScroll only ever increases, so revealed segments stay revealed on scroll-up.
     $effect(() => {
-        const threshold = scrollY + (windowHeight * 0.5);
+        const threshold = timelineScroll + (windowHeight * 0.5);
         if (threshold > maxScroll) maxScroll = threshold;
     });
 
@@ -540,7 +545,7 @@
 <style>
     /* ── Layout ──────────────────────────────────────────────────────────── */
     #timeline { width: 100%; background: transparent; }
-    figure { width: 100%; margin: 0; }
+    figure { width: 100%; margin: 0; position: relative; }
     svg { display: block; overflow: visible; }
 
     .year-axis line {

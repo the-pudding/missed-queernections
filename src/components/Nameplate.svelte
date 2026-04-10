@@ -1,5 +1,4 @@
 <script>
-    import { onMount } from 'svelte'; // 1. Import onMount
     import { fade } from 'svelte/transition';
 
     let { scrollIndex, springs, name } = $props();
@@ -14,65 +13,31 @@
     let nameplateEl = $state(null);
     let isOverlapping = $state(false);
 
-    let debugNameplateTop = $state(0);
-    let debugNavBottom = $state(0);
-
     $effect(() => {
         if (springs && springs.x && springs.y) {
-            const unsubX = springs.x.subscribe(x_val => {
-                x = x_val;
-            });
-
-            const unsubY = springs.y.subscribe(y_val => {
-                y = y_val;
-            });
-
-            return () => {
-                unsubX();
-                unsubY();
-            };
+            const unsubX = springs.x.subscribe(x_val => { x = x_val; });
+            const unsubY = springs.y.subscribe(y_val => { y = y_val; });
+            return () => { unsubX(); unsubY(); };
         }
     });
 
     $effect(() => {
-        // This will run only after the `{#if}` block is true and `bind:this` has populated nameplateEl
-        if (nameplateEl) {
-            const navEl = document.querySelector('#Jan-target-nameplate');
-            if (!navEl) return;
-            
-            let animationFrameId;
+        if (!nameplateEl) return;
+        const navEl = document.querySelector('#Jan-target-nameplate');
+        if (!navEl) return;
 
-            console.log("Setting up position check for:", {nameplateEl, navEl});
+        let animationFrameId;
 
-            function checkPosition() {
-                const nameplateRect = nameplateEl.getBoundingClientRect();
-                const navRect = navEl.getBoundingClientRect();
-                
-                debugNameplateTop = nameplateRect.top;
-                debugNavBottom = navRect.bottom;
-
-                // 👇 THIS IS THE FIX:
-                // This condition is now 'true' when the nameplate should be VISIBLE.
-                const shouldBeVisible = nameplateRect.top > navRect.bottom - 48;
-                
-                // We set isOverlapping to the OPPOSITE of shouldBeVisible.
-                // The .hidden class is applied when isOverlapping is true.
-                const isNowOverlapping = !shouldBeVisible;
-                
-                if (isNowOverlapping !== isOverlapping) {
-                    isOverlapping = isNowOverlapping;
-                }
-                
-                animationFrameId = requestAnimationFrame(checkPosition);
-            }
-
-            checkPosition();
-            
-            // The effect's return function handles cleanup when the element is destroyed
-            return () => {
-                cancelAnimationFrame(animationFrameId);
-            };
+        function checkPosition() {
+            const nameplateRect = nameplateEl.getBoundingClientRect();
+            const navRect = navEl.getBoundingClientRect();
+            const isNowOverlapping = !(nameplateRect.top > navRect.bottom - 48);
+            if (isNowOverlapping !== isOverlapping) isOverlapping = isNowOverlapping;
+            animationFrameId = requestAnimationFrame(checkPosition);
         }
+
+        checkPosition();
+        return () => cancelAnimationFrame(animationFrameId);
     });
 </script>
 

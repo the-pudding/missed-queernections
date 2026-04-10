@@ -6,11 +6,9 @@
     let { comment, i, springs, scrollIndex } = $props();
     const copy = getContext("copy");
 
-    const commentText = $derived(() => {
-        const matchingStep = copy.comments.find(c => parseInt(c.step) === scrollIndex);
-        // Safely access the text using the index 'i' passed from the parent
-        return matchingStep?.text[i]?.value || ''; 
-    });
+    const commentText = $derived(
+        copy.comments.find(c => parseInt(c.step) === scrollIndex)?.text[i]?.value ?? ''
+    );
 </script>
 
 <div
@@ -20,7 +18,7 @@
         top: springs.y
     }}
 >
-    <p>{commentText()}</p>
+    <p>{commentText}</p>
 </div>
 
 <style>

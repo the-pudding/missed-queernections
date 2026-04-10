@@ -4,6 +4,7 @@
     let { sourceSprings, targetSprings, isOuter, scrollIndex } = $props();
 
     let lineLength = $state(0);
+    let frozenLength = $state(null); // captured once when the line hides; drift can't affect it
     const isInnerLink = !isOuter;
 
     // This effect will set up manual subscriptions to the spring stores.
@@ -38,8 +39,6 @@
             updateLength();
         });
 
-        // Return a cleanup function to unsubscribe when the component is destroyed.
-        // This is CRITICAL to prevent memory leaks.
         return () => {
             unsubSX();
             unsubSY();
@@ -47,14 +46,23 @@
             unsubTY();
         };
     });
+
+    // Freeze length the moment the line should hide so drift can't move the dashoffset
+    $effect(() => {
+        if (isOuter && scrollIndex >= 2) {
+            if (frozenLength === null) frozenLength = lineLength;
+        } else {
+            frozenLength = null;
+        }
+    });
 </script>
 
 <line
     class="link"
     style="
         stroke-dasharray: {lineLength};
-        stroke-dashoffset: {isOuter && scrollIndex >= 2 ? lineLength : 0};
-        opacity: {scrollIndex >= 4 && isInnerLink ? 0 : 1};"
+        stroke-dashoffset: {isOuter && scrollIndex >= 2 ? (frozenLength ?? lineLength) : 0};
+        opacity: {(scrollIndex >= 4 && isInnerLink) || (isOuter && scrollIndex >= 2) ? 0 : 1};"
     shape-rendering="geometricPrecision"
     use:springy={{
         x1: sourceSprings.x,

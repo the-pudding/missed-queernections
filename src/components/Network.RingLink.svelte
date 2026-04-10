@@ -27,7 +27,6 @@
 
 <line
     class="drawable-link"
-    class:draw={readyToDraw}
     class:visible={scrollIndex <= 4}
     style="stroke: {colors[i]}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};"

@@ -1,51 +1,30 @@
 <script>
     import { getContext } from "svelte";
     import * as d3 from 'd3';
-    import { onMount } from 'svelte';
     import { spring } from 'svelte/motion';
     import { fly } from 'svelte/transition';
     import { nodes, links } from '$utils/networkData.js';
     import { themes, colors } from "$runes/misc.svelte.js";
-    import { springy } from '$actions/springy.js'; // 👈 Import the action
     import Link from "$components/Network.Link.svelte";
     import Node from "$components/Network.Node.svelte";
     import RingLink from "$components/Network.RingLink.svelte";
     import CrossLink from "$components/Network.CrossLink.svelte";
     import Comment from "$components/Network.Comment.svelte";
-    import GradientBG from "$components/Network.GradientBG.svelte";
     import Nameplate from "$components/Nameplate.svelte";
 
     const copy = getContext("copy");
-    
+
     let { scrollIndex, maxSteps } = $props();
 
     let width = $state(0);
     let height = $state(0);
-    let spinningContainer;
     let simulationLinks = $state([]);
     let outerPositions = [];
     let outerRingLinks = [];
     let outerCrossLinks = [];
+
     const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === scrollIndex));
-    let mousePos = $state(null);
-    let networkContainer = $state(null);
-    
-    let commentIndexes = $derived(() => {
-        return matchingComment ? JSON.parse(matchingComment.indexes) : [];
-    });
-
-    // --- EVENTS ---
-    function handleMouseMove(event) {
-        if (!networkContainer) return;
-        mousePos = {
-            x: event.clientX,
-            y: event.clientY
-        };
-    }
-
-    function handleMouseLeave() {
-        mousePos = null;
-    }
+    const commentIndexes = $derived(matchingComment ? JSON.parse(matchingComment.indexes) : []);
 
     // --- ANIMATION STORES ---
     const nodeSprings = new Map();
@@ -56,19 +35,56 @@
         });
     });
 
-    const rotation = spring(0, {
-        stiffness: 0.01, 
-        damping: 0.4   
-    });
+    // Snapshot of where each node "wants to be" (simulation or octagon position).
+    // Mouse repulsion temporarily overrides the spring target; these let us restore it.
+    const nodeTargets = new Map();
+    nodes.forEach(node => nodeTargets.set(node.index, { x: 0, y: 0 }));
+
+    const rotation = spring(0, { stiffness: 0.01, damping: 0.4 });
     let animationFrameId;
-    let isSpinningComplete = $state(false);
+
+    // --- AMBIENT DRIFT ---
+    const DRIFT_AMOUNT = 8;  // px — max displacement from resting position
+    const DRIFT_SPEED = 0.0004; // how fast nodes wander (lower = slower)
+
+    // Each inner node gets a unique phase offset so they don't move in sync
+    const driftPhases = new Map();
+    nodes.forEach(node => {
+        if (node.index > 6) {
+            driftPhases.set(node.index, {
+                phaseX: Math.random() * Math.PI * 2,
+                phaseY: Math.random() * Math.PI * 2,
+                freqX: 0.6 + Math.random() * 0.8,  // varied frequencies
+                freqY: 0.6 + Math.random() * 0.8,
+            });
+        }
+    });
+
+    let driftFrameId;
+
+    $effect(() => {
+        function tick(t) {
+            nodeSprings.forEach((s, index) => {
+                if (index <= 6) return;
+                const target = nodeTargets.get(index);
+                const phase = driftPhases.get(index);
+                if (!target || !phase) return;
+
+                s.x.set(target.x + Math.sin(t * DRIFT_SPEED * phase.freqX + phase.phaseX) * DRIFT_AMOUNT);
+                s.y.set(target.y + Math.sin(t * DRIFT_SPEED * phase.freqY + phase.phaseY) * DRIFT_AMOUNT);
+            });
+            driftFrameId = requestAnimationFrame(tick);
+        }
+
+        driftFrameId = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(driftFrameId);
+    });
 
     // --- HELPER FUNCTIONS ---
     function computeOuterPositions(centerX, centerY) {
         const radius = Math.min(width, height) / 3;
         const outerNodeIds = nodes.slice(0, 7).map(d => d.index);
-        
-        // 👇 The function now returns the calculated values instead of setting state
+
         const newOuterPositions = outerNodeIds.map((id, i) => {
             const angle = (2 * Math.PI * i) / outerNodeIds.length;
             return { id, x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) };
@@ -85,21 +101,17 @@
                 newOuterCrossLinks.push({ source: newOuterPositions[i], target: newOuterPositions[j] });
             }
         }
-        
+
         return { newOuterPositions, newOuterRingLinks, newOuterCrossLinks };
     }
 
     // --- EFFECTS ---
 
-    $effect(() => {
-        // console.log(commentIndexes())
-    })
-
-    // This effect runs the simulation and calculates layouts
+    // Runs the simulation and calculates layouts
     $effect(() => {
         if (width > 0 && height > 0) {
             const size = Math.min(width, height);
-            
+
             const layouts = computeOuterPositions(size / 2, size / 2);
             outerPositions = layouts.newOuterPositions;
             outerRingLinks = layouts.newOuterRingLinks;
@@ -114,13 +126,17 @@
                 .force('center', d3.forceCenter(size / 2, size / 2))
                 .force('collision', d3.forceCollide().radius(8).strength(0.6));
 
-            // On every tick, update the spring stores
             simulation.on('tick', () => {
                 simulation.nodes().forEach(node => {
-                    const s = nodeSprings.get(node.index);
-                    if (s) {
-                        s.x.set(node.x);
-                        s.y.set(node.y);
+                    const target = nodeTargets.get(node.index);
+                    if (!target) return;
+                    target.x = node.x;
+                    target.y = node.y;
+                    // Outer nodes aren't drifted, so set their springs directly.
+                    // Inner nodes are driven by the drift loop — only update their target.
+                    if (node.index <= 6) {
+                        const s = nodeSprings.get(node.index);
+                        if (s) { s.x.set(node.x); s.y.set(node.y); }
                     }
                 });
             });
@@ -131,7 +147,7 @@
         }
     });
 
-    // This effect controls the spin
+    // Controls the spin animation
     $effect(() => {
         const shouldSpin = scrollIndex >= 3 && scrollIndex < 5;
 
@@ -148,67 +164,47 @@
             cancelAnimationFrame(animationFrameId);
             rotation.set(0);
         }
-        return () => {
-            cancelAnimationFrame(animationFrameId);
-        };
+        return () => cancelAnimationFrame(animationFrameId);
     });
 
-    // This effect controls the animation based on scroll
+    // Animates outer nodes to octagon positions on scroll
     $effect(() => {
         if (outerPositions.length === 0) return;
 
         if (scrollIndex >= 1) {
-            // Animate TO the octagon positions
             outerPositions.forEach(pos => {
                 const s = nodeSprings.get(pos.id);
-                if (s) {
+                const target = nodeTargets.get(pos.id);
+                if (s && target) {
+                    target.x = pos.x;
+                    target.y = pos.y;
                     s.x.set(pos.x);
                     s.y.set(pos.y);
                 }
             });
         }
-        // NOTE: We don't need an 'else' block because the 'tick' handler will
-        // naturally pull the nodes back to their force-directed positions
-        // when the simulation restarts or continues.
+        // No 'else' needed — the simulation's tick handler pulls nodes back
+        // to force-directed positions naturally.
     });
-
-    $effect(() => {
-        console.log(scrollIndex);
-    })
 </script>
 
-<div id="network" 
-    role="group"
-    bind:clientWidth={width} 
-    bind:clientHeight={height}
-    bind:this={networkContainer}
-    onmousemove={handleMouseMove}
-    onmouseleave={handleMouseLeave}
->
-    <GradientBG {scrollIndex} {mousePos}/>
+<div id="network" role="group" bind:clientWidth={width} bind:clientHeight={height}>
     <figure>
         {#if width > 0 && height > 0}
             {@const size = Math.min(width, height)}
-            {@const currentCommentsForStep = copy.comments[scrollIndex] || []}
-            {@const commentTextsArray = currentCommentsForStep?.text || []}
             <div class="canvas-container" style="width: {size}px; height: {size}px;">
-                {#each commentIndexes() as comment, i (comment)}
+                {#each commentIndexes as comment, i (comment)}
                     {@const springs = nodeSprings.get(comment)}
-                    <div class="comment-wrapper" 
+                    <div class="comment-wrapper"
                         in:fly={{ duration: 250, y: 50, delay: i*500 }}
                         out:fly={{ duration: 250, y: 100 }}>
-                        <Comment
-                            {comment}
-                            {i}
-                            {springs}
-                            {scrollIndex}
-                        />
+                        <Comment {comment} {i} {springs} {scrollIndex} />
                     </div>
                 {/each}
-                {#each [{name: "Jan", id: 4}, {name: "Ashleé", id: 0}] as name, i}
+                {#each [{name: "Jan", id: 4}, {name: "Ashleé", id: 0}] as name}
                     {@const springs = nodeSprings.get(name.id)}
                     {#if springs}
-                        <Nameplate {scrollIndex} {springs} {name} {rotation} />
+                        <Nameplate {scrollIndex} {springs} {name} />
                     {/if}
                 {/each}
             </div>
@@ -218,7 +214,7 @@
                         {@const sourceSprings = nodeSprings.get(link.source.index)}
                         {@const targetSprings = nodeSprings.get(link.target.index)}
                         {#if sourceSprings && targetSprings}
-                            <Link 
+                            <Link
                                 {sourceSprings}
                                 {targetSprings}
                                 isOuter={link.source.index <= 6 || link.target.index <= 6}
@@ -227,22 +223,14 @@
                     {/each}
                 </g>
                 <g class="inner-nodes">
-                        {#each nodes as node (node.index)}
-                            {#if node.index > 7}
-                                <Node 
-                                    springs={nodeSprings.get(node.index)}
-                                    {node}
-                                    {scrollIndex}
-                                />
-                            {/if}
-                        {/each}
-                    </g>
-                <!-- SPINNING GROUP -->
-                <g 
-                    bind:this={spinningContainer} 
-                    class="spinning-container" 
-                    style="transform: rotate({$rotation}deg);"
-                >
+                    {#each nodes as node (node.index)}
+                        {#if node.index > 7}
+                            <Node springs={nodeSprings.get(node.index)} {node} {scrollIndex} />
+                        {/if}
+                    {/each}
+                </g>
+                <!-- Spinning group: rotates outer ring during steps 3–4 -->
+                <g class="spinning-container" style="transform: rotate({$rotation}deg);">
                     <g class="ring-links">
                         {#each outerRingLinks as link, i}
                             <RingLink {link} {i} {scrollIndex} />
@@ -256,11 +244,7 @@
                     <g class="outer-nodes">
                         {#each nodes as node (node.index)}
                             {#if node.index <= 6}
-                                <Node 
-                                    springs={nodeSprings.get(node.index)}
-                                    {node}
-                                    {scrollIndex}
-                                />
+                                <Node springs={nodeSprings.get(node.index)} {node} {scrollIndex} />
                             {/if}
                         {/each}
                     </g>
@@ -294,23 +278,10 @@
         justify-content: center;
         transition: all 0.5s ease;
     }
-
     .network-svg {
         display: block;
     }
-
     .spinning-container {
         transform-origin: center;
-    }
-
-    .nameplate {
-        position: absolute;
-        /* This centers the div on its (left, top) coordinate */
-        transform: translate(-50%, -50%); 
-        background: rgba(255, 255, 255, 0.8);
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        color: black;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 </style>

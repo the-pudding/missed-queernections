@@ -10,10 +10,7 @@
         Math.hypot(link.target.x - link.source.x, link.target.y - link.source.y)
     );
 
-    const strokeColor = $derived(() => {
-        const colorId = i % 2 === 0 ? link.source.id : link.target.id;
-        return colors[colorId];
-    });
+    const strokeColor = $derived(colors[i % 2 === 0 ? link.source.id : link.target.id]);
 
     const isSpecialLink = 
             (link.source.id === 0 && link.target.id === 4) || 
@@ -39,7 +36,7 @@
     class="drawable-link"
     class:draw={readyToDraw}
     class:specialLink={isSpecialLink}
-    style="stroke: {scrollIndex <= 4 ? strokeColor() : "#191919"}; stroke-dasharray: {lineLength};
+    style="stroke: {scrollIndex <= 4 ? strokeColor : "#191919"}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};
     opacity: {(scrollIndex <= 4) || (isSpecialLink && scrollIndex < 7) ? 1 : 0}"
     x1={link.source.x} y1={link.source.y}

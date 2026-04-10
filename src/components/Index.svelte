@@ -8,10 +8,10 @@
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
-	<!-- <div bind:clientHeight={introHeight}>
+	<div bind:clientHeight={introHeight}>
 		<Intro />
-	</div> -->
-	<Timeline />
+	</div>
+	<Timeline {introHeight} />
 
 	<!-- <!-- <Footer recirc={true} /> -->
 </svelte:boundary>
