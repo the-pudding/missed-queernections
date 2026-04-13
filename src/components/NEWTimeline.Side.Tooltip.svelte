@@ -37,9 +37,9 @@
         will-change: left, top, transform;
     }
 
-    .html-tooltip.is-hovered {
+    .html-tooltip.is-hovered, .html-tooltip.is-active-hover {
         z-index: 101; /* Pop to the very top */
-        opacity: 1;
+        opacity: 1 !important;
     }
 
     .html-tooltip.is-dimmed {

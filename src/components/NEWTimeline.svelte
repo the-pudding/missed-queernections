@@ -2,13 +2,21 @@
     // ─── IMPORTS ──────────────────────────────────────────────────────────────
     import * as d3 from 'd3';
     import combinedData from "$data/combined.csv";
-    import { themes, colors } from "$runes/misc.svelte.js";
+    import { themes, colors, activeSection } from "$runes/misc.svelte.js";
     import Path from "$components/NEWTimeline.Side.Path.svelte";
     import Circle from "$components/NEWTimeline.Side.Circle.svelte";
     import Tooltip from "$components/NEWTimeline.Side.Tooltip.svelte";
     import Blowout from "$components/NEWTimeline.Side.Blowout.svelte";
+    import YourEvents from "$components/YourEvents.svelte";
+    import inView from "$actions/inView.js";
 
     let { introHeight = 0 } = $props();
+
+    // ─── SECTION STATE ───────────────────────────────────────────────────────
+    function changeActiveSection(view) {
+        const newSection = view === "enter" ? "timeline" : null;
+        $activeSection = newSection;
+    }
 
     // ─── SVG + SCROLL STATE ───────────────────────────────────────────────────
     let svgHeight = $state(60000);  // Tall canvas — adjust to control spacing between events
@@ -451,7 +459,20 @@
     currentIndex={currentPickIndex}
 />
 
-<section id="timeline">
+<YourEvents />
+
+<section 
+    id="timeline"
+    use:inView={{ top: 0, bottom: windowHeight - 1 }} 
+    onenter={() => {
+        changeActiveSection("enter")
+        // instructionsVisible = true;
+        }}
+    onexit={() => {
+        changeActiveSection("exit");
+        // instructionsVisible = false;
+    }}
+>
     <figure style="height: {svgHeight}px;" bind:clientWidth={svgWidth}>
 
         <!-- HTML tooltip layer: sits above SVG, shown once circle has settled -->
@@ -462,7 +483,7 @@
                         {@const uniqueId = circle.event + circle.cy}
                         {@const isCenter = Math.abs(circle.cx - svgWidth / 2) < 1}
                         {@const centerKey = `center-${circle.cy}`}
-                        {#if settledSegments.has(circle.segmentKey) || settledSegments.has(uniqueId)}
+                        {#if settledSegments.has(circle.segmentKey) || settledSegments.has(uniqueId) || hoveredEventName === circle.event}
                             {#if !isCenter || !occupiedCenters.has(centerKey)}
                                 {(isCenter ? occupiedCenters.add(centerKey) : null), ""}
                                 <Tooltip

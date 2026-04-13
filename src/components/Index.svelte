@@ -13,7 +13,7 @@
 	</div>
 	<Timeline {introHeight} />
 
-	<!-- <!-- <Footer recirc={true} /> -->
+	<!-- <Footer recirc={true} /> -->
 </svelte:boundary>
 
 <style>
