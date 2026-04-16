@@ -1,13 +1,13 @@
 <script>
     import { getContext } from "svelte";
+    import { base } from '$app/paths';
     // ------------------- COPY -------------------
     const copy = getContext("copy");
 
     let { allPickEvents, activeBlowoutId, blowoutData, blowoutColor, originX = '50%', originY = '50%', onClose, onPrev, onNext, onNavigateTo, canGoPrev, canGoNext, currentIndex } = $props();
 
     const safeIndex = $derived(Math.max(0, currentIndex));
-    const bgImageUrl = $derived(`url('assets/imgs/blowouts/img${safeIndex}.jpg')`);
-
+    const bgImageUrl = $derived(`url('${base}/assets/imgs/blowouts/img${safeIndex}.jpg')`);
     let wrapperEl = $state(null);
     $effect(() => {
         currentIndex; // track changes
