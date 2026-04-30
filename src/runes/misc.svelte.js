@@ -24,6 +24,8 @@ export const addedEvents = writable([]);
 
 export const instructionStep = writable(0);
 
+export const instructionsVisible = writable(false);
+
 export const activeSection = writable("intro");
 
 export const userId = writable("");

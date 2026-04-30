@@ -2,13 +2,14 @@
     // ─── IMPORTS ──────────────────────────────────────────────────────────────
     import * as d3 from 'd3';
     import combinedData from "$data/combined.csv";
-    import { themes, colors, activeSection } from "$runes/misc.svelte.js";
+    import { themes, colors, activeSection, instructionsVisible } from "$runes/misc.svelte.js";
     import Path from "$components/NEWTimeline.Side.Path.svelte";
     import Circle from "$components/NEWTimeline.Side.Circle.svelte";
     import Tooltip from "$components/NEWTimeline.Side.Tooltip.svelte";
     import Blowout from "$components/NEWTimeline.Side.Blowout.svelte";
     import YourEvents from "$components/YourEvents.svelte";
     import inView from "$actions/inView.js";
+    import Nav from "$components/Timeline.Nav.svelte";
 
     let { introHeight = 0 } = $props();
 
@@ -51,6 +52,7 @@
     let currentPickIndex = $state(-1);
 
     let svgEl = $state(null);
+    let timelineSectionElement = $state(null);
 
     // All pick events in chronological order — computed once from static baseData.
     // Used for blowout prev/next navigation.
@@ -464,6 +466,7 @@
 
 <section 
     id="timeline"
+    bind:this={timelineSectionElement}
     use:inView={{ top: 0, bottom: windowHeight - 1 }} 
     onenter={() => {
         changeActiveSection("enter")
@@ -474,6 +477,9 @@
         // instructionsVisible = false;
     }}
 >
+    <div class="sticky-header">
+        <Nav {yScale} {instructionsVisible} {timelineSectionElement} />
+    </div>
     <figure style="height: {svgHeight}px;" bind:clientWidth={svgWidth}>
 
         <!-- HTML tooltip layer: sits above SVG, shown once circle has settled -->
@@ -568,6 +574,18 @@
 <style>
     /* ── Layout ──────────────────────────────────────────────────────────── */
     #timeline { width: 100%; background: transparent; }
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        left: 0;
+        height: 1.75rem;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 900;
+    }
     figure { width: 100%; margin: 0; position: relative; }
     svg { display: block; overflow: visible; }
 
