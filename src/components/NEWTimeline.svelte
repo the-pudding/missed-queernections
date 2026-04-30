@@ -266,7 +266,8 @@
                         const isCenterMatch = existing &&
                             existing[0].janTheme === existing[0].ashleéTheme &&
                             String(existing[0].match) === "1";
-                        const isPick = existing && String(existing[0].pick) === "Y";
+                        // CHANGE HERE FOR ALL PICKS    
+                        const isPick = existing && ["Y"].includes(String(existing[0].pick));
 
                         if (isCenterMatch) realEventIndices.push({ index: i, type: 'center', parsedDate: date });
                         else if (existing) realEventIndices.push({ index: i, type: 'lane', parsedDate: date });

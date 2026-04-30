@@ -2,12 +2,12 @@ person,date,event,eventSecondary,representation,beHer,genderConstruct,girlPower,
 jan,January 1989,START,,,,,,,,,0,
 jan,August 1989,Kelly Kapowski,Saved by the Bell,,,,,,,,0,
 jan,September 1989,Raven Symone,The Cosby Show,,,,,,,,0,
-jan,September 1990,"Lori ""Ice"" Fetrick",American Gladiators,,,,1,,,,1,girlPower
+jan,September 1990,Lori “Ice” Fetrick,American Gladiators,,,,1,,,,1,girlPower
 jan,January 1991,Same-sex couples,The Game of Life,,,,,,1,,1,publicOpinion
 jan,May 1991,Thelma and Louise,,,,,1,,,,1,girlPower
 jan,September 1991,The Jerry Springer Show,,1,,,,,,,1,representation
 jan,November 1991,TLC condoms outfits,,,,,1,,,,1,girlPower
-jan,December 1991,"""Sister of the Bride"" episode",The Golden Girls,,,,,,,,0,
+jan,December 1991,“Sister of the Bride” episode,The Golden Girls,,,,,,,,0,
 jan,December 1991,Fried Green Tomatoes,,,,,,,,,0,
 jan,April 1992,Linda Ellerbee,Nick News,,,,,1,,,1,gaySeeGay
 jan,June 1992,Michelle Pfeiffer,Catwoman,,1,,,,,,1,beHer
@@ -16,18 +16,18 @@ jan,March 1993,Stone Butch Blues,Leslie Feinberg,,,,,,,1,1,trueSelves
 jan,August 1993,k.d. lang/Cindy Crawford,Rolling stone cover,,,1,,,,,1,genderConstruct
 jan,September 1993,Gillian Anderson,The X-Files,,1,,,,,,1,beHer
 jan,September 1993,Babeland,,,,,,,,1,1,trueSelves
-jan,September 1993,"Beth's ""I'm not gay, but my girlfriend is"" shirt",The Real World: Los Angeles,,,,,1,,,1,gaySeeGay
+jan,September 1993,"Beth's “I’m not gay, but my girlfriend is” shirt",The Real World: Los Angeles,,,,,1,,,1,gaySeeGay
 jan,October 1993,Green Ranger/Tommy,Power Rangers,,,,,,,1,1,trueSelves
 jan,October 1993,Mrs. Doubtfire,,,,1,,,,,1,genderConstruct
 jan,November 1993,Debbie Zelensky,Addams Family Values,,,,,,,,0,
 jan,March 1994,Spice Girls,,,,,1,,,,1,girlPower
 jan,May 1994,Alicia Silverstone/Liv Tyler,Aerosmith's Crazy music video,,1,,,,,,1,beHer
 jan,June 1994,Da Brat,,,,,,1,,,1,gaySeeGay
-feb,August 1995,Victoria's Secret Fashion Show,,,1,,,,,,1,beHer
+feb,August 1995,Victoria’s Secret Fashion Show,,,1,,,,,,1,beHer
 jan,September 1995,Xena,,,,,,,,,0,
 jan,September 1995,Elizabeth Berkley,Showgirls,,1,,,,,,1,beHer
 jan,May 1996,Gurl.com,,,,,,,,1,1,trueSelves
-jan,June 1996,The Rosie O'Donnell Show,,,,,,,,,0,
+jan,June 1996,The Rosie O’Donnell Show,,,,,,,,,0,
 jan,July 1996,1996 Atlanta Olympics,,,,,1,,,,1,girlPower
 jan,August 1996,Miss Honey,Matilda,,1,,,,,,1,beHer
 jan,October 1996,Jennifer Tilly/Gina Gershon,Bound,,,,,,,,0,
@@ -54,9 +54,9 @@ jan,June 1999,Ruthie,The Real World: Hawaii,1,,,,,,,1,representation
 jan,July 1999,Brandi Chastian,World Cup,,,,1,,,,1,girlPower
 jan,July 1999,Undressed,MTV,,1,,,,,,1,beHer
 jan,September 1999,Detective Olivia Benson,Law & Order: SVU,,1,,,,,,1,beHer
-jan,September 1999,Lil Kim's Boob/Diana Ross,MTV VMAs,,,,,,1,,1,publicOpinion
-jan,September 1999,But I'm a Cheerleader,,,,,,1,,,1,gaySeeGay
-jan,October 1999,Boys Don't Cry,Brandon Teena,,,,,,1,,1,publicOpinion
+jan,September 1999,Lil Kim’s Boob/Diana Ross,MTV VMAs,,,,,,1,,1,publicOpinion
+jan,September 1999,But I’m a Cheerleader,,,,,,1,,,1,gaySeeGay
+jan,October 1999,Boys Don’t Cry,Brandon Teena,,,,,,1,,1,publicOpinion
 jan,February 2000,Same-sex couples,The Sims,,,,,,,,0,
 jan,February 2000,The Chicks,,,,,1,,,,1,girlPower
 jan,April 2000,Love and Basketball,Love and Basketball,,1,,,,,,1,beHer
@@ -92,16 +92,16 @@ jan,August 2008,Uh Huh Her,,,,,,1,,,1,gaySeeGay
 jan,September 2008,Rachel Maddow,,,,,,1,,,1,gaySeeGay
 jan,October 2008,If I Were a Boy,Beyoncé,,,,,,,,0,
 jan,October 2008,Callie/Arizona,Grey's Anatomy,1,,,,,,,1,representation
-jan,October 2008,Dearly Not Queerly / No Homo / That's So Gay,Hillary Duff PSA,,,,,,1,,1,publicOpinion
+jan,October 2008,Dearly Not Queerly / No Homo / That’s So Gay,Hillary Duff PSA,,,,,,1,,1,publicOpinion
 jan,November 2008,Lindsay Lohan/Samantha Ronson,,,1,,,,,,1,beHer
 jan,November 2008,Legalize Gay,American Apparel ,,,,,,,1,1,trueSelves
 jan,November 2008,Prop 8,,,,,,,1,,1,publicOpinion
-jan,February 2009,RuPaul's Drag Race,,,,1,,,,,1,genderConstruct
+jan,February 2009,RuPaul’s Drag Race,,,,1,,,,,1,genderConstruct
 jan,March 2009,Autostraddle,,,,,,1,,,1,gaySeeGay
 jan,July 2009,She Wolf video,Shakira ,,1,,,,,,1,beHer
-jan,September 2009,Jennifer's Body,,,1,,,,,,1,beHer
+jan,September 2009,Jennifer’s Body,,,1,,,,,,1,beHer
 jan,April 2010,Lady Gaga Strap-on,Q Mazagine,,,1,,,,,1,genderConstruct
-jan,December 2010,Don't Ask Don't Tell repeal,,,,,,,1,,1,publicOpinion
+jan,December 2010,Don’t Ask Don’t Tell repeal,,,,,,,1,,1,publicOpinion
 jan,September 2011,Santana/Brittney,Glee,,1,,,,,,1,beHer
 jan,June 2013,United States v. Windsor,Edie Windsor,,,,,,1,,1,publicOpinion
 jan,July 2013,Orange is the New Black,,1,,,,,,,1,representation
@@ -116,7 +116,7 @@ jan,December 2015,Sarah Paulson/Holland Taylor,,,1,,,,,,1,beHer
 jan,June 2016,Pulse,,,,,,,1,,1,publicOpinion
 jan,August 2016,Megan Rapinoe/Sue Bird,,,,,,1,,,1,gaySeeGay
 jan,September 2016,The Handmaiden,,,,,,,,,0,
-jan,February 2017,"""I’m, like, so gay, dude.""","Kristen Stewart , SNL",,,,,1,,,1,gaySeeGay
+jan,February 2017,"“I’m, like, so gay, dude.”","Kristen Stewart , SNL",,,,,1,,,1,gaySeeGay
 jan,March 2017,Great Fairies,The Legend of Zelda: Breath of the Wild,1,,,,,,,1,representation
 jan,January 2018,Lesbian Masterdoc,,,,,,,,,0,
 jan,April 2018,Killing Eve,,,,,,,,,0,
@@ -126,7 +126,7 @@ jan,May 2018,Hayley Kiyoko/Kehlani,What I Need,,1,,,,,,1,beHer
 jan,January 2019,Sex Education,,1,,,,,,,1,representation
 jan,May 2019,Red White and Royal Blue,,,,,,,,,0,
 jan,September 2019,Woxer/Tomboy X,,,,,,,,1,1,trueSelves
-jan,October 2020,"Lauren Jauregui on ""Camren""","Becky G's ""En la sala""",,,,,,1,,1,publicOpinion
+jan,October 2020,Lauren Jauregui on “Camren”,"Becky G's ""En la sala""",,,,,,1,,1,publicOpinion
 jan,December 2020,Layshia Clarendon,WNBA,,,1,,,,,1,genderConstruct
 jan,March 2021,Cardi B/Megan Thee Stalliion,"WAP scissoring, MTV VMAs",,1,,,,,,1,beHer
 jan,June 2021,Queen Latifah comes out,BET Awards,,,,,,,,0,
@@ -140,7 +140,7 @@ jan,May 2023,Queer Ultimatum,,1,,,,,,,1,representation
 jan,August 2023,Reneé Rapp,,,1,,,,,,1,beHer
 jan,August 2023,Bottoms,,,,,,1,,,1,gaySeeGay
 jan,September 2023,Chappell Roan,,,,,,1,,,1,gaySeeGay
-jan,May 2024,"""Got the strap in my bag like a freak bitch""","G6 Freestyle, Megan Thee Stallion",,,,,,,1,1,trueSelves
+jan,May 2024,“Got the strap in my bag like a freak bitch”,"G6 Freestyle, Megan Thee Stallion",,,,,,,1,1,trueSelves
 jan,July 2024,Melissa Etheridge/David Crosby,Sperm donation,,,,,,,,0,
 jan,July 2024,Ilona Maher,Olympic Rugby,,1,,,,,,1,beHer
 jan,September 2024,Alex Morgan and the Lesbians,U.S. Soccer,,,,1,,,,1,girlPower
