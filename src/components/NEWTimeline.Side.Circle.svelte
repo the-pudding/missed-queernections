@@ -1,6 +1,7 @@
 <script>
-    import { addedEvents, colors } from "$runes/misc.svelte.js";
+    import { addedEvents, colors, userId } from "$runes/misc.svelte.js";
     import { onMount } from 'svelte';
+    import * as db from "$utils/database.js";	
 
     let {circle, fill, centerX, maxScroll, onsettled, isPick, isDimmed, onhover, onleave, hoveredEventName } = $props();
 
@@ -40,6 +41,10 @@
         } else {
             $addedEvents = [...$addedEvents, eventKey];
         }
+         db.insert({
+            user_id: $userId,
+            events: $addedEvents,
+         });
         console.log(`Current addedEvents:`, $addedEvents);
     }
 
