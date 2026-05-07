@@ -6,7 +6,7 @@
     import { instructionStep, colors } from "$runes/misc.svelte.js";
 
     // ------------------- PROPS -------------------
-    let { yScale, instructionsVisible, timelineSectionElement } = $props();
+    let { yScale, instructionsVisible, timelineSectionElement, index = -1 } = $props();
 
     // ------------------- VARIABLES -------------------
     let userHoveredIndex = $state(null); 
@@ -57,7 +57,7 @@
     $effect(() => {
         let intervalId = null;
 
-        if ($instructionStep === 2) {
+        if (index === 0) {
             let currentIndex = 0;
             animatedVisibleIndex = 0;
 
@@ -102,13 +102,13 @@
         <div class="select-wrapper">
             <!-- <label for="year-select">Jump to a year</label> -->
             <select bind:value={year} id="year-select" onchange={yearChange} disabled={instructionsVisible}>
-            {#each uniqueYears() as option}
+            <!-- {#each uniqueYears() as option}
                 <option
                     value={option}
                     selected={option === year}
                     onclick={() => (year = option)}>{option}</option
                 >
-            {/each}
+            {/each} -->
             </select>
         </div>
         <div id="key">

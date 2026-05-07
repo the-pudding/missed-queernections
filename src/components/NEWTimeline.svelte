@@ -9,7 +9,8 @@
     import Blowout from "$components/NEWTimeline.Side.Blowout.svelte";
     import YourEvents from "$components/YourEvents.svelte";
     import inView from "$actions/inView.js";
-    import Nav from "$components/Timeline.Nav.svelte";
+    import Nav from "$components/NEWTimeline.Nav.svelte";
+    import Instructions from "$components/NEWTimeline.Instructions.svelte";
 
     let { introHeight = 0 } = $props();
 
@@ -392,6 +393,32 @@
         if (threshold > maxScroll) maxScroll = threshold;
     });
 
+    // ─── INSTRUCTIONS STATE ───────────────────────────────────────────────────
+    let currentInstructionIndex = $state(-1);
+    let hasEnteredTimeline = $state(false);
+
+    // ─── SCROLL-POSITION EVENTS ───────────────────────────────────────────────
+    // Add { y, fn } entries below. y is in SVG canvas pixels — use yScale(new Date(...))
+    // to target a specific date, or a raw number for a fixed pixel position.
+    // Each fn fires exactly once when maxScroll first crosses y.
+    const scrollEventThresholds = [
+        { y: yScale(new Date("1989-01-01")), fn: () => currentInstructionIndex = 0 },
+        { y: yScale(new Date("1989-08-01")), fn: () => currentInstructionIndex = 1 },
+        { y: yScale(new Date("1990-09-01")), fn: () => currentInstructionIndex = 2 }
+    ];
+    const firedScrollPositionEvents = new Set();
+
+    $effect(() => {
+        if (!hasEnteredTimeline) return;
+        const ms = maxScroll;
+        for (const { y, fn } of scrollEventThresholds) {
+            if (ms >= y && !firedScrollPositionEvents.has(y)) {
+                firedScrollPositionEvents.add(y);
+                fn();
+            }
+        }
+    });
+
     // ─── DERIVED RENDER DATA ──────────────────────────────────────────────────
     // The only computation that runs on scroll. Converts static pull values into
     // concrete SVG path strings and circle positions using maxScroll as the
@@ -469,8 +496,8 @@
     bind:this={timelineSectionElement}
     use:inView={{ top: 0, bottom: windowHeight - 1 }} 
     onenter={() => {
-        changeActiveSection("enter")
-        // instructionsVisible = true;
+        changeActiveSection("enter");
+        hasEnteredTimeline = true;
         }}
     onexit={() => {
         changeActiveSection("exit");
@@ -478,12 +505,13 @@
     }}
 >
     <div class="sticky-header">
-        <Nav {yScale} {instructionsVisible} {timelineSectionElement} />
+        <Nav {yScale} {instructionsVisible} {timelineSectionElement} index={currentInstructionIndex} />
     </div>
     <figure style="height: {svgHeight}px;" bind:clientWidth={svgWidth}>
 
         <!-- HTML tooltip layer: sits above SVG, shown once circle has settled -->
         <div class="html-overlay" style="height: {svgHeight}px;">
+            <Instructions index={currentInstructionIndex} />
             {#each renderedData as sideData}
                 {#each sideData.themesData as theme}
                     {#each theme.circles as circle (circle.event + circle.cy)}
@@ -586,8 +614,16 @@
         align-items: center;
         z-index: 900;
     }
-    figure { width: 100%; margin: 0; position: relative; }
-    svg { display: block; overflow: visible; }
+    figure { 
+        width: 100%; 
+        margin: -4rem 0 0 0; 
+        position: relative; 
+    }
+
+    svg { 
+        display: block; 
+        overflow: visible; 
+    }
 
     .year-axis line {
         stroke: rgba(0, 0, 0, 0.2);
