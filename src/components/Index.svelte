@@ -5,48 +5,53 @@
 	import Timeline from "$components/NEWTimeline.svelte";
 	import { userId, addedEvents } from "$runes/misc.svelte.js";
 
-	import generateId from "$utils/generateId.js";	
+	import generateId from "$utils/generateId.js";
 
 	let introHeight = $state(0);
 
 	onMount(() => {
-        let storedId = localStorage.getItem("user_id");
+		let storedId = localStorage.getItem("user_id");
 
-        if (!storedId) {
-            storedId = generateId();
-            localStorage.setItem("user_id", storedId);
-        }
+		if (!storedId) {
+			storedId = generateId();
+			localStorage.setItem("user_id", storedId);
+		}
 
-        userId.set(storedId);
-        console.log("User ID:", $userId); 
+		userId.set(storedId);
+		console.log("User ID:", $userId);
 
-        let storedEvents = localStorage.getItem("added_events");
-        
-        if (storedEvents) {
-            try {
-                addedEvents.set(JSON.parse(storedEvents));
-            } catch (e) {
-                console.error("Failed to parse added_events from localStorage:", e);
-            }
-        }
-    });
+		let storedEvents = localStorage.getItem("added_events");
+
+		if (storedEvents) {
+			try {
+				addedEvents.set(JSON.parse(storedEvents));
+			} catch (e) {
+				console.error("Failed to parse added_events from localStorage:", e);
+			}
+		}
+	});
 
 	$effect(() => {
-        if (typeof window !== "undefined") {
-            localStorage.setItem("added_events", JSON.stringify($addedEvents));
-        }
-    });
+		if (typeof window !== "undefined") {
+			localStorage.setItem("added_events", JSON.stringify($addedEvents));
+		}
+	});
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
 	<div bind:clientHeight={introHeight}>
 		<Intro />
 	</div>
+
+	<!-- <div class="temp"> -->
 	<Timeline {introHeight} />
+	<!-- </div> -->
 
 	<!-- <Footer recirc={true} /> -->
 </svelte:boundary>
 
 <style>
-	
+	.temp {
+		margin-top: 10rem;
+	}
 </style>

@@ -80,3 +80,18 @@ h6 {
 svg {
 	display: block;
 }
+
+.bold {
+	font-weight: 700;
+}
+
+span.beHerOrBeWithHer {
+	color: white;
+	background: var(--color-red);
+	padding: 2px 4px;
+}
+
+span.girlPower {
+	background: var(--color-yellow);
+	padding: 2px 4px;
+}

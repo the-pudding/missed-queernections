@@ -39,20 +39,26 @@
 		"gray-1000": {
 			"value": "rgb(25, 25, 25)"
 		},
-		"purple": {
-			"value": "#a239ca"
-		},
-		"blue": {
-			"value": "#4717f6"
-		},
-		"green": {
-			"value": "#34a29e"
+		"pink": {
+			"value": "#FF69B4"
 		},
 		"red": {
-			"value": "#ff533d"
+			"value": "#FF1818"
+		},
+		"orange": {
+			"value": "#FF8E00"
 		},
 		"yellow": {
-			"value": "#e5e338"
+			"value": "#FFCC00"
+		},
+		"purple": {
+			"value": "#400098"
+		},
+		"teal": {
+			"value": "#00C0C0"
+		},
+		"green": {
+			"value": "#008600"
 		}
 	}
 }
