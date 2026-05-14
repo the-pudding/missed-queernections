@@ -9,27 +9,50 @@
 		yScale,
 		instructionsVisible,
 		timelineSectionElement,
-		index = -1
+		index = -1,
+		onYearSelect,
+		currentYear = null
 	} = $props();
 
 	// ------------------- VARIABLES -------------------
 	let userHoveredIndex = $state(null);
 	let animatedVisibleIndex = $state(null);
-	let year = $state("1989");
 
-	const uniqueYears = $derived(() => {
-		if (!axisData || axisData.length === 0) {
-			return [];
-		}
-		const allYearStrings = axisData.map((date) => formatYear(date));
+	const [domainStart, domainEnd] = yScale.domain();
+	const yearOptions = d3.timeYear
+		.range(domainStart, d3.timeYear.offset(domainEnd, 1))
+		.map((d) => d.getFullYear().toString());
 
-		return Array.from(new Set(allYearStrings));
-	});
+	let year = $state(yearOptions[0] ?? "1989");
 
 	// ------------------- HELPERS -------------------
-	const formatYear = d3.timeFormat("%Y");
-	const parseMonthYear = d3.timeParse("%B %Y");
+	let isAutoScrolling = false;
+	let scrollStopTimer = null;
 
+	function yearChange() {
+		isAutoScrolling = true;
+		onYearSelect?.(year);
+
+		const onScroll = () => {
+			clearTimeout(scrollStopTimer);
+			scrollStopTimer = setTimeout(() => {
+				isAutoScrolling = false;
+				window.removeEventListener("scroll", onScroll);
+			}, 150);
+		};
+
+		window.addEventListener("scroll", onScroll, { passive: true });
+
+		// Fallback in case scroll never fires (e.g. already at target)
+		setTimeout(() => {
+			isAutoScrolling = false;
+			window.removeEventListener("scroll", onScroll);
+		}, 2000);
+	}
+
+	$effect(() => {
+		if (currentYear && !isAutoScrolling) year = currentYear;
+	});
 </script>
 
 <svg style="display:none">
@@ -59,15 +82,10 @@
 				bind:value={year}
 				id="year-select"
 				onchange={yearChange}
-				disabled={instructionsVisible}
 			>
-				<!-- {#each uniqueYears() as option}
-                <option
-                    value={option}
-                    selected={option === year}
-                    onclick={() => (year = option)}>{option}</option
-                >
-            {/each} -->
+				{#each yearOptions as option}
+					<option value={option}>{option}</option>
+				{/each}
 			</select>
 		</div>
 		<div id="key">
@@ -121,7 +139,9 @@
 		pointer-events: auto;
 		opacity: 1;
 		visibility: visible;
-		transition: opacity 0.4s ease, visibility 0.4s ease;
+		transition:
+			opacity 0.4s ease,
+			visibility 0.4s ease;
 	}
 
 	.middle-wrapper.nav-hidden {

@@ -169,6 +169,14 @@
 		settledSegments = new Set([...settledSegments, key]);
 	}
 
+	function scrollToYear(yearStr) {
+		const yearDate = new Date(parseInt(yearStr), 0, 1);
+		const yPixel = yScale(yearDate);
+		if (yPixel > maxScroll) maxScroll = yPixel;
+		const targetScrollY = Math.max(0, introHeight + yPixel - windowHeight / 2);
+		window.scrollTo({ top: targetScrollY, behavior: "smooth" });
+	}
+
 	function closeBlowout() {
 		activeBlowoutId = null;
 		blowoutData = null;
@@ -455,6 +463,17 @@
 	// ─── INSTRUCTIONS STATE ───────────────────────────────────────────────────
 	let currentInstructionIndex = $state(undefined);
 
+	// ─── CURRENT YEAR ─────────────────────────────────────────────────────────
+	const [domainStart, domainEnd] = yScale.domain();
+	const currentYear = $derived.by(() => {
+		const midpointY = timelineScroll + windowHeight / 2;
+		const date = yScale.invert(midpointY);
+		if (!date) return null;
+		const year = date.getFullYear();
+		const clamped = Math.min(Math.max(year, domainStart.getFullYear()), domainEnd.getFullYear());
+		return clamped.toString();
+	});
+
 	// ─── DERIVED RENDER DATA ──────────────────────────────────────────────────
 	// The only computation that runs on scroll. Converts static pull values into
 	// concrete SVG path strings and circle positions using maxScroll as the
@@ -548,6 +567,8 @@
 			{instructionsVisible}
 			{timelineSectionElement}
 			index={currentInstructionIndex}
+			onYearSelect={scrollToYear}
+			{currentYear}
 		/>
 	</div>
 	<figure style="height: {svgHeight}px;" bind:clientWidth={svgWidth}>
