@@ -51,8 +51,7 @@
 
 	const yearTicks = d3.timeYear.range(minDate, d3.timeYear.offset(maxDate, 1));
 
-	// ─── TEXT / TOOLTIP STATE ─────────────────────────────────────────────────
-	let settledSegments = $state(new Set());
+	// (tooltip visibility is now driven by maxScroll vs circle.activationKey)
 
 	// ─── BLOWOUT STATE ────────────────────────────────────────────────────────
 	let activeBlowoutId = $state(null);
@@ -68,106 +67,17 @@
 	// All pick events in chronological order — computed once from static baseData.
 	// Used for blowout prev/next navigation.
 
-	// ─── PRE-EMPTIVE SCROLL LOCK ──────────────────────────────────────────────
-	// Locks scroll as soon as an activated pick circle (cx ≈ centerX in renderedData,
-	// meaning its segment has fired) enters the visible viewport.
-	// This prevents the user scrolling past before the blowout fires.
-	let lockedForEvent = $state(null);
-
-	$effect(() => {
-		if (activeBlowoutId !== null || lockedForEvent !== null) return;
-
-		const top = timelineScroll;
-		const bottom = timelineScroll + windowHeight;
-
-		for (const sideData of renderedData) {
-			for (const theme of sideData.themesData) {
-				for (const circle of theme.circles) {
-					if (!circle.isPick) continue;
-					if (Math.abs(circle.cx - svgWidth / 2) > 2) continue; // segment not active
-					if (firedBlowouts.has(circle.event)) continue; // already shown this session
-
-					if (circle.cy > top && circle.cy < bottom) {
-						lockedForEvent = circle.event;
-
-						// Force maxScroll to reach the pick event's y-position NOW.
-						// overflow:hidden prevents scrollY from updating via scrollTo,
-						// so the blowout $effect would never see cy <= maxScroll otherwise.
-						if (circle.cy > maxScroll) maxScroll = circle.cy;
-
-						document.body.style.overflow = "hidden";
-						return;
-					}
-				}
-			}
-		}
-	});
-
-	// ─── PICK BLOWOUT TRIGGER ─────────────────────────────────────────────────
-	// Watches for both sides' pick circles to be activated (cx ≈ center) AND
-	// revealed (cy ≤ maxScroll). Fires once both conditions are met.
-	// Gated on lockedForEvent so it only fires inside an active scroll lock.
-	//
-	// This replaces transitionend-based detection, which was unreliable when one
-	// side's segment activated much earlier than the other (no transition fires
-	// for a circle that was already at center).
-	const firedBlowouts = new Set();
-
-	$effect(() => {
-		if (activeBlowoutId !== null || lockedForEvent === null) return;
-		if (firedBlowouts.has(lockedForEvent)) return;
-
-		const ms = maxScroll;
-		const half = svgWidth / 2;
-		const eventName = lockedForEvent;
-
-		const sidesReady = new Set();
-		let firstCircle = null;
-		let firstColor = null;
-
-		for (const sideData of renderedData) {
-			for (const theme of sideData.themesData) {
-				for (const circle of theme.circles) {
-					if (circle.event !== eventName || !circle.isPick) continue;
-					if (Math.abs(circle.cx - half) > 2) continue; // not at center
-					if (circle.cy > ms) continue; // not yet revealed
-
-					if (!sidesReady.has(sideData.side)) {
-						sidesReady.add(sideData.side);
-						if (!firstCircle) {
-							firstCircle = circle;
-							firstColor = theme.themeColor;
-						}
-					}
-				}
-			}
-		}
-
-		if (sidesReady.size >= 2) {
-			firedBlowouts.add(eventName);
-			// Small pause so the circles are visually at center before the reveal.
-			setTimeout(() => {
-				const rect = svgEl?.getBoundingClientRect();
-				blowoutOriginX = rect ? `${rect.left + firstCircle.cx}px` : "50%";
-				blowoutOriginY = rect ? `${rect.top + firstCircle.cy}px` : "50%";
-				activeBlowoutId = firstCircle.event + firstCircle.cy;
-				blowoutData = { ...firstCircle, color: firstColor };
-				blowoutColor = firstColor;
-				currentPickIndex = allPickEvents.findIndex(
-					(p) => p.event === firstCircle.event
-				);
-			}, 350);
-		}
-	});
-
-	// Called when a circle finishes its CSS transition.
-	// Only used for tooltip settled-segment tracking now;
-	// blowout detection is handled by the $effect above.
-	function handleCircleSettled(circle) {
-		const key = circle.segmentKey || circle.event + circle.cy;
-		if (settledSegments.has(key)) return;
-		settledSegments = new Set([...settledSegments, key]);
+	function handlePickClick(circle, themeColor) {
+		const rect = svgEl?.getBoundingClientRect();
+		blowoutOriginX = rect ? `${rect.left + circle.cx}px` : "50%";
+		blowoutOriginY = rect ? `${rect.top + circle.cy}px` : "50%";
+		activeBlowoutId = circle.event + circle.cy;
+		blowoutData = { ...circle, color: themeColor };
+		blowoutColor = themeColor;
+		currentPickIndex = allPickEvents.findIndex((p) => p.event === circle.event);
+		document.body.style.overflow = "hidden";
 	}
+
 
 	function scrollToYear(yearStr) {
 		const yearDate = new Date(parseInt(yearStr), 0, 1);
@@ -180,10 +90,7 @@
 	function closeBlowout() {
 		activeBlowoutId = null;
 		blowoutData = null;
-		lockedForEvent = null;
 		currentPickIndex = -1;
-		// firedBlowouts intentionally NOT cleared — prevents immediate re-lock
-		// when the same pick circle is still in the viewport after close.
 		document.body.style.overflow = "auto";
 	}
 
@@ -197,7 +104,6 @@
 			return;
 		currentPickIndex = newIndex;
 		const pick = allPickEvents[newIndex];
-		firedBlowouts.add(pick.event);
 		blowoutData = { ...pick };
 		blowoutColor = pick.color;
 		activeBlowoutId = pick.event + pick.cy;
@@ -216,7 +122,6 @@
 		if (newIndex < 0 || newIndex >= allPickEvents.length) return;
 		currentPickIndex = newIndex;
 		const pick = allPickEvents[newIndex];
-		firedBlowouts.add(pick.event); // prevent scroll re-trigger
 		blowoutData = { ...pick };
 		blowoutColor = pick.color;
 		activeBlowoutId = pick.event + pick.cy;
@@ -239,8 +144,6 @@
 	// ─── HOVER STATE ──────────────────────────────────────────────────────────
 	let hoveredId = $state(null);
 	let hoveredEventName = $state(null);
-	let occupiedCenters = new Set();
-
 	// Derives which themes are associated with the currently-hovered event name.
 	// Used to dim unrelated themes on hover.
 	let activeHoverThemes = $derived.by(() => {
@@ -454,14 +357,62 @@
 	})();
 
 	// ─── SCROLL HIGH-WATER MARK ───────────────────────────────────────────────
-	// maxScroll only ever increases, so revealed segments stay revealed on scroll-up.
+	// Uses 0.7 to match the segment activation threshold so that maxScroll always
+	// covers any circle whose segment has been activated, making tooltips reliable.
 	$effect(() => {
-		const threshold = timelineScroll + windowHeight * 0.5;
+		const threshold = timelineScroll + windowHeight * 0.7;
 		if (threshold > maxScroll) maxScroll = threshold;
+	});
+
+	// ─── SEGMENT ACTIVATION WITH HYSTERESIS ──────────────────────────────────
+	// Segments activate when their activationY scrolls into the top 30% of the
+	// viewport, but only deactivate when scrolled back above the 70% mark.
+	// The gap between those two thresholds is the dead zone where a segment
+	// holds its current state regardless of scroll direction.
+	const allActivationKeys = (() => {
+		const keys = new Set();
+		for (const sideData of baseData) {
+			for (const theme of sideData.themesData) {
+				for (const point of theme.pathPoints) {
+					const key = point.segmentKey ?? point.triggerY;
+					if (key != null) keys.add(key);
+				}
+			}
+		}
+		return keys;
+	})();
+
+	let activeSegmentKeys = $state(new Set());
+
+	$effect(() => {
+		const inThreshold = timelineScroll + windowHeight * 0.8;
+		const outThreshold = timelineScroll + windowHeight * 0.8;
+
+		let changed = false;
+		const next = new Set(activeSegmentKeys);
+
+		for (const key of allActivationKeys) {
+			if (!next.has(key) && key <= inThreshold) {
+				next.add(key);
+				changed = true;
+			} else if (next.has(key) && key > outThreshold) {
+				next.delete(key);
+				changed = true;
+			}
+		}
+
+		if (changed) activeSegmentKeys = next;
 	});
 
 	// ─── INSTRUCTIONS STATE ───────────────────────────────────────────────────
 	let currentInstructionIndex = $state(undefined);
+
+	const instructionsCutoff = new Date("1992-06-01");
+	const instructionsPastCutoff = $derived.by(() => {
+		const midpointY = timelineScroll + windowHeight / 2;
+		const date = yScale.invert(midpointY);
+		return !!date && date >= instructionsCutoff;
+	});
 
 	// ─── CURRENT YEAR ─────────────────────────────────────────────────────────
 	const [domainStart, domainEnd] = yScale.domain();
@@ -470,16 +421,17 @@
 		const date = yScale.invert(midpointY);
 		if (!date) return null;
 		const year = date.getFullYear();
-		const clamped = Math.min(Math.max(year, domainStart.getFullYear()), domainEnd.getFullYear());
+		const clamped = Math.min(
+			Math.max(year, domainStart.getFullYear()),
+			domainEnd.getFullYear()
+		);
 		return clamped.toString();
 	});
 
 	// ─── DERIVED RENDER DATA ──────────────────────────────────────────────────
-	// The only computation that runs on scroll. Converts static pull values into
-	// concrete SVG path strings and circle positions using maxScroll as the
-	// activation threshold. Re-runs when maxScroll or svgWidth changes.
+	// Re-runs whenever activeSegmentKeys or svgWidth changes.
 	const renderedData = $derived.by(() => {
-		const ms = maxScroll;
+		const active = activeSegmentKeys;
 		const sw = svgWidth;
 
 		return baseData.map((sideData, sideIndex) => {
@@ -501,7 +453,7 @@
 					// Uses segmentKey as the activation threshold so whole segments snap together.
 					function getX(d) {
 						const activationY = d.segmentKey ?? d.triggerY;
-						const p = activationY <= ms ? d.combinedPull : 0;
+						const p = active.has(activationY) ? d.combinedPull : 0;
 						return laneX + (centerX - laneX) * p;
 					}
 
@@ -518,6 +470,7 @@
 						date: day.date,
 						eventSecondary: day.eventSecondary,
 						segmentKey: day.segmentKey,
+						activationKey: day.segmentKey ?? day.triggerY,
 						isPick: day.isPick
 					}));
 
@@ -586,31 +539,38 @@
 					></div>
 				{/each}
 			</Scrolly>
-			<Instructions index={currentInstructionIndex} />
+			<Instructions
+				index={instructionsPastCutoff ? -1 : currentInstructionIndex}
+			/>
 			{#each renderedData as sideData}
 				{#each sideData.themesData as theme}
 					{#each theme.circles as circle (circle.event + circle.cy)}
 						{@const uniqueId = circle.event + circle.cy}
 						{@const isCenter = Math.abs(circle.cx - svgWidth / 2) < 1}
-						{@const centerKey = `center-${circle.cy}`}
-						{#if settledSegments.has(circle.segmentKey) || settledSegments.has(uniqueId) || hoveredEventName === circle.event}
-							{#if !isCenter || !occupiedCenters.has(centerKey)}
-								{(isCenter ? occupiedCenters.add(centerKey) : null, "")}
-								<Tooltip
-									{circle}
-									{sideData}
-									{isCenter}
-									{uniqueId}
-									{hoveredId}
-									{hoveredEventName}
-								/>
-							{/if}
+						{#if circle.cy <= timelineScroll + windowHeight * 0.7 || hoveredEventName === circle.event}
+							<Tooltip
+								{circle}
+								{sideData}
+								fill={theme.themeColor}
+								{isCenter}
+								{uniqueId}
+								{hoveredId}
+								{hoveredEventName}
+								isPick={circle.isPick}
+								onhover={() => {
+									hoveredId = circle.event + circle.cy;
+									hoveredEventName = circle.event;
+								}}
+								onleave={() => {
+									hoveredId = null;
+									hoveredEventName = null;
+								}}
+							/>
 						{/if}
 					{/each}
 				{/each}
 			{/each}
-			{(occupiedCenters.clear(), "")}
-		</div>
+			</div>
 
 		{#if svgWidth > 0}
 			<svg width="100%" height={svgHeight} bind:this={svgEl}>
@@ -646,20 +606,21 @@
 											{circle}
 											fill={theme.themeColor}
 											centerX={svgWidth / 2}
-											{maxScroll}
 											{hoveredEventName}
 											isDimmed={hoveredEventName !== null &&
 												!activeHoverThemes.includes(theme.themeName)}
 											isPick={circle.isPick}
-											onsettled={() => handleCircleSettled(circle)}
-											onhover={() => {
+											onclick={circle.isPick
+												? () => handlePickClick(circle, theme.themeColor)
+												: undefined}
+											onhover={circle.isPick ? () => {
 												hoveredId = circle.event + circle.cy;
 												hoveredEventName = circle.event;
-											}}
-											onleave={() => {
+											} : undefined}
+											onleave={circle.isPick ? () => {
 												hoveredId = null;
 												hoveredEventName = null;
-											}}
+											} : undefined}
 										/>
 									{/each}
 								</g>
