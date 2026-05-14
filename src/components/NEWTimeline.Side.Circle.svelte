@@ -14,16 +14,18 @@
 	} = $props();
 
 	let queernection = $state(false);
+	let pickAtCenter = $state(false);
 	let isHoveredAcrossTimeline = $derived(hoveredEventName === circle.event);
-	const r = 10;
+	const r = isPick ? 10 : 7;
 
 	function handleTransitionEnd(event) {
 		if (event.propertyName.includes("transform")) {
 			const isAtCenter = Math.abs(circle.cx - centerX) < 1;
-			// Only fire the one-shot queernection pulse for non-pick center circles.
-			// Pick circles use their own always-on infinite loop instead.
-			if (isAtCenter && !isPick) {
-				queernection = true;
+			if (isPick) {
+				pickAtCenter = isAtCenter;
+			} else {
+				// Reset when leaving center so the pulse re-fires next time it enters.
+				queernection = isAtCenter;
 			}
 		}
 	}
@@ -61,7 +63,7 @@
 	onmouseenter={onhover}
 	onmouseleave={onleave}
 >
-	{#if isPick}
+	{#if isPick && pickAtCenter}
 		{#each colors as color, i}
 			<circle
 				cx={0}

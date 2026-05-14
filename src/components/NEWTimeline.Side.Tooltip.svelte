@@ -42,12 +42,17 @@
 	class:is-hovered={hoveredId === uniqueId}
 	class:is-dimmed={hoveredId !== null && hoveredEventName !== circle.event}
 	class:is-active-hover={hoveredEventName === circle.event}
+	class:is-added={isAdded}
 	style="left: {circle.cx}px; top: {circle.cy}px;"
 >
-	<div class="tooltip-content" role="tooltip" onmouseenter={onhover} onmouseleave={onleave}>
+	<div
+		class="tooltip-content"
+		role="tooltip"
+		onmouseenter={onhover}
+		onmouseleave={onleave}
+	>
 		<button
 			class="add-btn"
-			class:is-added={isAdded}
 			onclick={handleClick}
 			aria-label={isAdded ? "Remove event" : "Add event"}
 		>
@@ -159,8 +164,12 @@
 		align-items: center;
 		justify-content: center;
 		padding: 0;
-		background-color: var(--color-fg);
+		background-color: var(--color-gray-400);
 		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+	}
+
+	.is-added .add-btn {
+		background-color: var(--color-fg);
 	}
 
 	.add-btn:hover {
@@ -179,6 +188,10 @@
 	.is-center .add-btn {
 		left: unset;
 		right: -7px;
+	}
+
+	.is-added .tooltip-content {
+		outline: 2px solid var(--color-fg);
 	}
 
 	.icon {
