@@ -1,7 +1,7 @@
 <script>
     import { fly } from 'svelte/transition';
 
-    let { scrollIndex, springs, name } = $props();
+    let { scrollIndex, springs, name, snapToFinalPosition = () => {} } = $props();
 
     let x = $state(0);
     let y = $state(0);
@@ -15,14 +15,12 @@
 
     $effect(() => {
         if (isVisible && !prevVisible) {
-            // Just became visible — start the timer. Capture scrollIndex now so
-            // future scrollIndex changes don't re-run this block.
-            const entryStep = scrollIndex;
-            settled = false;
-            const delay = entryStep === 6 ? 2200 : 0;
-            const t = setTimeout(() => { settled = true; }, delay);
+            // Snap the node to its final position first, then show immediately.
+            // This guarantees correct placement whether arriving via fast or slow scroll,
+            // and in either direction.
+            snapToFinalPosition();
+            settled = true;
             prevVisible = true;
-            return () => clearTimeout(t);
         } else if (!isVisible) {
             settled = false;
             prevVisible = false;
@@ -69,7 +67,7 @@
         class:jan={name.name === 'Jan'}
         class:ashlee={name.name === 'Ashleé'}
         style="--x: {x}px; --y: {y}px;"
-        in:fly={{ duration: scrollIndex === 6 ? 1000 : 500, x: name.name === 'Jan' ? -20 : 20 }}
+        in:fly={{ duration: 500, x: name.name === 'Jan' ? -20 : 20 }}
         out:fly={{ duration: 300, x: name.name === 'Jan' ? -20 : 20 }}
     >
         <p>{name.name}</p>

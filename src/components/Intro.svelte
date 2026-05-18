@@ -6,14 +6,20 @@
 	const copy = getContext("copy");
 	let scrollIndex = $state(0);
 
+	let scrollY = $state(0);
+	let introHeight = $state(0);
+	const pastNetwork = $derived(introHeight > 0 && scrollY >= introHeight);
+
 	$effect(() => {
 		console.log(scrollIndex)
 	});
 </script>
 
-<section id="intro">
+<svelte:window bind:scrollY />
+
+<section id="intro" bind:clientHeight={introHeight}>
     <div class="sticky">
-		<Network {scrollIndex} />
+		<Network {scrollIndex} {pastNetwork} />
 	</div>
 	<!-- Pull steps up to overlap the sticky so step 0 is visible on load -->
 	<div class="scrolly-container">

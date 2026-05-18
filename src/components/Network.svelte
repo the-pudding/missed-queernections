@@ -13,7 +13,7 @@
 
     const copy = getContext("copy");
 
-    let { scrollIndex } = $props();
+    let { scrollIndex, pastNetwork = false } = $props();
 
     let width = $state(0);
     let height = $state(0);
@@ -22,8 +22,12 @@
     let outerRingLinks = [];
     let outerCrossLinks = [];
 
+    const COMMENT_STEPS = new Set([1, 2, 3, 4]);
     const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === scrollIndex));
     const commentIndexes = $derived(matchingComment ? JSON.parse(matchingComment.indexes) : []);
+    const effectiveCommentIndexes = $derived(
+        (!pastNetwork && COMMENT_STEPS.has(scrollIndex)) ? commentIndexes : []
+    );
 
     // --- ANIMATION STORES ---
     const nodeSprings = new Map();
@@ -185,8 +189,9 @@
             if (!s || !target) return;
 
             if (scrollIndex >= 6 && (pos.id === 0 || pos.id === 4)) {
-                // Align the surviving pair to the vertical center
-                s.y.set(centerY);
+                // Snap immediately to their line endpoints — works for both fast and slow scroll
+                s.x.set(pos.x, { hard: true });
+                s.y.set(centerY, { hard: true });
             } else if (scrollIndex >= 2) {
                 // Move to octagon position
                 target.x = pos.x;
@@ -207,18 +212,27 @@
         {#if width > 0 && height > 0}
             {@const size = Math.min(width, height)}
             <div class="canvas-container" style="width: {size}px; height: {size}px;">
-                {#each commentIndexes as comment, i (comment)}
+                {#each effectiveCommentIndexes as comment, i (comment)}
                     {@const springs = nodeSprings.get(comment)}
                     <div class="comment-wrapper"
-                        in:fly={{ duration: 250, y: 50, delay: i*500 }}
-                        out:fly={{ duration: 250, y: 100 }}>
+                        in:fly={{ duration: 250, y: 50, delay: i*500 }}>
                         <Comment {comment} {i} {springs} {scrollIndex} />
                     </div>
                 {/each}
                 {#each [{name: "Jan", id: 4}, {name: "Ashleé", id: 0}] as name}
                     {@const springs = nodeSprings.get(name.id)}
                     {#if springs}
-                        <Nameplate {scrollIndex} {springs} {name} />
+                        <Nameplate
+                            {scrollIndex} {springs} {name}
+                            snapToFinalPosition={() => {
+                                const size = Math.min(width, height);
+                                const s = nodeSprings.get(name.id);
+                                const pos = outerPositions.find(p => p.id === name.id);
+                                if (!s) return;
+                                if (pos) s.x.set(pos.x, { hard: true });
+                                s.y.set(size / 2, { hard: true });
+                            }}
+                        />
                     {/if}
                 {/each}
             </div>
