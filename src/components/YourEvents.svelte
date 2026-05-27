@@ -189,7 +189,7 @@
 	}
 
 	.panel-title {
-		font-size: var(--12px);
+		font-size: var(--16px);
 		font-weight: 700;
 		text-transform: uppercase;
 		margin: 0;
