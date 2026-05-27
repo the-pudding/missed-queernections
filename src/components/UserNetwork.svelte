@@ -1,0 +1,380 @@
+<script>
+    import * as d3 from 'd3';
+    import { spring } from 'svelte/motion';
+    import { springy } from '$actions/springy.js';
+    import { addedEvents } from '$runes/misc.svelte.js';
+    import { fakeVisitors, visitorLinks } from '$data/fakeVisitors.js';
+
+    let width = $state(0);
+    let height = $state(0);
+    let canvas = $state(null);
+
+    let hoveredVisitor = $state(null); // node index 1–99
+    let hoveredIsUser = $state(false);
+    let mouseX = $state(0);
+    let mouseY = $state(0);
+
+    // --- SPRINGS ---
+    const nodeSprings = new Map(
+        Array.from({ length: 100 }, (_, i) => [i, {
+            x: spring(0, { stiffness: 0.08, damping: 0.75 }),
+            y: spring(0, { stiffness: 0.08, damping: 0.75 }),
+        }])
+    );
+
+    const nodeTargets = new Map(
+        Array.from({ length: 100 }, (_, i) => [i, { x: 0, y: 0, initialized: false }])
+    );
+
+    const drawPos = Array.from({ length: 100 }, () => ({ x: 0, y: 0 }));
+
+    const driftPhases = new Map(
+        Array.from({ length: 100 }, (_, i) => [i, {
+            phaseX: Math.random() * Math.PI * 2,
+            phaseY: Math.random() * Math.PI * 2,
+            freqX: 0.6 + Math.random() * 0.8,
+            freqY: 0.6 + Math.random() * 0.8,
+        }])
+    );
+
+    // --- REACTIVE DATA ---
+    const sharedCounts = $derived(
+        fakeVisitors.map(v => v.filter(e => $addedEvents.includes(e)).length)
+    );
+
+    const renderedUserLinks = $derived(
+        sharedCounts
+            .map((count, i) => ({ to: i + 1, weight: count }))
+            .filter(l => l.weight > 0)
+    );
+
+    const hoveredEvents = $derived(
+        hoveredVisitor !== null
+            ? fakeVisitors[hoveredVisitor - 1].filter(e => $addedEvents.includes(e))
+            : []
+    );
+
+    const tooltipX = $derived(Math.min(mouseX + 14, width - 170));
+    const tooltipY = $derived(Math.max(mouseY - 12, 8));
+
+    let userLinksSnap = [];
+    $effect(() => { userLinksSnap = renderedUserLinks; });
+
+    // --- FORCE SIMULATION ---
+    let prevW = 0, prevH = 0;
+
+    $effect(() => {
+        if (width === 0 || height === 0) return;
+
+        const counts = sharedCounts;
+        const cx = width / 2;
+        const cy = height / 2;
+        const r = Math.min(width, height) * 0.38;
+
+        const isFirstRun = !nodeTargets.get(1).initialized;
+        const isDimChange = prevW !== width || prevH !== height;
+        prevW = width; prevH = height;
+
+        const alpha = isFirstRun ? 0.6 : (isDimChange ? 0.35 : 0.14);
+
+        const nodes = Array.from({ length: 100 }, (_, i) => {
+            const t = nodeTargets.get(i);
+            return {
+                id: i,
+                x: t.initialized ? t.x : cx + (Math.random() - 0.5) * r,
+                y: t.initialized ? t.y : cy + (Math.random() - 0.5) * r,
+            };
+        });
+        nodes[0].fx = cx;
+        nodes[0].fy = cy;
+
+        const clearRadius = r * 0.22;
+
+        const userLinks = counts.map((count, i) => ({
+            source: 0,
+            target: i + 1,
+            distance: Math.max(clearRadius + 25, r * 0.42 - count * 12),
+            strength: 0.55,
+        }));
+
+        const vvLinks = visitorLinks.map(l => ({
+            source: l.source,
+            target: l.target,
+            distance: Math.max(15, 55 - l.weight * 7),
+            strength: 0.07,
+        }));
+
+        const sim = d3.forceSimulation(nodes)
+            .force('link', d3.forceLink([...userLinks, ...vvLinks])
+                .id(d => d.id)
+                .distance(d => d.distance)
+                .strength(d => d.strength))
+            .force('charge', d3.forceManyBody().strength(-16))
+            .force('collision', d3.forceCollide()
+                .radius(d => d.id === 0 ? clearRadius : 7)
+                .strength(0.85))
+            .force('center', d3.forceCenter(cx, cy))
+            .alpha(alpha)
+            .alphaDecay(0.025);
+
+        sim.on('tick', () => {
+            nodes.forEach(node => {
+                const t = nodeTargets.get(node.id);
+                if (t) { t.x = node.x; t.y = node.y; t.initialized = true; }
+                if (node.id === 0) {
+                    nodeSprings.get(0).x.set(node.x);
+                    nodeSprings.get(0).y.set(node.y);
+                    drawPos[0] = { x: node.x, y: node.y };
+                }
+            });
+        });
+
+        return () => sim.stop();
+    });
+
+    // --- CANVAS EDGE DRAWING ---
+    function drawEdges() {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const dpr = window.devicePixelRatio || 1;
+        ctx.save();
+        ctx.scale(dpr, dpr);
+
+        const fg = getComputedStyle(document.documentElement)
+            .getPropertyValue('--color-fg').trim() || '#191919';
+
+        ctx.strokeStyle = fg;
+        const hovered = hoveredVisitor;
+        for (const link of userLinksSnap) {
+            if (hovered !== null && link.to === hovered) continue;
+            const a = drawPos[0];
+            const b = drawPos[link.to];
+            ctx.globalAlpha = hovered !== null ? 0.12 : 0.6 + Math.min(link.weight * 0.03, 0.3);
+            ctx.lineWidth = link.weight;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+        }
+        if (hovered !== null) {
+            const hoveredLink = userLinksSnap.find(l => l.to === hovered);
+            if (hoveredLink) {
+                const a = drawPos[0];
+                const b = drawPos[hoveredLink.to];
+                ctx.globalAlpha = 0.6 + Math.min(hoveredLink.weight * 0.03, 0.3);
+                ctx.lineWidth = hoveredLink.weight;
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+            }
+        }
+
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
+    // --- AMBIENT DRIFT + RAF ---
+    const DRIFT_AMOUNT = 8;
+    const DRIFT_SPEED = 0.0008;
+
+    $effect(() => {
+        let rafId;
+
+        function tick(t) {
+            nodeSprings.forEach((s, i) => {
+                if (i === 0) return;
+                const target = nodeTargets.get(i);
+                const phase = driftPhases.get(i);
+                if (!target?.initialized || !phase) return;
+
+                const x = target.x + Math.sin(t * DRIFT_SPEED * phase.freqX + phase.phaseX) * DRIFT_AMOUNT;
+                const y = target.y + Math.sin(t * DRIFT_SPEED * phase.freqY + phase.phaseY) * DRIFT_AMOUNT;
+
+                s.x.set(x);
+                s.y.set(y);
+                drawPos[i] = { x, y };
+            });
+
+            drawEdges();
+            rafId = requestAnimationFrame(tick);
+        }
+
+        rafId = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(rafId);
+    });
+
+    $effect(() => {
+        if (!canvas || width === 0 || height === 0) return;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+    });
+
+    function onMouseMove(e) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+
+        let hit = null;
+        for (const link of userLinksSnap) {
+            const pos = drawPos[link.to];
+            const dx = mouseX - pos.x;
+            const dy = mouseY - pos.y;
+            if (dx * dx + dy * dy <= 196) { // r=14 hit radius
+                hit = link.to;
+                break;
+            }
+        }
+        hoveredVisitor = hit;
+    }
+
+    function onMouseLeave() {
+        hoveredVisitor = null;
+        hoveredIsUser = false;
+    }
+</script>
+
+<div class="user-network" bind:clientWidth={width} bind:clientHeight={height}>
+    {#if width > 0 && height > 0}
+        <canvas bind:this={canvas}></canvas>
+
+        <svg {width} {height}
+            role="img"
+            onmousemove={onMouseMove}
+            onmouseleave={onMouseLeave}
+            style:cursor={hoveredVisitor !== null ? 'pointer' : 'default'}
+        >
+            <!-- Visitor circles — dim others when one is hovered -->
+            <g class="visitor-nodes" class:has-hover={hoveredVisitor !== null}>
+                {#each Array.from({ length: 99 }, (_, i) => i + 1) as i}
+                    {@const s = nodeSprings.get(i)}
+                    {#if s}
+                        <circle
+                            r={sharedCounts[i - 1] > 0 ? 6 : 4}
+                            class="visitor"
+                            class:connected={sharedCounts[i - 1] > 0}
+                            class:hovered={hoveredVisitor === i}
+                            use:springy={{ cx: s.x, cy: s.y }}
+                            style:pointer-events="none"
+                        />
+                    {/if}
+                {/each}
+            </g>
+            <!-- User node -->
+            <circle
+                r="13"
+                class="you"
+                class:hovered={hoveredIsUser}
+                use:springy={{ cx: nodeSprings.get(0).x, cy: nodeSprings.get(0).y }}
+                onmouseenter={() => { hoveredIsUser = true; }}
+                onmouseleave={() => { hoveredIsUser = false; }}
+            />
+        </svg>
+
+        <!-- Tooltips -->
+        {#if hoveredIsUser}
+            <div class="tooltip" style:left="{tooltipX}px" style:top="{tooltipY}px">
+                <p class="tooltip-title">You</p>
+                {#if $addedEvents.length > 0}
+                    <p class="tooltip-sub">{$addedEvents.length} selected {$addedEvents.length === 1 ? 'event' : 'events'}</p>
+                {/if}
+            </div>
+        {:else if hoveredVisitor !== null && hoveredEvents.length > 0}
+            <div class="tooltip" style:left="{tooltipX}px" style:top="{tooltipY}px">
+                <p class="tooltip-title">{hoveredEvents.length} shared {hoveredEvents.length === 1 ? 'event' : 'events'}</p>
+                {#each hoveredEvents as event}
+                    <p class="tooltip-event">{event}</p>
+                {/each}
+            </div>
+        {/if}
+
+    {/if}
+</div>
+
+<style>
+    .user-network {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+    }
+
+    svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: block;
+    }
+
+    /* Visitor nodes */
+    .visitor {
+        fill: var(--color-fg);
+        opacity: 0.18;
+        transition: opacity 0.25s ease;
+    }
+
+    .visitor.connected {
+        opacity: 0.85;
+    }
+
+    /* When any visitor is hovered, dim all other connected nodes */
+    .has-hover .visitor.connected:not(.hovered) {
+        opacity: 0.35;
+    }
+
+    .visitor.connected.hovered {
+        opacity: 1;
+    }
+
+    /* User node */
+    .you {
+        fill: var(--color-fg);
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+    }
+
+    .you.hovered {
+        opacity: 0.6;
+    }
+
+    /* Tooltip */
+    .tooltip {
+        position: absolute;
+        background: var(--color-bg);
+        border: 1.5px solid var(--color-fg);
+        padding: 0.5rem 0.65rem;
+        pointer-events: none;
+        max-width: 155px;
+        max-height: 220px;
+        overflow-y: auto;
+        z-index: 10;
+    }
+
+    .tooltip-title {
+        font-family: var(--sans);
+        font-size: var(--12px);
+        font-weight: 700;
+        text-transform: uppercase;
+        margin: 0 0 0.2rem;
+    }
+
+    .tooltip-sub,
+    .tooltip-event {
+        font-family: var(--sans);
+        font-size: var(--12px);
+        margin: 0.15rem 0 0;
+    }
+
+</style>
