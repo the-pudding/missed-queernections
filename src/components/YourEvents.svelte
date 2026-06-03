@@ -26,6 +26,15 @@
 	const connectionCount = $derived(
 		fakeVisitors.filter((v) => v.some((e) => $addedEvents.includes(e))).length
 	);
+
+	$effect(() => {
+		if (!listVisible) return;
+		const prev = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = prev;
+		};
+	});
 </script>
 
 <div
