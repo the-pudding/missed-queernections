@@ -21,6 +21,7 @@
 	);
 
 	function handleClick(e) {
+		console.log("click");
 		e.stopPropagation();
 		const eventKey = String(circle.event ?? "").trim();
 		if (!eventKey) return;

@@ -2,9 +2,9 @@
 	import {
 		addedEvents,
 		instructionStep,
-		activeSection
+		activeSection,
+		visitors
 	} from "$runes/misc.svelte.js";
-	import { fakeVisitors } from "$data/fakeVisitors.js";
 	import { ChevronDown } from "@lucide/svelte";
 	import UserNetwork from "$components/UserNetwork.svelte";
 
@@ -24,7 +24,7 @@
 	}
 
 	const connectionCount = $derived(
-		fakeVisitors.filter((v) => v.some((e) => $addedEvents.includes(e))).length
+		$visitors.filter((v) => (v.events ?? []).some((e) => $addedEvents.includes(e))).length
 	);
 
 	$effect(() => {

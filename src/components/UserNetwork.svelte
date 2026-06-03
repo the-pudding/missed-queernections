@@ -2,8 +2,8 @@
 	import * as d3 from "d3";
 	import { spring } from "svelte/motion";
 	import { springy } from "$actions/springy.js";
-	import { addedEvents } from "$runes/misc.svelte.js";
-	import { fakeVisitors, visitorLinks } from "$data/fakeVisitors.js";
+	import { addedEvents, userId, visitors } from "$runes/misc.svelte.js";
+	import { getRecentVisitors } from "$utils/database.js";
 	import janData from "$data/jan.csv";
 	import ashleeData from "$data/ashlee.csv";
 
@@ -13,6 +13,13 @@
 	const ashleeEvents = ashleeData
 		.filter((r) => Number(r.total) > 0)
 		.map((r) => r.event);
+
+	// Fetch the 99 most recent visitors once on mount, excluding the current user.
+	$effect(() => {
+		getRecentVisitors({ excludeUserId: $userId || null }).then((rows) => {
+			$visitors = rows;
+		});
+	});
 
 	let width = $state(0);
 	let height = $state(0);
@@ -26,6 +33,20 @@
 	// Named node IDs
 	const JAN_ID = 100;
 	const ASHLEE_ID = 101;
+
+	// Like springy, but always uses setAttribute — needed for SVG <text> x/y
+	// which are presentation attributes, not CSS properties.
+	function springyAttr(node, springs) {
+		let unsubs = [];
+		const setup = (s) => {
+			unsubs.forEach((u) => u());
+			unsubs = Object.entries(s).map(([key, store]) =>
+				store.subscribe((val) => node.setAttribute(key, val))
+			);
+		};
+		setup(springs);
+		return { update: setup, destroy: () => unsubs.forEach((u) => u()) };
+	}
 
 	// --- SPRINGS (102 nodes: 0=you, 1–99=visitors, 100=Jan, 101=Ashleé) ---
 	const nodeSprings = new Map(
@@ -66,17 +87,24 @@
 		ashleeY = $state(0);
 
 	// --- REACTIVE DATA ---
+
+	// Normalise curly/smart quotes to straight so CSV-sourced event names
+	// match whatever encoding ended up in the database.
+	const norm = (s) =>
+		String(s)
+			.replace(/[‘’ʼ]/g, "'")
+			.replace(/[“”]/g, '"');
+
+	const normAddedEvents = $derived(new Set($addedEvents.map(norm)));
+	const hasEvent = (e) => normAddedEvents.has(norm(e));
+
 	const sharedCounts = $derived(
-		fakeVisitors.map((v) => v.filter((e) => $addedEvents.includes(e)).length)
+		$visitors.map((v) => (v.events ?? []).filter(hasEvent).length)
 	);
 
-	const janSharedCount = $derived(
-		janEvents.filter((e) => $addedEvents.includes(e)).length
-	);
+	const janSharedCount = $derived(janEvents.filter(hasEvent).length);
 
-	const ashleeSharedCount = $derived(
-		ashleeEvents.filter((e) => $addedEvents.includes(e)).length
-	);
+	const ashleeSharedCount = $derived(ashleeEvents.filter(hasEvent).length);
 
 	const maxCount = $derived(
 		Math.max(1, ...sharedCounts, janSharedCount, ashleeSharedCount)
@@ -96,12 +124,10 @@
 		hoveredVisitor === null
 			? []
 			: hoveredVisitor === JAN_ID
-				? janEvents.filter((e) => $addedEvents.includes(e))
+				? janEvents.filter(hasEvent)
 				: hoveredVisitor === ASHLEE_ID
-					? ashleeEvents.filter((e) => $addedEvents.includes(e))
-					: fakeVisitors[hoveredVisitor - 1].filter((e) =>
-							$addedEvents.includes(e)
-						)
+					? ashleeEvents.filter(hasEvent)
+					: ($visitors[hoveredVisitor - 1]?.events ?? []).filter(hasEvent)
 	);
 
 	const hoveredName = $derived(
@@ -211,12 +237,25 @@
 				: [])
 		];
 
-		const vvLinks = visitorLinks.map((l) => ({
-			source: l.source,
-			target: l.target,
-			distance: Math.max(15, 55 - l.weight * 7),
-			strength: 0.07
-		}));
+		// Compute visitor-visitor shared-event links from live data
+		const vs = $visitors;
+		const vSets = vs.map((v) => new Set((v.events ?? []).map(norm)));
+		const vvLinks = [];
+		for (let i = 0; i < vs.length; i++) {
+			for (let j = i + 1; j < vs.length; j++) {
+				const weight = (vs[i].events ?? []).filter((e) =>
+					vSets[j].has(norm(e))
+				).length;
+				if (weight > 0) {
+					vvLinks.push({
+						source: i + 1,
+						target: j + 1,
+						distance: Math.max(15, 55 - weight * 7),
+						strength: 0.07
+					});
+				}
+			}
+		}
 
 		// Radial force pins each node to its ring — strong enough to override vv links
 		const radial = d3
@@ -424,19 +463,29 @@
 		>
 			<!-- Visitor circles — dim others when one is hovered -->
 			<g class="visitor-nodes" class:has-hover={hoveredVisitor !== null}>
-				{#each Array.from({ length: 99 }, (_, i) => i + 1) as i}
+				{#each Array.from({ length: $visitors.length }, (_, i) => i + 1) as i}
 					{@const s = nodeSprings.get(i)}
+					{@const count = sharedCounts[i - 1] ?? 0}
+					{@const vr = count === 0 ? 3.5 : 4 + (count / maxCount) * 4}
+					{@const famous = $visitors[i - 1]?.famous ?? null}
 					{#if s}
 						<circle
-							r={sharedCounts[i - 1] === 0
-								? 3.5
-								: 4 + (sharedCounts[i - 1] / maxCount) * 4}
+							r={vr}
 							class="visitor"
-							class:connected={sharedCounts[i - 1] > 0}
+							class:connected={count > 0}
 							class:hovered={hoveredVisitor === i}
 							use:springy={{ cx: s.x, cy: s.y }}
 							style:pointer-events="none"
 						/>
+						{#if famous}
+							<text
+								dy="-{vr + 4}"
+								class="node-label label-famous"
+								class:label-connected={count > 0}
+								class:label-hovered={hoveredVisitor === i}
+								use:springyAttr={{ x: s.x, y: s.y }}>{famous}</text
+							>
+						{/if}
 					{/if}
 				{/each}
 
@@ -510,8 +559,9 @@
 		{:else if hoveredVisitor !== null && hoveredEvents.length > 0}
 			<div class="tooltip" style:left="{tooltipX}px" style:top="{tooltipY}px">
 				<p class="tooltip-title">
-					{#if hoveredName}{hoveredName} ·
-					{/if}{hoveredEvents.length}
+					{#if hoveredName}{hoveredName} -
+					{/if}
+					{hoveredEvents.length}
 					shared {hoveredEvents.length === 1 ? "event" : "events"}
 				</p>
 				<ul class="tooltip-events">
@@ -581,6 +631,10 @@
 		transition: opacity 0.25s ease;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+	}
+
+	.node-label.label-famous {
+		opacity: 0.6;
 	}
 
 	.node-label.label-connected {

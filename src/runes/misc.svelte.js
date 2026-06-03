@@ -29,3 +29,7 @@ export const instructionsVisible = writable(false);
 export const activeSection = writable("intro");
 
 export const userId = writable("");
+
+// Array of { user_id, events } — the 99 most recent visitors from the database.
+// Populated once by UserNetwork on mount.
+export const visitors = writable([]);
