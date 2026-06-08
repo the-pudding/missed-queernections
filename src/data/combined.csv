@@ -66,7 +66,7 @@ longDate,date,event,eventSecondary,janTheme,ashleéTheme,match,pick
 "March 8, 2002",March 2002,Hilary Duff/Christy Carlson Romano,Cadet Kelly,beHer,,0,
 "March 24, 2002",March 2002,Halle Berry Oscars dress,,beHer,,0,
 "April 15, 2002",April 2002,AfterEllen,The early years,trueSelves,,0,
-"August 13, 2002",August 2002,All the Things She Said ,t.A.T.u.,representation,representation,1,Y
+"August 13, 2002",August 2002,All the Things She Said,t.A.T.u.,representation,representation,1,Y
 "January 18, 2003",January 2003,Bend it Like Beckham,,,trueSelves,0,
 "March 12, 2003",March 2003,The Chicks,Anti-Iraq War comments,girlPower,girlPower,1,
 "August 20, 2003",August 2003,Evan Rachel Wood/Nikki Reed,Thirteen (movie),beHer,,0,
@@ -84,7 +84,7 @@ longDate,date,event,eventSecondary,janTheme,ashleéTheme,match,pick
 "January 8, 2006",January 2006,Gabrielle/Susan kiss,Desperate Housewives,representation,,0,
 "June 8, 2006",June 2006,Fun Home,Alison Bechdel,gaySeeGay,gaySeeGay,1,
 "October 1, 2006",October 2006,Oprah,Wives Living Two Lives episode,representation,,0,
-"February 12, 2007",February 2007,Shakira/Beyoncé,Beautiful Liar,beHer,beHer,1,A
+"February 12, 2007",February 2007,Beautiful Liar,Shakira/Beyoncé,beHer,beHer,1,A
 "February 13, 2007",February 2007,Like a Boy,Ciara,genderConstruct,genderConstruct,1,A
 "July 24, 2007",July 2007,Uh Huh Her,,gaySeeGay,,0,
 "October 9, 2007",October 2007,Dani,A Shot at Love with Tila Tequila,representation,representation,1,
@@ -145,7 +145,7 @@ longDate,date,event,eventSecondary,janTheme,ashleéTheme,match,pick
 "July 2, 2024",July 2024,Melissa Etheridge/David Crosby,Sperm donation,,publicOpinion,0,
 "July 26, 2024",July 2024,Ilona Maher,Olympic Rugby,beHer,girlPower,0,
 "November 22, 2024",November 2024,Wicked (movie),,,trueSelves,0,
-"February 14, 2025",February 2025,Kehlani/KWN,Worst Behavior,beHer,beHer,1,Y
+"February 14, 2025",February 2025,Kehlani/kwn,Worst Behavior,beHer,beHer,1,Y
 "April 19, 2025",April 2025,Studyoncé,,,beHer,0,
 "June 20, 2025",June 2025,K-Pop Demon Hunters,,trueSelves,trueSelves,1,J
 "July 18, 2025",July 2025,Stud Budz,Courtney Williams & Natisha Hiedeman,gaySeeGay,,0,

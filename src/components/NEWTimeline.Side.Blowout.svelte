@@ -22,10 +22,20 @@
 		currentIndex
 	} = $props();
 
-	const safeIndex = $derived(Math.max(0, currentIndex));
-	const bgImageUrl = $derived(
-		`url('${base}/assets/imgs/blowouts/img${safeIndex}.jpg')`
+	const eventObject = $derived(
+		copy.expandedEvents.find(item => item?.event === blowoutData?.event)
 	);
+
+	const bgImageUrl = $derived(
+		eventObject?.img 
+			? `url('${base}/assets/imgs/blowouts/${eventObject.img}')` 
+			: 'none'
+	);
+
+	$effect(() => {
+		console.log(blowoutData, eventObject)
+	})
+	
 	let wrapperEl = $state(null);
 
 	const isAdded = $derived(
@@ -58,7 +68,7 @@
 	style="--theme-color: {blowoutData?.color ||
 		blowoutColor}; --origin-x: {originX}; --origin-y: {originY}; --bg-image: {bgImageUrl}"
 >
-	{#if blowoutData}
+	{#if blowoutData && eventObject}
 		<div class="button-group">
 			<button
 				class="add-button"
@@ -82,12 +92,12 @@
 		<div class="blowout-content-wrapper" bind:this={wrapperEl}>
 			<div class="blowout-content">
 				<div class="blowout-image" style="background-image: {bgImageUrl}"></div>
-				<p class="date">{blowoutData.date}</p>
-				<h1>{blowoutData.event}</h1>
-				{#if blowoutData.eventSecondary}
-					<p class="secondary">{blowoutData.eventSecondary}</p>
+				<p class="date">{eventObject.date}</p>
+				<h1>{eventObject.event}</h1>
+				{#if eventObject.eventSecondary}
+					<p class="secondary">{eventObject.eventSecondary}</p>
 				{/if}
-				{#each copy.expandedEvents[currentIndex].text as graf, i}
+				{#each eventObject.text as graf, i}
 					<p class="graf">{@html graf.value}</p>
 				{/each}
 			</div>

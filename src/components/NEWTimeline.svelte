@@ -204,7 +204,7 @@
 							existing[0].janTheme === existing[0].ashleéTheme &&
 							String(existing[0].match) === "1";
 						// CHANGE HERE FOR ALL PICKS
-						const isPick = existing && ["Y"].includes(String(existing[0].pick));
+						const isPick = existing && ["Y", "J", "A"].includes(String(existing[0].pick));
 
 						if (isCenterMatch)
 							realEventIndices.push({
