@@ -70,7 +70,7 @@
 				cy={0}
 				{r}
 				fill="none"
-				stroke={color}
+				stroke="{color}"
 				stroke-width="1"
 				class="shockwave shockwave-infinite"
 				style="animation-delay: {i * 150}ms;"

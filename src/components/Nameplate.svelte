@@ -87,7 +87,8 @@
         transition: top 0.8s ease-in-out, left 0.8s ease-in-out, opacity 0.5s ease;
         
         /* ... other styles ... */
-        font-family: var(--sans);
+        font-family: var(--marsha);
+        text-transform: uppercase;
         font-weight: 700;
         font-size: var(--18px);
         width: 120px;
@@ -95,9 +96,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--color-bg);
+        background: var(--color-fg);
         border-radius: 1.25rem;
-        border: 2px solid var(--color-fg);
+        border: 2px solid var(--color-bg);
+        color: var(--color-bg);
         box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
     }
 

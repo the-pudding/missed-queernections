@@ -64,16 +64,16 @@
 	</button>
 
 	<div class="top-info">
-		<p class="panel-title">You + the last 99 people to read this story</p>
-
 		<p class="connection-count">
 			{#if $addedEvents.length === 0}
 				Add events to see your connections
 			{:else}
+				You've made  
 				{connectionCount}
-				{connectionCount === 1 ? "person shares" : "people share"} events with you
+				{connectionCount === 1 ? "queernection" : "queernections"}
 			{/if}
 		</p>
+		<p class="panel-title">Showing your shared events between you and the last 99 people to read this story</p>
 	</div>
 
 	<div class="network-wrapper">
@@ -96,7 +96,7 @@
 				{/each}
 			</ul>
 		{/if}
-		<button onclick={clearAll} class="remove-all">Clear your events</button>
+		<button onclick={clearAll} class="remove-all">Clear all events</button>
 	</div>
 </div>
 
@@ -108,13 +108,14 @@
 		right: 0;
 		width: 100%;
 		height: 100vh;
-		background: rgba(255, 255, 255, 0.98);
+		background: rgba(25 ,25 ,25 ,0.975);
 		z-index: 1000;
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
-		gap: clamp(0.5rem, 5vh, 5rem);
-		padding: 4.5rem 2rem 1.5rem;
+		align-items: center;
+		justify-content: space-between;
+		padding: 5rem 2rem 2rem;
 		transition: transform 0.5s ease-out;
 		box-sizing: border-box;
 	}
@@ -134,13 +135,13 @@
 
 	.show-toggle {
 		position: absolute;
-		width: 10rem;
+		width: 12rem;
 		height: 3rem;
 		top: -2.75rem;
 		left: 50%;
 		transform: translateX(-50%);
-		background: var(--color-bg);
-		border: 2px solid var(--color-fg);
+		background: var(--color-gray-900);
+		border: 2px solid var(--color-gray-800);
 		border-radius: 4px;
 		display: flex;
 		flex-direction: row;
@@ -148,6 +149,9 @@
 		justify-content: center;
 		font-weight: 700;
 		text-transform: uppercase;
+		font-family: var(--marsha);
+		font-size: var(--18px);
+		color: var(--color-fg);
 	}
 
 	.wiggle .show-toggle {
@@ -188,25 +192,27 @@
 		gap: 0.2rem;
 		text-align: center;
 		flex-shrink: 0;
+		align-items: center;
 	}
 
 	.connection-count {
-		font-size: var(--12px);
+		font-size: var(--36px);
+		line-height: 1;
 		font-weight: 700;
+		font-family: var(--marsha);
 		text-transform: uppercase;
 		margin: 0;
 	}
 
 	.panel-title {
-		font-size: var(--16px);
-		font-weight: 700;
-		text-transform: uppercase;
+		font-size: var(--14px);
 		margin: 0;
 	}
 
 	/* Network */
 	.network-wrapper {
 		height: 38vh;
+		width: 100%;
 		flex-shrink: 0;
 	}
 
@@ -214,36 +220,40 @@
 	.bottom-info {
 		display: flex;
 		flex-direction: column;
+		align-items: center;
 		gap: 0.5rem;
-		max-width: 420px;
+		max-width: 500px;
 		width: 100%;
-		margin: 0 auto;
 		flex-shrink: 0;
 	}
 
 	.events-label {
-		font-size: var(--12px);
+		font-size: var(--16px);
+		font-family: var(--marsha);
 		font-weight: 700;
 		text-transform: uppercase;
 		margin: 0;
+		width: 100%;
 	}
 
 	.event-list {
 		list-style: none;
 		margin: 0;
-		padding: 0.1rem 0.5rem;
-		max-height: 12rem;
+		padding: 0;
+		max-height: 10rem;
 		overflow-y: auto;
 		border: 1px solid var(--color-fg);
+		border-radius: 4px;
+		width: 100%;
 	}
 
 	.event-list li {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.2rem 0;
+		padding: 0.5rem;
 		font-family: var(--sans);
-		font-size: var(--12px);
+		font-size: var(--14px);
 	}
 
 	.event-list li + li {
@@ -258,6 +268,7 @@
 		padding: 0 0 0 0.5rem;
 		opacity: 0.5;
 		flex-shrink: 0;
+		color: var(--color-fg);
 	}
 
 	.remove-btn:hover {
@@ -266,16 +277,18 @@
 
 	.remove-all {
 		width: 100%;
-		border: 1px solid var(--color-fg);
-		background: transparent;
+		background: var(--color-fg);
+		font-family: var(--marsha);
 		text-transform: uppercase;
-		font-size: var(--12px);
+		font-size: var(--16px);
 		font-weight: 700;
-		padding: 0.4rem 0;
+		padding: 0.5rem;
+		max-width: 300px;
+		margin-top: 1rem;
 	}
 
 	p {
-		font-size: var(--12px);
+		font-size: var(--16px);
 		margin: 0;
 	}
 </style>

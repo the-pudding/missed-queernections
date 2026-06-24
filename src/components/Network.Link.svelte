@@ -73,7 +73,7 @@
 
 <style>
     .link {
-        stroke: var(--color-fg);
+        stroke: var(--color-gray-600);
         stroke-width: 1;
         transition: stroke-dashoffset 0.6s ease-in-out, opacity 0.4s ease-in-out 0.5s;
     }

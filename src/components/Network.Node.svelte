@@ -25,8 +25,8 @@
 <circle
     class="node"
     class:hidden={shouldHide}
-    fill={(isOuter && scrollIndex >= 4 && scrollIndex <= 5) ? colors[node.index] : "#191919"}
-    r={6}
+    fill={(isOuter && scrollIndex >= 4 && scrollIndex <= 5) ? colors[node.index] : "#ffffff"}
+    r={(isOuter && scrollIndex >= 4 && scrollIndex <= 5) ? 10 : 6}
     style="transition-delay: {appeared ? appearDelay : 0}ms;"
     use:springy={{ cx: springs.x, cy: springs.y }}
 />
@@ -34,7 +34,7 @@
 <style>
     .node {
         opacity: 1;
-        transition: opacity 0.5s ease, fill 0.5s ease-in-out 1s;
+        transition: opacity 0.5s ease, fill 0.5s ease-in-out 1s, r 0.5s ease-in-out 1s;
     }
 
     .node.hidden {

@@ -136,8 +136,9 @@
 
 	.tooltip-content {
 		position: relative;
-		background: white;
+		background: var(--color-gray-900);
 		padding: 0.5rem;
+		border: 2px solid var(--color-gray-800);
 		border-radius: 0.25rem;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 		transition:
@@ -147,7 +148,7 @@
 		backface-visibility: hidden;
 		-webkit-font-smoothing: antialiased;
 		transform-origin: center center;
-		font-size: 10px;
+		font-size: var(--12px);
 		font-family: var(--sans);
 		pointer-events: auto;
 	}
@@ -165,7 +166,7 @@
 		align-items: center;
 		justify-content: center;
 		padding: 0;
-		background-color: var(--color-gray-400);
+		background-color: var(--color-fg);
 		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 	}
 
@@ -175,6 +176,10 @@
 
 	.add-btn:hover {
 		transform: scale(1.15);
+	}
+
+	:global(.add-btn svg line) {
+		stroke: var(--color-bg);
 	}
 
 	.side-jan .add-btn {
@@ -209,6 +214,8 @@
 	}
 
 	p.date {
+		font-family: var(--marsha);
+		text-transform: uppercase;
 		font-weight: 700;
 	}
 

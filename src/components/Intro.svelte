@@ -59,16 +59,18 @@
 
 	.step-inner {
 		padding: 2rem;
-		border-radius: 3px;
+		border-radius: 4px;
 		position: relative;
-		background: white;
-		border: 1px solid black;
+		background-color: var(--color-bg);
+		border: 2px solid var(--color-gray-800);
+		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
 		z-index: 1000;
 	}
 
 	.step p {
 		text-align: left;
 		max-width: 600px;
+		font-family: var(--sans);
 		font-size: var(--18px);
 		line-height: 1.65;
 		background: none;

@@ -668,10 +668,11 @@
 	}
 
 	.year-axis text {
-		font-family: var(--sans);
+		font-family: var(--marsha);
+		text-transform: uppercase;
 		font-size: 250px;
 		font-weight: bold;
-		fill: rgba(0, 0, 0, 0.03);
+		fill: var(--color-gray-900);
 		text-anchor: middle;
 		dominant-baseline: middle;
 		transform: translateY(10px);

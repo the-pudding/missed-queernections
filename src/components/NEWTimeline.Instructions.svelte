@@ -24,12 +24,12 @@
 		border-radius: 3px;
 		/* background: var(--color-gray-100);
 		border: 1px solid black; */
-		max-width: 300px;
+		max-width: 400px;
 	}
 
 	p {
 		font-family: var(--sans);
-		font-size: var(--14px);
+		font-size: var(--18px);
 		margin: 0;
 	}
 </style>

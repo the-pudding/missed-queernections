@@ -93,7 +93,7 @@
 			<div class="blowout-content">
 				<div class="blowout-image" style="background-image: {bgImageUrl}"></div>
 				<p class="date">{eventObject.date}</p>
-				<h1>{eventObject.event}</h1>
+				<h3>{eventObject.event}</h3>
 				{#if eventObject.eventSecondary}
 					<p class="secondary">{eventObject.eventSecondary}</p>
 				{/if}
@@ -106,7 +106,6 @@
 		<nav class="mini-timeline">
 			<div class="mini-line"></div>
 			<div class="dir-wrapper prev-wrapper" class:disabled={!canGoPrev}>
-				<span class="mini-label prev-label">PREV</span>
 				<button onclick={onPrev} class="mini-arrow" aria-label="Previous event">
 					<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 						<polyline
@@ -156,7 +155,6 @@
 						/>
 					</svg>
 				</button>
-				<span class="mini-label next-label">NEXT</span>
 			</div>
 		</nav>
 	{/if}
@@ -217,6 +215,14 @@
 		color: white;
 		font-family: var(--sans);
 		isolation: isolate;
+	}
+
+	h3 {
+		font-family: var(--marsha);
+		font-weight: 700;
+		line-height: 1;
+		text-transform: uppercase;
+		font-size: var(--48px);
 	}
 
 	.blowout-image {

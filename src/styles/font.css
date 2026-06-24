@@ -42,3 +42,12 @@
 	font-stretch: normal;
 	font-display: swap;
 }
+
+@font-face {
+	font-family: "VTC Marsha Bold";
+    src: url('/assets/fonts/VTCMarsha-Bold.woff2') format('woff2');
+	font-weight: 500;
+	font-style: normal;
+	font-stretch: normal;
+	font-display: swap;
+}
