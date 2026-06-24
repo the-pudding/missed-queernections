@@ -1,7 +1,7 @@
 <script>
 	import { getContext } from "svelte";
 	import { base } from "$app/paths";
-	import { addedEvents, userId } from "$runes/misc.svelte.js";
+	import { addedEvents, userId, longThemes } from "$runes/misc.svelte.js";
 	import * as db from "$utils/database.js";
 	// ------------------- COPY -------------------
 	const copy = getContext("copy");
@@ -32,9 +32,9 @@
 			: 'none'
 	);
 
-	$effect(() => {
-		console.log(blowoutData, eventObject)
-	})
+	const blowoutTheme = $derived(
+		longThemes.find(item => item.theme === eventObject?.theme)
+	);
 	
 	let wrapperEl = $state(null);
 
@@ -69,31 +69,79 @@
 		blowoutColor}; --origin-x: {originX}; --origin-y: {originY}; --bg-image: {bgImageUrl}"
 >
 	{#if blowoutData && eventObject}
+		<div class="theme-group">
+			<p>{blowoutTheme.longTheme}</p>
+		</div>
 		<div class="button-group">
-			<button
-				class="add-button"
-				class:is-added={isAdded}
-				onclick={handleAddClick}
-				aria-label={isAdded ? "Remove event" : "Add event"}
+			<button onclick={onClose} class="close-button">
+			<svg
+				width="20"
+				height="20"
+				viewBox="-5 -5 10 10"
+				class="icon rotated"
 			>
-				{#if isAdded}
-					Added!
-				{:else}
-					<svg width="12" height="12" viewBox="-5 -5 10 10" class="icon">
-						<line x1="0" y1="-3.75" x2="0" y2="3.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-						<line x1="-3.75" y1="0" x2="3.75" y2="0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-					</svg>
-					Add
-				{/if}
+				<line
+					x1="0"
+					y1="-3.75"
+					x2="0"
+					y2="3.75"
+					stroke="#191919"
+					stroke-width="1.5"
+					stroke-linecap="butt"
+				/>
+				<line
+					x1="-3.75"
+					y1="0"
+					x2="3.75"
+					y2="0"
+					stroke="#191919"
+					stroke-width="1.5"
+					stroke-linecap="butt"
+				/>
+			</svg>
+				<p>Close</p>
 			</button>
-			<button onclick={onClose} class="close-button">✕ Close</button>
 		</div>
 
 		<div class="blowout-content-wrapper" bind:this={wrapperEl}>
 			<div class="blowout-content">
 				<div class="blowout-image" style="background-image: {bgImageUrl}"></div>
 				<p class="date">{eventObject.date}</p>
-				<h3>{eventObject.event}</h3>
+				<h3>
+					<button
+						class="add-btn"
+						onclick={handleAddClick}
+						aria-label={isAdded ? "Remove event" : "Add event"}
+					>
+						<svg
+							width="12"
+							height="12"
+							viewBox="-5 -5 10 10"
+							class="icon"
+							class:rotated={isAdded}
+						>
+							<line
+								x1="0"
+								y1="-3.75"
+								x2="0"
+								y2="3.75"
+								stroke="white"
+								stroke-width="2"
+								stroke-linecap="butt"
+							/>
+							<line
+								x1="-3.75"
+								y1="0"
+								x2="3.75"
+								y2="0"
+								stroke="white"
+								stroke-width="2"
+								stroke-linecap="butt"
+							/>
+						</svg>
+					</button>
+					{eventObject.event}
+				</h3>
 				{#if eventObject.eventSecondary}
 					<p class="secondary">{eventObject.eventSecondary}</p>
 				{/if}
@@ -110,7 +158,7 @@
 					<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 						<polyline
 							points="4,14 10,6 16,14"
-							stroke={blowoutData?.color || blowoutColor}
+							stroke={"#191919"}
 							stroke-width="2.5"
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -148,7 +196,7 @@
 					<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 						<polyline
 							points="4,6 10,14 16,6"
-							stroke={blowoutData?.color || blowoutColor}
+							stroke={"#191919"}
 							stroke-width="2.5"
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -186,7 +234,7 @@
 		background: var(--bg-image) center / cover no-repeat;
 		filter: grayscale(1) blur(0px);
 		mix-blend-mode: multiply;
-		opacity: 0.1;
+		opacity: 0.05;
 		pointer-events: none;
 		transition: background-image 0.3s ease;
 	}
@@ -209,10 +257,10 @@
 
 	.blowout-content {
 		width: 100%;
-		padding: 2rem 2rem 6rem;
+		padding: 4rem 2rem 2rem 2rem;
 		margin: 2rem;
 		max-width: 600px;
-		color: white;
+		color: var(--color-bg);
 		font-family: var(--sans);
 		isolation: isolate;
 	}
@@ -223,12 +271,42 @@
 		line-height: 1;
 		text-transform: uppercase;
 		font-size: var(--48px);
+		position: relative;
+	}
+
+	.add-btn {
+		background: var(--color-bg);
+		border-radius: 50%;
+		padding: 0;
+		margin: 0;
+		height: 24px;
+		width: 24px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: absolute;
+		top: 20px;
+		left: -2rem;
+		transform: translateY(-50%);
+		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+	}
+
+	.add-btn:hover {
+		transform: scale(1.1) translateY(-50%);
+	}
+
+	.add-btn svg {
+		margin-bottom: 1px;
+	}
+
+	.add-btn svg line {
+		fill: var(--color-fg);
 	}
 
 	.blowout-image {
 		width: 100%;
 		max-width: 400px;
-		margin: 0 auto;
 		aspect-ratio: 1 / 1;
 		background-size: cover;
 		background-position: center;
@@ -238,10 +316,32 @@
 		padding-bottom: 4rem;
 	}
 
+	.theme-group {
+		position: absolute;
+		top: 1rem;
+		left: 1rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		border: 2px solid var(--color-bg);
+		color: var(--color-bg);
+		border-radius: 50px;
+		padding: 0.8rem 1.2rem;
+	}
+
+	.theme-group p {
+		font-family: var(--marsha);
+		text-transform: uppercase;
+		line-height: 1;
+		padding: 0;
+		margin: 1px 0 0 0;
+	}
+
 	.button-group {
 		position: absolute;
-		bottom: 2rem;
-		left: 2rem;
+		bottom: 1rem;
+		left: 1rem;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -249,13 +349,30 @@
 	}
 
 	.close-button {
-		background: white;
+		background: var(--color-fg);
 		border: none;
-		padding: 0.8rem 1.2rem;
+		padding: 0.8rem 1.2rem 0.8rem 1rem;
 		border-radius: 50px;
 		cursor: pointer;
 		font-weight: bold;
-		color: black;
+		color: var(--color-bg);
+		font-family: var(--marsha);
+		text-transform: uppercase;
+		line-height: 1;
+		display: flex;
+		align-items: center;
+		gap: 0.125rem;
+		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+	}
+
+	.close-button:hover {
+		transform: translateY(-4px);
+	}
+
+	.close-button p {
+		padding: 0;
+		padding-top: 2px;
+		margin: 0;
 	}
 
 	.add-button {
@@ -278,20 +395,25 @@
 
 	.icon {
 		display: block;
+		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+	}
+
+	.icon.rotated {
+		transform: rotate(45deg);
 	}
 
 	/* ── Mini timeline ───────────────────────────────────────────────────── */
 	.mini-timeline {
 		position: absolute;
 		right: 1rem;
-		top: 2rem;
-		bottom: 2rem;
+		top: 1rem;
+		bottom: 1rem;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		padding: 4rem 0;
 		gap: 0.5rem;
-		color: white;
+		color: var(--color-bg);
 	}
 
 	.mini-line {
@@ -300,7 +422,7 @@
 		bottom: 0;
 		left: 50%;
 		width: 1.5px;
-		background: white;
+		background: var(--color-bg);
 		transform: translateX(-50%);
 		pointer-events: none;
 		z-index: 1;
@@ -342,7 +464,7 @@
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		color: white;
+		color: var(--color-fg);
 		flex-shrink: 0;
 		transition: all 300ms ease;
 		z-index: 100;
@@ -396,7 +518,7 @@
 		font-weight: bold;
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
-		color: white;
+		color: var(--color-bg);
 		white-space: nowrap;
 		pointer-events: none;
 	}
@@ -408,7 +530,7 @@
 		width: 12px;
 		height: 12px;
 		border-radius: 50%;
-		background: white;
+		background: var(--color-bg);
 		z-index: 1;
 		pointer-events: none;
 		transition: top 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -421,7 +543,7 @@
 		width: 12px;
 		height: 12px;
 		border-radius: 50%;
-		border: 1.5px solid white;
+		border: 2px solid var(--color-bg);;
 		cursor: pointer;
 		padding: 0;
 		transition:

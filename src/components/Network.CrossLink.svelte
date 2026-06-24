@@ -36,7 +36,7 @@
     class="drawable-link"
     class:draw={readyToDraw}
     class:specialLink={isSpecialLink}
-    style="stroke: {scrollIndex <= 5 ? strokeColor : "#191919"}; stroke-dasharray: {lineLength};
+    style="stroke: {scrollIndex <= 5 ? strokeColor : "#ffffff"}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};
     opacity: {(scrollIndex <= 5) || (isSpecialLink && scrollIndex < 10) ? 1 : 0}"
     x1={link.source.x} y1={overrideY ?? link.source.y}

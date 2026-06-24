@@ -48,8 +48,9 @@
 >
 	<button
 		class="show-toggle"
+		class:list-visible={listVisible}
 		onclick={toggleShow}
-		style="top: {listVisible ? '-0.25rem' : '-2.75rem'}"
+		style="top: {listVisible ? '-0.25rem' : '-2.75rem'};"
 	>
 		<p>Your Events</p>
 		<div
@@ -58,7 +59,7 @@
 		>
 			<ChevronDown />
 		</div>
-		<p class="count" style="top: {listVisible ? '2rem' : '-0.5rem'}">
+		<p class="count" style="top: {listVisible ? '2.5rem' : '-0.5rem'}">
 			{$addedEvents.length}
 		</p>
 	</button>
@@ -86,11 +87,39 @@
 			<ul class="event-list">
 				{#each $addedEvents as event}
 					<li>
-						<span>{event}</span>
 						<button
 							class="remove-btn"
 							onclick={() => removeEvent(event)}
-							aria-label="Remove {event}">✕</button
+							aria-label="Remove {event}">
+								<p>{event}</p>
+								<div class="strikethrough"></div>
+								<svg
+									width="12"
+									height="12"
+									viewBox="-5 -5 10 10"
+									class="icon"
+									style="transform: rotate(45deg)"
+								>
+									<line
+										x1="0"
+										y1="-5"
+										x2="0"
+										y2="5"
+										stroke="white"
+										stroke-width="2"
+										stroke-linecap="round"
+									/>
+									<line
+										x1="-5"
+										y1="0"
+										x2="5"
+										y2="0"
+										stroke="white"
+										stroke-width="2"
+										stroke-linecap="round"
+									/>
+								</svg>
+							</button
 						>
 					</li>
 				{/each}
@@ -108,7 +137,7 @@
 		right: 0;
 		width: 100%;
 		height: 100vh;
-		background: rgba(25 ,25 ,25 ,0.975);
+		background: rgba(25 ,25 ,25 ,0.99);
 		z-index: 1000;
 		display: flex;
 		flex-direction: column;
@@ -136,10 +165,10 @@
 	.show-toggle {
 		position: absolute;
 		width: 12rem;
-		height: 3rem;
+		height: 3.5rem;
 		top: -2.75rem;
 		left: 50%;
-		transform: translateX(-50%);
+		transform: translate(-50%, 0);
 		background: var(--color-gray-900);
 		border: 2px solid var(--color-gray-800);
 		border-radius: 4px;
@@ -152,6 +181,20 @@
 		font-family: var(--marsha);
 		font-size: var(--18px);
 		color: var(--color-fg);
+		padding: 0 0 8px 0;
+		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+	}
+
+	.show-toggle.list-visible {
+		padding: 8px 0 0 0;
+	}
+
+	.show-toggle:hover {
+		transform: translate(-50%, -4px);
+	}
+
+	.show-toggle.list-visible:hover {
+		transform: translate(-50%, 4px);
 	}
 
 	.wiggle .show-toggle {
@@ -242,14 +285,14 @@
 		padding: 0;
 		max-height: 10rem;
 		overflow-y: auto;
-		border: 1px solid var(--color-fg);
+		border: 2px solid var(--color-gray-800);
 		border-radius: 4px;
 		width: 100%;
 	}
 
 	.event-list li {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: space-between;
 		padding: 0.5rem;
 		font-family: var(--sans);
@@ -262,29 +305,52 @@
 
 	.remove-btn {
 		background: transparent;
+		width: 100%;
+		height: 100%;
 		border: none;
 		cursor: pointer;
 		font-size: 10px;
-		padding: 0 0 0 0.5rem;
-		opacity: 0.5;
-		flex-shrink: 0;
+		padding: 0.25rem 0 0.25rem 0.5rem;
+		opacity: 1;
 		color: var(--color-fg);
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		position: relative;
 	}
 
 	.remove-btn:hover {
+		opacity: 0.5;
+	}
+
+	.remove-btn:hover .strikethrough {
 		opacity: 1;
 	}
 
-	.remove-all {
+	.strikethrough {
+		opacity: 0;
+		position: absolute;
+		left: 0;
+		top: 50%;
 		width: 100%;
+		border-bottom: 1px solid var(--color-fg);
+	}
+
+	.remove-all {
 		background: var(--color-fg);
 		font-family: var(--marsha);
 		text-transform: uppercase;
 		font-size: var(--16px);
 		font-weight: 700;
-		padding: 0.5rem;
-		max-width: 300px;
+		padding: 1rem 1.2rem 0.8rem 1.2rem;
 		margin-top: 1rem;
+		border-radius: 50px;
+		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+	}
+
+	.remove-all:hover {
+		transform: translateY(-4px);
 	}
 
 	p {

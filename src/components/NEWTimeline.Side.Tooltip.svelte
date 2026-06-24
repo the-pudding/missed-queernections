@@ -71,7 +71,7 @@
 					y2="3.75"
 					stroke="white"
 					stroke-width="2"
-					stroke-linecap="round"
+					stroke-linecap="butt"
 				/>
 				<line
 					x1="-3.75"
@@ -80,7 +80,7 @@
 					y2="0"
 					stroke="white"
 					stroke-width="2"
-					stroke-linecap="round"
+					stroke-linecap="butt"
 				/>
 			</svg>
 		</button>
@@ -178,7 +178,7 @@
 		transform: scale(1.15);
 	}
 
-	:global(.add-btn svg line) {
+	.add-btn svg line {
 		stroke: var(--color-bg);
 	}
 
