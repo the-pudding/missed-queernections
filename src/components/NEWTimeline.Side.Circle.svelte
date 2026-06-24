@@ -16,7 +16,7 @@
 	let queernection = $state(false);
 	let pickAtCenter = $state(false);
 	let isHoveredAcrossTimeline = $derived(hoveredEventName === circle.event);
-	const r = isPick ? 10 : 7;
+	const r = isPick ? 14 : 7;
 
 	function handleTransitionEnd(event) {
 		if (event.propertyName.includes("transform")) {
@@ -75,6 +75,9 @@
 				class="shockwave shockwave-infinite"
 				style="animation-delay: {i * 150}ms;"
 			/>
+			<g transform="translate(-12, -12)">
+				<path fill="none" stroke-width="2" stroke="#191919" d="m7 15 5 5 5-5"/><path fill="none" stroke-width="2" stroke="#191919" d="m7 9 5-5 5 5"/>
+			</g>
 		{/each}
 	{/if}
 
@@ -91,6 +94,11 @@
 		style="transform: scale({isHoveredAcrossTimeline ? 1.25 : 1})"
 	/>
 
+	{#if isPick && pickAtCenter}
+		<g transform="scale(0.8) translate(-12, -12)">
+			<path fill="none" stroke-width="2" stroke="#191919" d="m7 15 5 5 5-5"/><path fill="none" stroke-width="2" stroke="#191919" d="m7 9 5-5 5 5"/>
+		</g>
+	{/if}
 
 </g>
 
