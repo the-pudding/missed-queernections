@@ -446,7 +446,7 @@
 					// Each theme gets its own lane, stacked 10px apart from the edge
 					const laneX =
 						(sideIndex === 0 ? 0 : sw) +
-						40 * direction +
+						0 * direction +
 						themeIndex * 10 * direction;
 
 					// Lerp from laneX (pull=0) to centerX (pull=1).
@@ -652,8 +652,8 @@
 		z-index: 900;
 	}
 	figure {
-		width: 100%;
-		margin: -4rem 0 0 0;
+		width: calc(100% - 4rem);
+		margin: -4rem auto 0 auto;
 		position: relative;
 	}
 
@@ -686,5 +686,22 @@
 		width: 100%;
 		pointer-events: none;
 		z-index: 10;
+	}
+
+	@media(max-width: 760px) {
+		.year-axis text {
+			font-size: 160px;
+		}
+			
+	}
+
+	@media(max-width: 500px) {
+		figure {
+			width: calc(100% - 2rem);
+		}
+
+		.year-axis text {
+			font-size: 80px;
+		}	
 	}
 </style>

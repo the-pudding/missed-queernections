@@ -52,7 +52,7 @@
 		onclick={toggleShow}
 		style="top: {listVisible ? '-0.25rem' : '-2.75rem'};"
 	>
-		<p>Your Events</p>
+		<p>{listVisible ? "Timeline" : "Your Events"}</p>
 		<div
 			class="chevron-wrapper"
 			style="transform: rotate({listVisible ? 0 : 180}deg);"
@@ -356,5 +356,18 @@
 	p {
 		font-size: var(--16px);
 		margin: 0;
+	}
+
+	@media(max-width: 760px) {
+		.show-toggle {
+			width: 10rem;
+		}
+		p, .events-label, .remove-all {
+			font-size: var(--14px);
+		}
+
+		.connection-count {
+			font-size: var(--24px);
+		}
 	}
 </style>

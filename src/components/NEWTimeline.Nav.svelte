@@ -130,6 +130,7 @@
 
 	.middle-wrapper {
 		display: flex;
+		max-width: 400px;
 		flex-direction: column;
 		align-items: center;
 		gap: 0.5rem;
@@ -177,8 +178,8 @@
 		width: 100%;
 		display: flex;
 		flex-direction: row;
+		justify-content: space-between;
 		margin: 0 auto;
-		max-width: 400px;
 	}
 
 	.category {
@@ -244,5 +245,35 @@
 
 	.desc p:first-of-type {
 		font-weight: 700;
+	}
+
+	@media(max-width: 760px) {
+		.timeline-nav {
+			align-items: flex-start;
+			padding: 0.125rem;
+		}
+        .name {
+            font-size: var(--16px);
+			height: 2.25rem;
+        }
+    }
+
+	@media(max-width: 500px) {
+		.middle-wrapper {
+			max-width: 200px;
+		}
+
+		#key {
+			width: 100%;
+		}
+
+		.dot {
+			width: 1.75rem;
+			height: 1.75rem;
+		}
+		
+		.desc {
+			max-width: 200px;
+		}
 	}
 </style>

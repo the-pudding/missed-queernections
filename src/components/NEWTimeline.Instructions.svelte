@@ -32,4 +32,11 @@
 		font-size: var(--18px);
 		margin: 0;
 	}
+
+	@media(max-width: 760px) {
+		p {
+			font-size: var(--14px);
+		}
+			
+	}
 </style>

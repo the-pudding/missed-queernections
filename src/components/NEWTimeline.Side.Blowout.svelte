@@ -324,10 +324,13 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 0.5rem;
+		height: 2.5rem;
 		border: 2px solid var(--color-bg);
 		color: var(--color-bg);
 		border-radius: 50px;
 		padding: 0.8rem 1.2rem;
+		background: var(--theme-color);
+		z-index: 1000;
 	}
 
 	.theme-group p {
@@ -335,7 +338,7 @@
 		text-transform: uppercase;
 		line-height: 1;
 		padding: 0;
-		margin: 1px 0 0 0;
+		margin: -1px 0 0 0;
 	}
 
 	.button-group {
@@ -359,9 +362,11 @@
 		font-family: var(--marsha);
 		text-transform: uppercase;
 		line-height: 1;
+		height: 2.5rem;
 		display: flex;
 		align-items: center;
 		gap: 0.125rem;
+		z-index: 1000;
 		transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 	}
 
@@ -564,5 +569,40 @@
 		box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.4);
 		pointer-events: none;
 		transform: translate(-50%, -50%);
+	}
+
+	@media(max-width: 760px) {
+		.blowout-content-wrapper {
+			justify-content: flex-start;
+		}
+
+		.blowout-content {
+			padding: 6rem 6rem 3rem 2.5rem;
+			margin: 0;
+		}
+
+		.button-group {
+			bottom: 0.5rem;
+			left: 0.5rem;
+		}
+
+		.theme-group {
+			top: 0.5rem;
+			left: 0.5rem;
+		}
+
+		.mini-timeline {
+			top: 0.5rem;
+			bottom: 0.5rem;
+			right: 0.5rem;
+		}
+
+		h3 {
+			font-size: var(--36px);
+		}
+
+		.add-btn {
+			top: 16px;
+		}
 	}
 </style>

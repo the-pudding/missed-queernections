@@ -123,4 +123,11 @@
         transition: top 0.8s ease-in-out, left 0.8s ease-in-out, opacity 0s ease;
         pointer-events: none; /* Make it unclickable when hidden */
     }
+
+    @media(max-width: 760px) {
+        .nameplate {
+            font-size: var(--16px);
+            height: 2.25rem;
+        }
+    }
 </style>
