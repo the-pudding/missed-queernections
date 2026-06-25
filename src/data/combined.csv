@@ -84,7 +84,7 @@ longDate,date,event,eventSecondary,janTheme,ashleéTheme,match,pick
 "January 8, 2006",January 2006,Gabrielle/Susan kiss,Desperate Housewives,representation,,0,
 "June 8, 2006",June 2006,Fun Home,Alison Bechdel,gaySeeGay,gaySeeGay,1,
 "October 1, 2006",October 2006,Oprah,Wives Living Two Lives episode,representation,,0,
-"February 12, 2007",February 2007,Beautiful Liar,Shakira/Beyoncé,beHer,beHer,1,A
+"February 12, 2007",February 2007,Beautiful Liar,Shakira/Beyoncé,beHer,beHer,1,
 "February 13, 2007",February 2007,Like a Boy,Ciara,genderConstruct,genderConstruct,1,A
 "July 24, 2007",July 2007,Uh Huh Her,,gaySeeGay,,0,
 "October 9, 2007",October 2007,Dani,A Shot at Love with Tila Tequila,representation,representation,1,
@@ -93,7 +93,7 @@ longDate,date,event,eventSecondary,janTheme,ashleéTheme,match,pick
 "September 24, 2008",September 2008,Lindsay Lohan/Samantha Ronson,,beHer,representation,0,
 "September 25, 2008",September 2008,Callie/Arizona,Grey’s Anatomy,gaySeeGay,trueSelves,0,
 "October 1, 2008",October 2008,Dearly Not Queerly / No Homo / That’s So Gay,Hillary Duff PSA,publicOpinion,representation,0,
-"October 8, 2008",October 2008,If I Were a Boy,Beyoncé,,beHer,0,
+"October 8, 2008",October 2008,If I Were a Boy,Beyoncé,beHer,beHer,1,A
 "November 1, 2008",November 2008,Legalize Gay,American Apparel ,trueSelves,,0,
 "November 5, 2008",November 2008,Prop 8,,publicOpinion,publicOpinion,1,
 "February 2, 2009",February 2009,RuPaul’s Drag Race,,genderConstruct,genderConstruct,1,J

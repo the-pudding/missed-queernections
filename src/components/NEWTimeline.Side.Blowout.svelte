@@ -274,6 +274,10 @@
 		position: relative;
 	}
 
+	.date {
+		font-weight: 700;
+	}
+
 	.add-btn {
 		background: var(--color-bg);
 		border-radius: 50%;

@@ -24,7 +24,7 @@
 			{#each copy.scrollSteps as step, i}
 				<div class="step">
 					<div class="step-inner">
-						<p>{step.value}</p>
+						<p>{@html step.value}</p>
 					</div>
 				</div>
 			{/each}

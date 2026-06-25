@@ -27,10 +27,52 @@
 		max-width: 400px;
 	}
 
+	:global(.interaction-span) {
+		color: var(--color-gray-300);
+		font-style: italic;
+		font-size: var(--14px);
+		display: block;
+		margin: 1rem 0;
+	}
+
 	p {
 		font-family: var(--sans);
 		font-size: var(--18px);
 		margin: 0;
+	}
+
+	:global(.plus-icon, .expand-icon) {
+		font-weight: 700;
+		margin-left: 1.125rem;
+		position: relative;
+		white-space: nowrap;
+	}
+
+	:global(.plus-icon::before, .expand-icon::before) {
+		content: "";
+		position: absolute;
+		top: 55%;
+		transform: translateY(-50%);
+		left: -1.125rem;
+		width: 1rem;
+		height: 1rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		background-color: var(--color-gray-300);
+		background-image: url("../svg/plus-icon.svg");
+    	background-size: contain;
+    	background-repeat: no-repeat;
+		line-height: 1;
+	}
+
+	:global(.plus-icon::before) {
+		background-image: url("../svg/plus-icon.svg");
+	}
+
+	:global(.expand-icon::before) {
+		background-image: url("../svg/expand-icon.svg");
 	}
 
 	@media(max-width: 760px) {
