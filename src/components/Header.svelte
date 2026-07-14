@@ -18,12 +18,14 @@
 		left: 0;
 		width: 100%;
 		z-index: 1000;
+		pointer-events: none; /* Let clicks pass through to network if needed */
 	}
 	.wordmark {
 		max-width: 10em;
 		margin: 0 auto;
 		padding: 32px 0;
 		transform: rotate(-4deg);
+		pointer-events: auto; /* Re-enable clicks inside the card */
 	}
 
 	.wordmark a {

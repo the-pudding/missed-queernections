@@ -291,6 +291,7 @@
         align-items: center;
         justify-content: center;
         position: relative;
+        pointer-events: none; /* Let clicks pass through to timeline if needed */
     }
     .canvas-container {
         position: absolute;
