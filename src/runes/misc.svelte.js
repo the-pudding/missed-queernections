@@ -1,5 +1,14 @@
 import { writable } from 'svelte/store';
 
+export const currentStep = $state({ value: 0 });
+export const totalSteps = $state({ value: 0 });
+
+export const pastNetwork = {
+    get value() {
+        return currentStep.value >= totalSteps.value - 1;
+    }
+};
+
 export const themes = ["representation", "beHer", "genderConstruct", "girlPower", "gaySeeGay", "publicOpinion", "trueSelves"];
 
 export const longThemes = [ {theme: "representation", longTheme: "All representation matters"},

@@ -1,8 +1,9 @@
 <script>
     import { tick } from 'svelte';
     import { colors } from "$runes/misc.svelte.js";
+    import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
-    let { link, i, scrollIndex, overrideY = null } = $props();
+    let { link, i, overrideY = null } = $props();
 
     let readyToDraw = $state(false);
 
@@ -17,7 +18,7 @@
             (link.source.id === 4 && link.target.id === 0);
 
     $effect(() => {
-        if (scrollIndex >= 5) {
+        if (currentStep.value >= 5) {
             let cancelled = false;
             let timeoutId;
             tick().then(() => {
@@ -36,9 +37,9 @@
     class="drawable-link"
     class:draw={readyToDraw}
     class:specialLink={isSpecialLink}
-    style="stroke: {scrollIndex <= 5 ? strokeColor : "#ffffff"}; stroke-dasharray: {lineLength};
+    style="stroke: {currentStep.value <= 5 ? strokeColor : "#ffffff"}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};
-    opacity: {(scrollIndex <= 5) || (isSpecialLink && scrollIndex < 10) ? 1 : 0}"
+    opacity: {(currentStep.value <= 5) || (isSpecialLink && currentStep.value < 10) ? 1 : 0}"
     x1={link.source.x} y1={overrideY ?? link.source.y}
     x2={link.target.x} y2={overrideY ?? link.target.y}
 />

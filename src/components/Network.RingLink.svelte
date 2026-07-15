@@ -1,8 +1,9 @@
 <script>
     import { tick } from 'svelte';
     import { colors } from "$runes/misc.svelte.js";
+    import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
-    let { link, i, scrollIndex } = $props();
+    let { link, i } = $props();
 
     let readyToDraw = $state(false);
 
@@ -11,7 +12,7 @@
     );
 
     $effect(() => {
-        if (scrollIndex >= 4) {
+        if (currentStep.value >= 4) {
             let cancelled = false;
             tick().then(() => { if (!cancelled) readyToDraw = true; });
             return () => { cancelled = true; };
@@ -23,7 +24,7 @@
 
 <line
     class="drawable-link"
-    class:visible={scrollIndex <= 5}
+    class:visible={currentStep.value <= 5}
     style="stroke: {colors[i]}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};
     transition-delay: {readyToDraw ? i * 120 : 0}ms;"

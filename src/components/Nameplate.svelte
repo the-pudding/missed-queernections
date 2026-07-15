@@ -1,14 +1,15 @@
 <script>
     import { fly } from 'svelte/transition';
+    import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
-    let { scrollIndex, springs, name, snapToFinalPosition = () => {} } = $props();
+    let { springs, name, snapToFinalPosition = () => {} } = $props();
 
     let x = $state(0);
     let y = $state(0);
-    let isVisible = $derived((scrollIndex === 6) ||
-                      (scrollIndex === 7 && name.name === "Jan") ||
-                      (scrollIndex === 8 && name.name === "Ashleé") ||
-                      (scrollIndex >= 9));
+    let isVisible = $derived((currentStep.value === 6) ||
+                      (currentStep.value === 7 && name.name === "Jan") ||
+                      (currentStep.value === 8 && name.name === "Ashleé") ||
+                      (currentStep.value >= 9));
 
     let settled = $state(false);
     let prevVisible = false;
@@ -63,7 +64,7 @@
         id="{name.name}-nameplate"
         class="nameplate"
         class:hidden={!isOverlapping}
-        class:is-static={scrollIndex >= 10}
+        class:is-static={currentStep.value >= 10}
         class:jan={name.name === 'Jan'}
         class:ashlee={name.name === 'Ashleé'}
         style="--x: {x}px; --y: {y}px;"

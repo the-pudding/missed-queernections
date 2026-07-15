@@ -10,10 +10,9 @@
     import CrossLink from "$components/Network.CrossLink.svelte";
     import Comment from "$components/Network.Comment.svelte";
     import Nameplate from "$components/Nameplate.svelte";
+    import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
     const copy = getContext("copy");
-
-    let { scrollIndex, pastNetwork = false } = $props();
 
     let width = $state(0);
     let height = $state(0);
@@ -23,10 +22,10 @@
     let outerCrossLinks = [];
 
     const COMMENT_STEPS = new Set([1, 2, 3, 4]);
-    const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === scrollIndex));
+    const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === currentStep.value));
     const commentIndexes = $derived(matchingComment ? JSON.parse(matchingComment.indexes) : []);
     const effectiveCommentIndexes = $derived(
-        (!pastNetwork && COMMENT_STEPS.has(scrollIndex)) ? commentIndexes : []
+        (!pastNetwork.value && COMMENT_STEPS.has(currentStep.value)) ? commentIndexes : []
     );
 
     // --- ANIMATION STORES ---
@@ -68,7 +67,7 @@
 
     $effect(() => {
         // Pause drift when user has scrolled past the network into the timeline
-        const active = scrollIndex !== 'exit';
+        const active = currentStep.value !== 'exit';
 
         if (!active) return;
 
@@ -91,7 +90,7 @@
 
     // --- HELPER FUNCTIONS ---
     function computeOuterPositions(centerX, centerY) {
-        const radius = Math.min(width, height) / 3;
+        const radius = Math.min(width, height) / 2.125;
         const outerNodeIds = nodes.slice(0, 7).map(d => d.index);
 
         const newOuterPositions = outerNodeIds.map((id, i) => {
@@ -130,7 +129,7 @@
             const linksCopy = JSON.parse(JSON.stringify(links));
 
             const simulation = d3.forceSimulation(nodesCopy)
-                .force('link', d3.forceLink(linksCopy).id(d => d.index).distance(50))
+                .force('link', d3.forceLink(linksCopy).id(d => d.index).distance(70))
                 .force('charge', d3.forceManyBody().strength(-30))
                 .force('center', d3.forceCenter(size / 2, size / 2))
                 .force('collision', d3.forceCollide().radius(8).strength(0.6));
@@ -158,10 +157,10 @@
 
     // Controls the spin animation
     $effect(() => {
-        const shouldSpin = scrollIndex >= 5 && scrollIndex < 6;
+        const shouldSpin = currentStep.value >= 5 && currentStep.value < 6;
 
         function animate() {
-            if (scrollIndex >= 5 && scrollIndex < 6) {
+            if (currentStep.value >= 5 && currentStep.value < 6) {
                 rotation.update(n => (n + 0.3));
                 animationFrameId = requestAnimationFrame(animate);
             }
@@ -188,11 +187,11 @@
             const target = nodeTargets.get(pos.id);
             if (!s || !target) return;
 
-            if (scrollIndex >= 6 && (pos.id === 0 || pos.id === 4)) {
+            if (currentStep.value >= 6 && (pos.id === 0 || pos.id === 4)) {
                 // Snap immediately to their line endpoints — works for both fast and slow scroll
                 s.x.set(pos.x, { hard: true });
                 s.y.set(centerY, { hard: true });
-            } else if (scrollIndex >= 2) {
+            } else if (currentStep.value >= 2) {
                 // Move to octagon position
                 target.x = pos.x;
                 target.y = pos.y;
@@ -216,14 +215,14 @@
                     {@const springs = nodeSprings.get(comment)}
                     <div class="comment-wrapper"
                         in:fly={{ duration: 250, y: 50, delay: i*500 }}>
-                        <Comment {comment} {i} {springs} {scrollIndex} />
+                        <Comment {comment} {i} {springs} scrollIndex={currentStep.value} />
                     </div>
                 {/each}
                 {#each [{name: "Jan", id: 4}, {name: "Ashleé", id: 0}] as name}
                     {@const springs = nodeSprings.get(name.id)}
                     {#if springs}
                         <Nameplate
-                            {scrollIndex} {springs} {name}
+                            {springs} {name}
                             snapToFinalPosition={() => {
                                 const size = Math.min(width, height);
                                 const s = nodeSprings.get(name.id);
@@ -245,15 +244,14 @@
                             <Link
                                 {sourceSprings}
                                 {targetSprings}
-                                isOuter={link.source.index <= 6 || link.target.index <= 6}
-                                {scrollIndex} />
+                                isOuter={link.source.index <= 6 || link.target.index <= 6} />
                         {/if}
                     {/each}
                 </g>
                 <g class="inner-nodes">
                     {#each nodes as node (node.index)}
                         {#if node.index > 6}
-                            <Node springs={nodeSprings.get(node.index)} {node} {scrollIndex} />
+                            <Node springs={nodeSprings.get(node.index)} {node} />
                         {/if}
                     {/each}
                 </g>
@@ -261,19 +259,19 @@
                 <g class="spinning-container" style="transform: rotate({$rotation}deg);">
                     <g class="ring-links">
                         {#each outerRingLinks as link, i}
-                            <RingLink {link} {i} {scrollIndex} />
+                            <RingLink {link} {i} />
                         {/each}
                     </g>
                     <g class="cross-links">
                         {#each outerCrossLinks as link, i}
                             {@const isSpecial = (link.source.id === 0 && link.target.id === 4) || (link.source.id === 4 && link.target.id === 0)}
-                            <CrossLink {link} {i} {scrollIndex} overrideY={isSpecial && scrollIndex >= 6 ? size / 2 : null} />
+                            <CrossLink {link} {i} overrideY={isSpecial && currentStep.value >= 6 ? size / 2 : null} />
                         {/each}
                     </g>
                     <g class="outer-nodes">
                         {#each nodes as node (node.index)}
                             {#if node.index <= 6}
-                                <Node springs={nodeSprings.get(node.index)} {node} {scrollIndex} />
+                                <Node springs={nodeSprings.get(node.index)} {node} />
                             {/if}
                         {/each}
                     </g>
@@ -286,7 +284,8 @@
 <style>
     #network {
         width: 100%;
-        height: 100vh;
+        height: 100%;
+        padding-top: 4rem;
         display: flex;
         align-items: center;
         justify-content: center;

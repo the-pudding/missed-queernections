@@ -1,7 +1,8 @@
 <script>
     import { springy } from '$actions/springy.js';
+    import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
-    let { sourceSprings, targetSprings, isOuter, scrollIndex } = $props();
+    let { sourceSprings, targetSprings, isOuter } = $props();
 
     let lineLength = $state(0);
     let frozenLength = $state(null);
@@ -10,7 +11,7 @@
 
     // Only subscribe while the line is visible
     $effect(() => {
-        const hidden = (isOuter && scrollIndex >= 3) || (isInnerLink && scrollIndex >= 4);
+        const hidden = (isOuter && currentStep.value >= 3) || (isInnerLink && currentStep.value >= 4);
         if (hidden) return;
 
         const currentValues = { sx: 0, sy: 0, tx: 0, ty: 0 };
@@ -32,7 +33,7 @@
 
     // Freeze outer length the moment it hides so drift can't shift dashoffset
     $effect(() => {
-        if (isOuter && scrollIndex >= 2) {
+        if (isOuter && currentStep.value >= 2) {
             if (frozenLength === null) frozenLength = lineLength;
         } else {
             frozenLength = null;
@@ -41,15 +42,15 @@
 
     // Freeze inner length the moment it should retrace, then clear once gone
     $effect(() => {
-        if (isInnerLink && scrollIndex >= 4) {
+        if (isInnerLink && currentStep.value >= 4) {
             if (frozenInnerLength === null) frozenInnerLength = lineLength;
         } else {
             frozenInnerLength = null;
         }
     });
 
-    const innerHidden = $derived(isInnerLink && scrollIndex >= 4);
-    const outerHidden = $derived(isOuter && scrollIndex >= 3);
+    const innerHidden = $derived(isInnerLink && currentStep.value >= 4);
+    const outerHidden = $derived(isOuter && currentStep.value >= 3);
 </script>
 
 <line

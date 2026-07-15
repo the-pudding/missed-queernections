@@ -2,8 +2,10 @@
 	import { getContext, onMount } from "svelte";
 	import Footer from "$components/Footer.svelte";
 	import Intro from "$components/Intro.svelte";
+	import Network from "$components/Network.svelte";
 	import Timeline from "$components/NEWTimeline.svelte";
 	import { userId, addedEvents } from "$runes/misc.svelte.js";
+	import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
 	import generateId from "$utils/generateId.js";
 
@@ -39,8 +41,11 @@
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
+	<Intro />
 	<div bind:clientHeight={introHeight}>
-		<Intro />
+		<div class="network-container">
+			<Network scrollIndex={currentStep} {pastNetwork} />
+		</div>
 	</div>
 
 	<!-- <div class="temp"> -->
@@ -51,7 +56,13 @@
 </svelte:boundary>
 
 <style>
-	.temp {
-		margin-top: 10rem;
-	}
+	 .network-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 70%;
+        z-index: 1;
+        pointer-events: none;
+    }
 </style>

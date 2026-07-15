@@ -2,7 +2,8 @@
     import { tick } from 'svelte';
     import { colors } from "$runes/misc.svelte.js";
     import { springy } from '$actions/springy.js';
-    let { springs, node, scrollIndex } = $props();
+    import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
+    let { springs, node } = $props();
 
     const isOuter = node.index <= 6;
     const appearDelay = node.index * 8;
@@ -16,17 +17,17 @@
 
     const shouldHide = $derived(
         !appeared ||
-        (!isOuter && scrollIndex >= 4) ||
-        (node.index !== 0 && node.index !== 4 && scrollIndex >= 6) ||
-        (scrollIndex >= 9)
+        (!isOuter && currentStep.value >= 4) ||
+        (node.index !== 0 && node.index !== 4 && currentStep.value >= 6) ||
+        (currentStep.value >= 9)
     );
 </script>
 
 <circle
     class="node"
     class:hidden={shouldHide}
-    fill={(isOuter && scrollIndex >= 4 && scrollIndex <= 5) ? colors[node.index] : "#ffffff"}
-    r={(isOuter && scrollIndex >= 4 && scrollIndex <= 5) ? 10 : 6}
+    fill={(isOuter && currentStep.value >= 4 && currentStep.value <= 5) ? colors[node.index] : "#ffffff"}
+    r={(isOuter && currentStep.value >= 4 && currentStep.value <= 5) ? 10 : 6}
     style="transition-delay: {appeared ? appearDelay : 0}ms;"
     use:springy={{ cx: springs.x, cy: springs.y }}
 />

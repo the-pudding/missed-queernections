@@ -3,21 +3,19 @@
     import Network from "$components/Network.svelte";
     import wordmark from "$svg/wordmark_script_stacked_plain.svg";
     import title from "$svg/title.svg";
-    // 1. Import all three shared states from your rune file
-    import { currentStep, totalSteps, pastNetwork } from "$runes/misc.svelte.js";
 
     const copy = getContext("copy");
     
-    // 2. Initialize the shared total steps from your context data
-    totalSteps.value = copy.scrollSteps.length;
-
     // Core State
+    let currentStep = $state(0);
     let isPlaying = $state(false);
     let hasStarted = $state(false);
     let audioEl = $state(null);
 
     // Derived States
-    const currentAudioSrc = $derived(`/assets/audio/intro-${currentStep.value}.mp3`);
+    const totalSteps = copy.scrollSteps.length;
+    const pastNetwork = $derived(currentStep >= totalSteps - 1);
+    const currentAudioSrc = $derived(`/assets/audio/intro-${currentStep}.mp3`);
 
     let currentTime = $state(0);
     let duration = $state(0);
@@ -25,10 +23,12 @@
 
     // Reactive effect to handle track changes when the step increments
     $effect(() => {
+        // 1. Explicitly read the derived source so Svelte tracks this effect's dependency on it
         const track = currentAudioSrc; 
 
+        // 2. Only attempt to play if the experience has started and is currently unpaused
         if (hasStarted && isPlaying && audioEl) {
-            audioEl.load(); 
+            audioEl.load(); // Force the audio element to load the new source
             audioEl.play().catch(err => {
                 console.error("Audio play blocked or interrupted:", err);
             });
@@ -50,16 +50,19 @@
     }
 
     function handleAudioEnded() {
-        if (currentStep.value < totalSteps.value - 1) {
-            currentStep.value++;
+        if (currentStep < totalSteps - 1) {
+            currentStep++;
         } else {
-            isPlaying = false; 
+            isPlaying = false; // End of the narrative
         }
     }
 
     // Handles Left / Right Tap Navigation (Instagram Story style)
     function handleOverlayTap(e) {
+        // Prevent step jumping if the user clicked an actual button or link
         if (e.target.closest('button') || e.target.closest('a')) return;
+        
+        // Only allow tap navigation once the experience starts
         if (!hasStarted) return;
 
         const rect = e.currentTarget.getBoundingClientRect();
@@ -67,12 +70,12 @@
         const isRightSide = clickX > rect.width / 2;
 
         if (isRightSide) {
-            if (currentStep.value < totalSteps.value - 1) {
-                currentStep.value++;
+            if (currentStep < totalSteps - 1) {
+                currentStep++;
             }
         } else {
-            if (currentStep.value > 0) {
-                currentStep.value--;
+            if (currentStep > 0) {
+                currentStep--;
             }
         }
     }
@@ -91,6 +94,10 @@
 
 <section id="intro">
     <!-- Visual Layer -->
+    <div class="network-container">
+        <Network scrollIndex={currentStep} {pastNetwork} />
+    </div>
+
     <!-- Narrative Overlay + Tap Zones -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="narrative-container" onclick={handleOverlayTap}>
@@ -119,7 +126,7 @@
                             <div class="progress-bar">
                                 <div 
                                     class="progress-fill" 
-                                    style="width: {i < currentStep.value ? 100 : i === currentStep.value ? audioProgress : 0}%"
+                                    style="width: {i < currentStep ? 100 : i === currentStep ? audioProgress : 0}%"
                                 ></div>
                             </div>
                         {/each}
@@ -134,7 +141,7 @@
 
             <!-- Contextual Bottom Subtitles: Display only the active step text -->
             {#each copy.scrollSteps as step, i}
-                {#if i === currentStep.value}
+                {#if i === currentStep}
                     <div class="active-step step-bottom">
                         <div class="step-inner">
                             <p>{@html step.value}</p>
@@ -155,6 +162,16 @@
         pointer-events: none;
     }
 
+    .network-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 70%;
+        z-index: 1;
+        pointer-events: none;
+    }
+
     .narrative-container {
         position: absolute;
         top: 0;
@@ -166,7 +183,7 @@
         justify-content: center;
         align-items: center;
         pointer-events: auto;
-        cursor: pointer;
+        cursor: pointer; /* Visual feedback for story navigation */
     }
 
     .start-prompt {
@@ -180,7 +197,7 @@
         justify-content: flex-end;
         align-items: flex-start;
         padding: 0 2rem;
-        cursor: default;
+        cursor: default; /* Keeps natural cursor over intro screen */
     }
 
     .title {
