@@ -1,8 +1,8 @@
 <script>
     import { fly } from 'svelte/transition';
-    import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
+    import { currentStep } from "$runes/misc.svelte.js";
 
-    let { springs, name, introComplete, snapToFinalPosition = () => {} } = $props();
+    let { springs, name, introComplete, snapToFinalPosition = () => {}, offsetX = 0, offsetY = 0 } = $props();
 
     let x = $state(0);
     let y = $state(0);
@@ -16,9 +16,6 @@
 
     $effect(() => {
         if (isVisible && !prevVisible) {
-            // Snap the node to its final position first, then show immediately.
-            // This guarantees correct placement whether arriving via fast or slow scroll,
-            // and in either direction.
             snapToFinalPosition();
             settled = true;
             prevVisible = true;
@@ -38,9 +35,13 @@
         return () => { unsubX(); unsubY(); };
     });
 
+    // Collision Detection Loop
     $effect(() => {
         if (!nameplateEl) return;
-        const navEl = document.querySelector('#Jan-target-nameplate');
+        
+        // FIX 1: Dynamically match target element IDs based on name strings
+        const dynamicSelector = `#${name.name}-target-nameplate`;
+        const navEl = document.querySelector(dynamicSelector) || document.querySelector('#Jan-target-nameplate');
         if (!navEl) return;
 
         let animationFrameId;
@@ -48,8 +49,11 @@
         function checkPosition() {
             const nameplateRect = nameplateEl.getBoundingClientRect();
             const navRect = navEl.getBoundingClientRect();
+            
+            // True means "above target zone", false means "crossed paths with timeline nav"
             const isNowOverlapping = !(nameplateRect.top > navRect.bottom - 48);
             if (isNowOverlapping !== isOverlapping) isOverlapping = isNowOverlapping;
+            
             animationFrameId = requestAnimationFrame(checkPosition);
         }
 
@@ -67,7 +71,7 @@
         class:is-static={introComplete}
         class:jan={name.name === 'Jan'}
         class:ashlee={name.name === 'Ashleé'}
-        style="--x: {x}px; --y: {y}px;"
+        style="--x: {x + offsetX}px; --y: {y + offsetY}px;"
         in:fly={{ duration: 500, x: name.name === 'Jan' ? -20 : 20 }}
         out:fly={{ duration: 300, x: name.name === 'Jan' ? -20 : 20 }}
     >
@@ -80,14 +84,12 @@
         position: absolute;
         transform: translate(-50%, -50%);
         
-        /* 4. By default, position using the CSS variables from the script */
         left: var(--x);
         top: var(--y);
 
-        /* 5. A transition on left/top will animate any changes to them */
         transition: top 0.8s ease-in-out, left 0.8s ease-in-out, opacity 0.5s ease;
-        
-        /* ... other styles ... */
+        will-change: top, left, opacity;
+
         font-family: var(--marsha);
         text-transform: uppercase;
         font-weight: 700;
@@ -104,25 +106,21 @@
         box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
     }
 
-    /* 6. When the is-static class is added, these rules override the default left/top */
-    .nameplate.is-static {
-        position: fixed;
-        /* Reset the centering transform for simple top/left positioning */
-        transform: translate(0, 0);
-    }
     .nameplate.is-static.jan {
-        top: calc(100% - 3rem);
-        left: calc(0% + 8px);
+        top: calc(100svh - 3rem + 1.25rem);
+        left: calc(0vw + 8px + 60px);
     }
+    
     .nameplate.is-static.ashlee {
-        top: calc(100% - 3rem);
-        left: calc(100% - 120px - 8px);
+        top: calc(100svh - 3rem + 1.25rem);
+        left: calc(100vw - 8px - 60px);
     }
 
     .nameplate.hidden {
         opacity: 0;
+        /* Instant 0s opacity switch allows a seamless visual handoff to the timeline element */
         transition: top 0.8s ease-in-out, left 0.8s ease-in-out, opacity 0s ease;
-        pointer-events: none; /* Make it unclickable when hidden */
+        pointer-events: none;
     }
 
     @media(max-width: 760px) {

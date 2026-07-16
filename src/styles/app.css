@@ -93,6 +93,7 @@ span.beHerOrBeWithHer {
 	border-radius: 4px;
 	font-family: var(--marsha);
 	text-transform: uppercase;
+	box-decoration-break: clone;
 }
 
 span.girlPower {
@@ -102,6 +103,7 @@ span.girlPower {
 	border-radius: 4px;
 	font-family: var(--marsha);
 	text-transform: uppercase;
+	box-decoration-break: clone;
 }
 
 span.gayRecognizeGay {
@@ -111,4 +113,5 @@ span.gayRecognizeGay {
 	border-radius: 4px;
 	font-family: var(--marsha);
 	text-transform: uppercase;
+	box-decoration-break: clone;
 }

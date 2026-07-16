@@ -2,7 +2,11 @@
     import { getContext } from "svelte";
     import wordmark from "$svg/wordmark_script_stacked_plain.svg";
     import title from "$svg/title.svg";
-    import { currentStep, totalSteps } from "$runes/misc.svelte.js";
+    import Play from '@lucide/svelte/icons/play';
+    import Pause from '@lucide/svelte/icons/pause';
+    import VolumeOff from '@lucide/svelte/icons/volume-off';
+    import Volume2 from '@lucide/svelte/icons/volume-2';
+    import { currentStep, totalSteps, introComplete } from "$runes/misc.svelte.js";
 
     const copy = getContext("copy");
     
@@ -11,10 +15,11 @@
     // Core Local Component State
     let isPlaying = $state(false);
     let hasStarted = $state(false);
+    let isMuted = $state(false); // New state to track if the audio is silenced
     let audioEl = $state(null);
 
     // Derived States
-    const currentAudioSrc = $derived(`assets/audio/intro-${currentStep.value}.mp3`);
+    const currentAudioSrc = $derived(`/assets/audio/intro-${currentStep.value}.mp3`);
 
     let currentTime = $state(0);
     let duration = $state(0);
@@ -24,7 +29,7 @@
     $effect(() => {
         const track = currentAudioSrc; 
 
-        if (hasStarted && isPlaying && audioEl && currentStep.value < totalSteps.value) {
+        if (hasStarted && isPlaying && audioEl && !introComplete.value) {
             audioEl.load(); 
             audioEl.play().catch(err => {
                 console.error("Audio play blocked or interrupted:", err);
@@ -32,13 +37,15 @@
         }
     });
 
-    function startExperience() {
+    // Initializes the layout experience with the chosen audio configuration
+    function startExperience(withAudio) {
+        isMuted = !withAudio;
         hasStarted = true;
         isPlaying = true;
     }
 
     function togglePlay() {
-        if (!hasStarted) return startExperience();
+        if (!hasStarted) return startExperience(true);
         isPlaying = !isPlaying;
         if (audioEl) {
             if (isPlaying) audioEl.play();
@@ -47,10 +54,11 @@
     }
 
     function handleAudioEnded() {
-        currentStep.value++;
-        
-        if (currentStep.value >= totalSteps.value) {
+        if (currentStep.value < totalSteps.value - 1) {
+            currentStep.value++;
+        } else {
             isPlaying = false; 
+            introComplete.value = true;
         }
     }
 
@@ -64,28 +72,34 @@
         const isRightSide = clickX > rect.width / 2;
 
         if (isRightSide) {
-            currentStep.value++;
-            // If we are still within valid audio bounds, force play the next track
-            if (currentStep.value < totalSteps.value) {
+            if (currentStep.value < totalSteps.value - 1) {
+                currentStep.value++;
                 isPlaying = true;
+            } else {
+                isPlaying = false;
+                introComplete.value = true;
             }
         } else {
+            if (introComplete.value) {
+                introComplete.value = false;
+            }
             if (currentStep.value > 0) {
                 currentStep.value--;
-                isPlaying = true; // Force play audio when clicking back
+                isPlaying = true; 
             }
         }
     }
 </script>
 
 <!-- Hidden Audio Element -->
-{#if hasStarted && currentStep.value < totalSteps.value}
+{#if hasStarted && !introComplete.value}
     <audio 
         bind:this={audioEl} 
         src={currentAudioSrc} 
         bind:currentTime={currentTime}
         bind:duration={duration}
         onended={handleAudioEnded}
+        muted={isMuted}
     ></audio>
 {/if}
 
@@ -102,7 +116,12 @@
                             >{@html wordmark}</a
                         >
                     </div>
-                    <button onclick={startExperience} class="btn-start">Start Audio Story</button>
+                    
+                    <!-- NEW: Split Option Entry Button Layout -->
+                    <div class="btn-group">
+                        <button onclick={() => startExperience(true)} class="btn-start"><Volume2 size={20} />Begin with Audio</button>
+                        <button onclick={() => startExperience(false)} class="btn-start btn-muted"><VolumeOff size={20} />Begin Muted</button>
+                    </div>
                 </div>
                 <div class="title">
                     {@html title}
@@ -119,21 +138,33 @@
                         <div class="progress-bar">
                             <div 
                                 class="progress-fill" 
-                                style="width: {i < currentStep.value ? 100 : i === currentStep.value ? audioProgress : 0}%"
+                                style="width: {i < currentStep.value || introComplete.value ? 100 : i === currentStep.value ? audioProgress : 0}%"
                             ></div>
                         </div>
                     {/each}
                 </div>
                 <div class="controls">
-                    <button onclick={togglePlay}>
-                        {isPlaying ? "⏸" : "▶"}
+                    <button onclick={togglePlay} class="btn-control" aria-label="Toggle play/pause">
+                        {#if isPlaying}
+                            <Pause size={20} />
+                        {:else}
+                            <Play size={20} />
+                        {/if}
+                    </button>
+
+                    <button onclick={() => isMuted = !isMuted} class="btn-icon" aria-label="Toggle mute">
+                        {#if isMuted}
+                            <VolumeOff size={20} />
+                        {:else}
+                            <Volume2 size={20} />
+                        {/if}
                     </button>
                 </div>
             </div>
 
             <!-- Contextual Bottom Subtitles: Display only the active step text -->
             {#each copy.scrollSteps as step, i}
-                {#if i === currentStep.value}
+                {#if i === currentStep.value && !introComplete.value}
                     <div class="active-step step-bottom">
                         <div class="step-inner">
                             <p>{@html step.value}</p>
@@ -152,7 +183,7 @@
         height: 100svh;
         overflow: hidden;
         pointer-events: none;
-        margin-bottom: 4rem;
+        /* margin-bottom: 4rem; */
     }
 
     .narrative-container {
@@ -189,6 +220,13 @@
         align-items: center;
         width: 100%;
         justify-content: space-between;
+    }
+
+    /* Flex container for entry buttons */
+    .btn-group {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
     }
 
     .title {
@@ -276,13 +314,47 @@
     }
 
     .btn-start {
-        margin-top: 1rem;
-        padding: 0.75rem 1.5rem;
+        padding: 0.75rem;
         font-size: 1rem;
         background: var(--color-fg);
         color: var(--color-bg);
-        border: none;
+        border: 2px solid var(--color-fg);
         cursor: pointer;
         border-radius: 4px;
+        font-family: var(--sans, sans-serif);
+        font-weight: bold;
+        transition: opacity 0.2s ease;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-start:hover {
+        opacity: 0.85;
+    }
+
+    /* Styling variant for the explicit muted option */
+    .btn-start.btn-muted {
+        background: transparent;
+        color: var(--color-fg);
+    }
+
+    .btn-control {
+        background: none;
+        border: none;
+        color: var(--color-white);
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        color: var(--color-white);
+        cursor: pointer;
+        font-size: 1.25rem;
+        padding: 0.25rem 0.5rem;
     }
 </style>

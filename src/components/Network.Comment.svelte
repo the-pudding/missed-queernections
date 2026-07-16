@@ -48,12 +48,12 @@
         position: absolute;
         font-family: sans-serif;
         font-size: 12px;
-        transform: translate(-50%, -120%);
+        transform: translate(-50%, 20%);
         pointer-events: none;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         background-color: var(--color-bg);
         border: 2px solid var(--color-gray-800);
-        max-width: 200px;
+        width: clamp(80px, 12vw, 200px);
         border-radius: 8px;
         padding: 1rem;
     }

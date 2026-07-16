@@ -23,12 +23,28 @@
     let outerRingLinks = $state([]);
     let outerCrossLinks = $state([]);
 
+    // Dynamic Viewport Offset Tracking Elements
+    let canvasEl = $state(null);
+    let offsetX = $state(0);
+    let offsetY = $state(0);
+
     const COMMENT_STEPS = new Set([1, 2, 3, 4]);
     const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === currentStep.value));
     const commentIndexes = $derived(matchingComment ? JSON.parse(matchingComment.indexes) : []);
     const effectiveCommentIndexes = $derived(
         (!pastNetwork.value && COMMENT_STEPS.has(currentStep.value)) ? commentIndexes : []
     );
+
+    // Automatically recalculates matching viewport alignments on mount and resize changes
+    $effect(() => {
+        const w = width;
+        const h = height;
+        if (canvasEl) {
+            const rect = canvasEl.getBoundingClientRect();
+            offsetX = rect.left;
+            offsetY = rect.top;
+        }
+    });
 
     // --- ANIMATION STORES ---
     const nodeSprings = new Map();
@@ -39,27 +55,23 @@
         });
     });
 
-    // Snapshot of where each node "wants to be" (simulation or octagon position).
-    // Mouse repulsion temporarily overrides the spring target; these let us restore it.
     const nodeTargets = new Map();
     nodes.forEach(node => nodeTargets.set(node.index, { x: 0, y: 0 }));
 
     const rotation = spring(0, { stiffness: 0.01, damping: 0.4 });
     let animationFrameId;
 
-
     // --- AMBIENT DRIFT ---
-    const DRIFT_AMOUNT = 30;  // px — max displacement from resting position
-    const DRIFT_SPEED = 0.001; // how fast nodes wander (lower = slower)
+    const DRIFT_AMOUNT = 30;  
+    const DRIFT_SPEED = 0.001; 
 
-    // Each inner node gets a unique phase offset so they don't move in sync
     const driftPhases = new Map();
     nodes.forEach(node => {
         if (node.index > 6) {
             driftPhases.set(node.index, {
                 phaseX: Math.random() * Math.PI * 2,
                 phaseY: Math.random() * Math.PI * 2,
-                freqX: 0.6 + Math.random() * 0.8,  // varied frequencies
+                freqX: 0.6 + Math.random() * 0.8,  
                 freqY: 0.6 + Math.random() * 0.8,
             });
         }
@@ -68,7 +80,6 @@
     let driftFrameId;
 
     $effect(() => {
-        // Pause drift when user has scrolled past the network into the timeline
         const active = currentStep.value !== 'exit';
 
         if (!active) return;
@@ -142,8 +153,6 @@
                     if (!target) return;
                     target.x = node.x;
                     target.y = node.y;
-                    // Outer nodes aren't drifted, so set their springs directly.
-                    // Inner nodes are driven by the drift loop — only update their target.
                     if (node.index <= 6) {
                         const s = nodeSprings.get(node.index);
                         if (s) { s.x.set(node.x); s.y.set(node.y); }
@@ -189,18 +198,15 @@
             const target = nodeTargets.get(pos.id);
             if (!s || !target) return;
 
-            if (currentStep.value >= 6 && (pos.id === 0 || pos.id === 4)) {
-                // Snap immediately to their line endpoints — works for both fast and slow scroll
+            if (currentStep.value >= 6 && (pos.id === 4 || pos.id === 0)) {
                 s.x.set(pos.x, { hard: true });
                 s.y.set(centerY, { hard: true });
             } else if (currentStep.value >= 2) {
-                // Move to octagon position
                 target.x = pos.x;
                 target.y = pos.y;
                 s.x.set(pos.x);
                 s.y.set(pos.y);
             } else {
-                // Return to force-directed position (simulation keeps nodeTargets current)
                 s.x.set(target.x);
                 s.y.set(target.y);
             }
@@ -212,7 +218,9 @@
     <figure>
         {#if width > 0 && height > 0}
             {@const size = Math.min(width, height)}
-            <div class="canvas-container" style="width: {size}px; height: {size}px;">
+
+            <!-- Added bind:this={canvasEl} to automatically pull the exact screen layout rect coordinates -->
+            <div class="canvas-container" bind:this={canvasEl} style="width: {size}px; height: {size}px;">
                 {#each effectiveCommentIndexes as comment, i (comment)}
                     {@const springs = nodeSprings.get(comment)}
                     <div class="comment-wrapper"
@@ -220,11 +228,15 @@
                         <Comment {comment} {i} {springs} scrollIndex={currentStep.value} />
                     </div>
                 {/each}
+            </div>
+
+            <!-- Viewport Overlay layer passing down the calibrated screen offset coordinates -->
+            <div class="nameplate-container">
                 {#each [{name: "Jan", id: 4}, {name: "Ashleé", id: 0}] as name}
                     {@const springs = nodeSprings.get(name.id)}
                     {#if springs}
                         <Nameplate
-                            {springs} {name} {introComplete}
+                            {springs} {name} {introComplete} {offsetX} {offsetY}
                             snapToFinalPosition={() => {
                                 const size = Math.min(width, height);
                                 const s = nodeSprings.get(name.id);
@@ -237,6 +249,7 @@
                     {/if}
                 {/each}
             </div>
+
             <svg width={size} height={size} class="network-svg">
                 <g class="links">
                     {#each simulationLinks as link, i (i)}
@@ -257,7 +270,6 @@
                         {/if}
                     {/each}
                 </g>
-                <!-- Spinning group: rotates outer ring during steps 3–4 -->
                 <g class="spinning-container" style="transform: rotate({$rotation}deg);">
                     <g class="ring-links">
                         {#each outerRingLinks as link, i}
@@ -287,17 +299,26 @@
     #network {
         width: 100%;
         height: 100%;
-        padding-top: 4rem;
+        padding-top: 6rem;
         display: flex;
         align-items: center;
         justify-content: center;
         position: relative;
-        pointer-events: none; /* Let clicks pass through to timeline if needed */
+        pointer-events: none; 
     }
     .canvas-container {
         position: absolute;
         flex-shrink: 0;
         pointer-events: none;
+    }
+    .nameplate-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100svh;
+        pointer-events: none;
+        z-index: 10;
     }
     figure {
         width: 100%;
