@@ -14,7 +14,7 @@
     let audioEl = $state(null);
 
     // Derived States
-    const currentAudioSrc = $derived(`/assets/audio/intro-${currentStep.value}.mp3`);
+    const currentAudioSrc = $derived(`assets/audio/intro-${currentStep.value}.mp3`);
 
     let currentTime = $state(0);
     let duration = $state(0);
