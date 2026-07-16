@@ -2,10 +2,11 @@ import { writable } from 'svelte/store';
 
 export const currentStep = $state({ value: 0 });
 export const totalSteps = $state({ value: 0 });
+export const introComplete = $state({ value: false });
 
 export const pastNetwork = {
     get value() {
-        return currentStep.value >= totalSteps.value - 1;
+        return currentStep.value >= totalSteps.value - 1 || introComplete.value;
     }
 };
 

@@ -14,12 +14,14 @@
 
     const copy = getContext("copy");
 
+    let { introComplete } = $props();
+
     let width = $state(0);
     let height = $state(0);
     let simulationLinks = $state([]);
-    let outerPositions = [];
-    let outerRingLinks = [];
-    let outerCrossLinks = [];
+    let outerPositions = $state([]);
+    let outerRingLinks = $state([]);
+    let outerCrossLinks = $state([]);
 
     const COMMENT_STEPS = new Set([1, 2, 3, 4]);
     const matchingComment = $derived(copy.comments.find(comment => parseInt(comment.step) === currentStep.value));
@@ -47,7 +49,7 @@
 
 
     // --- AMBIENT DRIFT ---
-    const DRIFT_AMOUNT = 10;  // px — max displacement from resting position
+    const DRIFT_AMOUNT = 30;  // px — max displacement from resting position
     const DRIFT_SPEED = 0.001; // how fast nodes wander (lower = slower)
 
     // Each inner node gets a unique phase offset so they don't move in sync
@@ -214,7 +216,7 @@
                 {#each effectiveCommentIndexes as comment, i (comment)}
                     {@const springs = nodeSprings.get(comment)}
                     <div class="comment-wrapper"
-                        in:fly={{ duration: 250, y: 50, delay: i*500 }}>
+                        in:fly={{ duration: 250, y: 50, delay: i*1000 }}>
                         <Comment {comment} {i} {springs} scrollIndex={currentStep.value} />
                     </div>
                 {/each}
@@ -222,7 +224,7 @@
                     {@const springs = nodeSprings.get(name.id)}
                     {#if springs}
                         <Nameplate
-                            {springs} {name}
+                            {springs} {name} {introComplete}
                             snapToFinalPosition={() => {
                                 const size = Math.min(width, height);
                                 const s = nodeSprings.get(name.id);
@@ -265,7 +267,7 @@
                     <g class="cross-links">
                         {#each outerCrossLinks as link, i}
                             {@const isSpecial = (link.source.id === 0 && link.target.id === 4) || (link.source.id === 4 && link.target.id === 0)}
-                            <CrossLink {link} {i} overrideY={isSpecial && currentStep.value >= 6 ? size / 2 : null} />
+                            <CrossLink {link} {i} overrideY={isSpecial && currentStep.value >= 6 ? size / 2 : null} {introComplete} />
                         {/each}
                     </g>
                     <g class="outer-nodes">

@@ -1,17 +1,14 @@
 <script>
     import { getContext } from "svelte";
-    import Network from "$components/Network.svelte";
     import wordmark from "$svg/wordmark_script_stacked_plain.svg";
     import title from "$svg/title.svg";
-    // 1. Import all three shared states from your rune file
-    import { currentStep, totalSteps, pastNetwork } from "$runes/misc.svelte.js";
+    import { currentStep, totalSteps } from "$runes/misc.svelte.js";
 
     const copy = getContext("copy");
     
-    // 2. Initialize the shared total steps from your context data
     totalSteps.value = copy.scrollSteps.length;
 
-    // Core State
+    // Core Local Component State
     let isPlaying = $state(false);
     let hasStarted = $state(false);
     let audioEl = $state(null);
@@ -27,7 +24,7 @@
     $effect(() => {
         const track = currentAudioSrc; 
 
-        if (hasStarted && isPlaying && audioEl) {
+        if (hasStarted && isPlaying && audioEl && currentStep.value < totalSteps.value) {
             audioEl.load(); 
             audioEl.play().catch(err => {
                 console.error("Audio play blocked or interrupted:", err);
@@ -50,9 +47,9 @@
     }
 
     function handleAudioEnded() {
-        if (currentStep.value < totalSteps.value - 1) {
-            currentStep.value++;
-        } else {
+        currentStep.value++;
+        
+        if (currentStep.value >= totalSteps.value) {
             isPlaying = false; 
         }
     }
@@ -67,19 +64,22 @@
         const isRightSide = clickX > rect.width / 2;
 
         if (isRightSide) {
-            if (currentStep.value < totalSteps.value - 1) {
-                currentStep.value++;
+            currentStep.value++;
+            // If we are still within valid audio bounds, force play the next track
+            if (currentStep.value < totalSteps.value) {
+                isPlaying = true;
             }
         } else {
             if (currentStep.value > 0) {
                 currentStep.value--;
+                isPlaying = true; // Force play audio when clicking back
             }
         }
     }
 </script>
 
 <!-- Hidden Audio Element -->
-{#if hasStarted}
+{#if hasStarted && currentStep.value < totalSteps.value}
     <audio 
         bind:this={audioEl} 
         src={currentAudioSrc} 
@@ -90,45 +90,44 @@
 {/if}
 
 <section id="intro">
-    <!-- Visual Layer -->
     <!-- Narrative Overlay + Tap Zones -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="narrative-container" onclick={handleOverlayTap}>
         {#if !hasStarted}
             <!-- Initial User Gesture Prompt -->
             <div class="start-prompt">
-                <div class="wordmark">
-                    <a href="https://pudding.cool" aria-label="The Pudding" target="_self"
-                        >{@html wordmark}</a
-                    >
+                <div class="top">
+                    <div class="wordmark">
+                        <a href="https://pudding.cool" aria-label="The Pudding" target="_self"
+                            >{@html wordmark}</a
+                        >
+                    </div>
+                    <button onclick={startExperience} class="btn-start">Start Audio Story</button>
                 </div>
                 <div class="title">
                     {@html title}
                     <div class="inset-right">
                         <p>How Pop Culture Coded Our Coming Out</p>
-                        <button onclick={startExperience} class="btn-start">Start Audio Story</button>
                     </div>
                 </div>
             </div>
         {:else}
             <!-- Persistent Top Bar: Progress Segments & Controls -->
-            <div class="step-top">
-                <div class="step-inner">
-                    <div class="progress-segments">
-                        {#each copy.scrollSteps as _, i}
-                            <div class="progress-bar">
-                                <div 
-                                    class="progress-fill" 
-                                    style="width: {i < currentStep.value ? 100 : i === currentStep.value ? audioProgress : 0}%"
-                                ></div>
-                            </div>
-                        {/each}
-                    </div>
-                    <div class="controls">
-                        <button onclick={togglePlay}>
-                            {isPlaying ? "⏸" : "▶"}
-                        </button>
-                    </div>
+            <div class="controls-wrapper">
+                <div class="progress-segments">
+                    {#each copy.scrollSteps as _, i}
+                        <div class="progress-bar">
+                            <div 
+                                class="progress-fill" 
+                                style="width: {i < currentStep.value ? 100 : i === currentStep.value ? audioProgress : 0}%"
+                            ></div>
+                        </div>
+                    {/each}
+                </div>
+                <div class="controls">
+                    <button onclick={togglePlay}>
+                        {isPlaying ? "⏸" : "▶"}
+                    </button>
                 </div>
             </div>
 
@@ -153,6 +152,7 @@
         height: 100svh;
         overflow: hidden;
         pointer-events: none;
+        margin-bottom: 4rem;
     }
 
     .narrative-container {
@@ -177,10 +177,18 @@
         left: 0;
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
+        justify-content: space-between;
         align-items: flex-start;
         padding: 0 2rem;
         cursor: default;
+    }
+
+    .top {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        width: 100%;
+        justify-content: space-between;
     }
 
     .title {
@@ -208,12 +216,12 @@
 
     .wordmark {
         max-width: 160px;
-        margin-bottom: 2rem;
+        margin-top: 1rem;
     }
 
     .step-bottom {
         position: absolute;
-        bottom: 0;
+        bottom: 2rem;
         width: 100%;
         display: flex;
         justify-content: center;
@@ -230,18 +238,14 @@
         margin: 0;
     }
 
-    .step-top {
+    .controls-wrapper {
         position: absolute;
         top: 0;
         width: 100%;
-        padding: 1rem;
-        box-sizing: border-box;
-        pointer-events: auto;
-    }
-
-    .step-inner {
-        max-width: 600px;
-        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 0.5rem;
     }
 
     .controls {
@@ -275,8 +279,8 @@
         margin-top: 1rem;
         padding: 0.75rem 1.5rem;
         font-size: 1rem;
-        background: #000;
-        color: #fff;
+        background: var(--color-fg);
+        color: var(--color-bg);
         border: none;
         cursor: pointer;
         border-radius: 4px;

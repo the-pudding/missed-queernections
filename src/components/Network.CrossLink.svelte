@@ -3,7 +3,7 @@
     import { colors } from "$runes/misc.svelte.js";
     import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
-    let { link, i, overrideY = null } = $props();
+    let { link, i, overrideY = null, introComplete } = $props();
 
     let readyToDraw = $state(false);
 
@@ -39,7 +39,7 @@
     class:specialLink={isSpecialLink}
     style="stroke: {currentStep.value <= 5 ? strokeColor : "#ffffff"}; stroke-dasharray: {lineLength};
     stroke-dashoffset: {readyToDraw ? 0 : lineLength};
-    opacity: {(currentStep.value <= 5) || (isSpecialLink && currentStep.value < 10) ? 1 : 0}"
+    opacity: {introComplete ? 0 : (currentStep.value <= 5) || (isSpecialLink && currentStep.value < 10) ? 1 : 0}"
     x1={link.source.x} y1={overrideY ?? link.source.y}
     x2={link.target.x} y2={overrideY ?? link.target.y}
 />

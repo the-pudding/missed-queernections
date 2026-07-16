@@ -2,7 +2,7 @@
     import { fly } from 'svelte/transition';
     import { currentStep, pastNetwork } from "$runes/misc.svelte.js";
 
-    let { springs, name, snapToFinalPosition = () => {} } = $props();
+    let { springs, name, introComplete, snapToFinalPosition = () => {} } = $props();
 
     let x = $state(0);
     let y = $state(0);
@@ -64,7 +64,7 @@
         id="{name.name}-nameplate"
         class="nameplate"
         class:hidden={!isOverlapping}
-        class:is-static={currentStep.value >= 10}
+        class:is-static={introComplete}
         class:jan={name.name === 'Jan'}
         class:ashlee={name.name === 'Ashleé'}
         style="--x: {x}px; --y: {y}px;"
