@@ -93,7 +93,7 @@
         const rect = svgEl.getBoundingClientRect();
         return {
             x: `${rect.left + cx}px`,
-            y: `${rect.top + cy}px` // Measures exact current viewport Y of circle
+            y: `${rect.top + cy}px`
         };
     }
 
@@ -145,7 +145,6 @@
         blowoutColor = pick.color;
         activeBlowoutId = pick.event + pick.cy;
 
-        // 1. Synchronously activate segment key so X position calculates as pulled
         if (pick.activationKey != null) {
             const next = new Set(activeSegmentKeys);
             next.add(pick.activationKey);
@@ -154,7 +153,6 @@
 
         if (pick.cy > maxScroll) maxScroll = pick.cy;
 
-        // 2. Calculate scroll target using the real document position of svgEl
         const svgRect = svgEl?.getBoundingClientRect();
         const svgPageTop = (svgRect?.top || 0) + window.scrollY;
         const circlePageY = svgPageTop + pick.cy;
@@ -164,7 +162,6 @@
         window.scrollTo({ top: targetScrollY });
         document.body.style.overflow = "hidden";
 
-        // 3. Measure exact viewport position of the target circle AFTER scroll
         const origin = getCircleOrigin(pick);
         blowoutOriginX = origin.x;
         blowoutOriginY = origin.y;
@@ -226,7 +223,10 @@
                             existing &&
                             existing[0].janTheme === existing[0].ashleéTheme &&
                             String(existing[0].match) === "1";
-                        const isPick = existing && ["Y", "J", "A"].includes(String(existing[0].pick));
+                        
+                        const rawPick = existing ? String(existing[0].pick ?? "").trim() : "";
+                        const isPick = ["Y", "J", "A"].includes(rawPick);
+                        const pickLetter = isPick ? rawPick : null;
 
                         if (isCenterMatch)
                             realEventIndices.push({
@@ -247,7 +247,8 @@
                                     isPlaceholder: false,
                                     parsedDate: date,
                                     isCenterMatch,
-                                    isPick
+                                    isPick,
+                                    pickLetter
                                 }
                             : { parsedDate: date, isPlaceholder: true };
                     });
@@ -356,7 +357,8 @@
                             eventSecondary: d.eventSecondary,
                             color: colors[themeIndex],
                             cy: yScale(d.parsedDate),
-                            activationKey: d.segmentKey ?? yScale(d.parsedDate)
+                            activationKey: d.segmentKey ?? yScale(d.parsedDate),
+                            pickLetter: d.pickLetter
                         });
                     }
                 }
@@ -469,7 +471,8 @@
                         eventSecondary: day.eventSecondary,
                         segmentKey: day.segmentKey,
                         activationKey: day.segmentKey ?? day.triggerY,
-                        isPick: day.isPick
+                        isPick: day.isPick,
+                        pickLetter: day.pickLetter
                     }));
 
                     return { ...theme, themeColor, pathD, circles };
@@ -607,6 +610,7 @@
                                             isDimmed={hoveredEventName !== null &&
                                                 !activeHoverThemes.includes(theme.themeName)}
                                             isPick={circle.isPick}
+                                            pickLetter={circle.pickLetter}
                                             onclick={circle.isPick
                                                 ? () => handlePickClick(circle, theme.themeColor)
                                                 : undefined}

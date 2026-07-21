@@ -2,10 +2,10 @@
     import { getContext } from "svelte";
     import wordmark from "$svg/wordmark_script_stacked_plain.svg";
     import title from "$svg/title.svg";
-    import Play from '@lucide/svelte/icons/play';
-    import Pause from '@lucide/svelte/icons/pause';
-    import VolumeOff from '@lucide/svelte/icons/volume-off';
-    import Volume2 from '@lucide/svelte/icons/volume-2';
+    import Play from '$svg/icons/play.svg';
+    import Pause from '$svg/icons/pause.svg';
+    import VolumeOff from '$svg/icons/volume-off.svg';
+    import Volume2 from '$svg/icons/volume-2.svg';
     import { currentStep, totalSteps, introComplete } from "$runes/misc.svelte.js";
     import rawCsv from '$data/timestamps/intro.csv?raw';
 
@@ -197,8 +197,8 @@
                     </div>
                     
                     <div class="btn-group">
-                        <button onclick={() => startExperience(true)} class="btn-start"><Volume2 size={20} />Begin with Audio</button>
-                        <button onclick={() => startExperience(false)} class="btn-start btn-muted"><VolumeOff size={20} />Begin Muted</button>
+                        <button onclick={() => startExperience(true)} class="btn-start">{@html Volume2} Begin with Audio</button>
+                        <button onclick={() => startExperience(false)} class="btn-start btn-muted">{@html VolumeOff} Begin Muted</button>
                     </div>
                 </div>
             </div>
@@ -218,17 +218,17 @@
                 <div class="controls">
                     <button onclick={togglePlay} class="btn-control" aria-label="Toggle play/pause">
                         {#if isPlaying}
-                            <Pause size={20} />
+                            {@html Pause}
                         {:else}
-                            <Play size={20} />
+                            {@html Play}
                         {/if}
                     </button>
 
                     <button onclick={() => isMuted = !isMuted} class="btn-icon" aria-label="Toggle mute">
                         {#if isMuted}
-                            <VolumeOff size={20} />
+                            {@html VolumeOff}
                         {:else}
-                            <Volume2 size={20} />
+                            {@html Volume2}
                         {/if}
                     </button>
                 </div>
@@ -381,6 +381,26 @@
         flex-direction: row;
         align-items: center;
         gap: 0.5rem;
+    }
+
+    :global(.btn-start svg, .btn-control svg) {
+        width: 20px;
+    }
+
+    :global(.btn-control svg) {
+        width: 16px;
+    }
+
+    :global(.btn-icon svg) {
+        width: 20px;
+    }
+
+    :global(.btn-start svg path) {
+        fill: black;
+    }
+
+    :global(.btn-start.btn-muted svg path) {
+        fill: white;
     }
 
     .btn-start:hover {

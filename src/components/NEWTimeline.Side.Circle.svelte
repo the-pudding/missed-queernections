@@ -6,6 +6,7 @@
 		fill,
 		centerX,
 		isPick,
+		pickLetter,
 		isDimmed,
 		onhover,
 		onleave,
@@ -95,9 +96,15 @@
 	/>
 
 	{#if isPick && pickAtCenter}
-		<g transform="scale(0.8) translate(-12, -12)">
-			<path fill="none" stroke-width="2" stroke="#191919" d="m7 15 5 5 5-5"/><path fill="none" stroke-width="2" stroke="#191919" d="m7 9 5-5 5 5"/>
-		</g>
+		{#if pickLetter == "Y"}
+			<g transform="scale(0.7) translate(-10, -11)">
+			  	<path d="M10,0C4.5,0,0,4.5,0,10v7c0,1.7,1.3,3,3,3h1c1.7,0,3-1.3,3-3v-3c0-1.7-1.3-3-3-3h-2v-1C2,5.6,5.6,2,10,2s8,3.6,8,8v1h-2c-1.7,0-3,1.3-3,3v3c0,1.7,1.3,3,3,3h1c1.7,0,3-1.3,3-3v-7C20,4.5,15.5,0,10,0Z"/>
+			</g>
+		{:else}
+			<g transform="scale(0.7) translate(-9, -10)">
+  				<path d="M18,2v10c0,3.3-2.7,6-6,6s-1-.4-1-1v-2c0-.6.4-1,1-1,1.1,0,2-.9,2-2v-1c0-.6-.4-1-1-1-1.1,0-2-.9-2-2V2c0-1.1.9-2,2-2h3c1.1,0,2,.9,2,2ZM5,0h-3C.9,0,0,.9,0,2v6c0,1.1.9,2,2,2s1,.4,1,1v1c0,1.1-.9,2-2,2s-1,.4-1,1v2c0,.6.4,1,1,1,3.3,0,6-2.7,6-6V2c0-1.1-.9-2-2-2Z"/>
+			</g>
+		{/if}
 	{/if}
 
 </g>

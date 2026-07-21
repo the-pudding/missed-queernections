@@ -41,14 +41,14 @@
 		margin: 0;
 	}
 
-	:global(.plus-icon, .expand-icon) {
+	:global(.plus-icon, .headphone-icon, .quote-icon) {
 		font-weight: 700;
 		margin-left: 1.125rem;
 		position: relative;
 		white-space: nowrap;
 	}
 
-	:global(.plus-icon::before, .expand-icon::before) {
+	:global(.plus-icon::before, .headphone-icon::before, .quote-icon::before) {
 		content: "";
 		position: absolute;
 		top: 55%;
@@ -62,17 +62,24 @@
 		border-radius: 50%;
 		background-color: var(--color-gray-300);
 		background-image: url("../svg/plus-icon.svg");
-    	background-size: contain;
+		background-position: center;
     	background-repeat: no-repeat;
 		line-height: 1;
 	}
 
 	:global(.plus-icon::before) {
 		background-image: url("../svg/plus-icon.svg");
+		background-size: contain;
 	}
 
-	:global(.expand-icon::before) {
-		background-image: url("../svg/expand-icon.svg");
+	:global(.headphone-icon::before) {
+		background-image: url("../svg/icons/headphones.svg");
+		background-size: 60%;
+	}
+
+	:global(.quote-icon::before) {
+		background-image: url("../svg/icons/quote.svg");
+		background-size: 60%;
 	}
 
 	@media(max-width: 760px) {
