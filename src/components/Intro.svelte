@@ -1,5 +1,6 @@
 <script>
-    import { getContext } from "svelte";
+    import { base } from '$app/paths';
+    import { getContext, untrack, tick } from "svelte"; // <--- Added tick
     import wordmark from "$svg/wordmark_script_stacked_plain.svg";
     import title from "$svg/title.svg";
     import Play from '$svg/icons/play.svg';
@@ -20,35 +21,44 @@
     let audioEl = $state(null);
 
     // Derived States
-    const currentAudioSrc = $derived(`/assets/audio/intro-${currentStep.value}.mp3`);
+    const currentAudioSrc = $derived(`${base}/assets/audio/intro-${currentStep.value}.mp3`);
 
     let currentTime = $state(0);
     let duration = $state(0);
     const audioProgress = $derived(duration > 0 ? (currentTime / duration) * 100 : 0);
 
-    // FIX 1: Instantly reset currentTime to 0 whenever step changes
+    // Only re-run when step changes (switching slides)
     $effect(() => {
         const step = currentStep.value; // Explicit step dependency
         
-        // Zero out time state and audio element immediately
-        currentTime = 0;
-        if (audioEl) {
-            audioEl.currentTime = 0;
-        }
+        untrack(() => {
+            currentTime = 0;
+            if (audioEl) {
+                audioEl.currentTime = 0;
+            }
 
-        if (hasStarted && isPlaying && audioEl && !introComplete.value) {
-            audioEl.load(); 
+            if (hasStarted && isPlaying && audioEl && !introComplete.value) {
+                audioEl.load(); 
+                audioEl.play().catch(err => {
+                    console.error("Audio play blocked or interrupted:", err);
+                });
+            }
+        });
+    });
+
+    // Initializes the layout experience with the chosen audio configuration
+    async function startExperience(withAudio) {
+        isMuted = !withAudio;
+        hasStarted = true;
+        isPlaying = true;
+
+        await tick(); // Ensure element bindings are synced
+
+        if (audioEl) {
             audioEl.play().catch(err => {
                 console.error("Audio play blocked or interrupted:", err);
             });
         }
-    });
-
-    // Initializes the layout experience with the chosen audio configuration
-    function startExperience(withAudio) {
-        isMuted = !withAudio;
-        hasStarted = true;
-        isPlaying = true;
     }
 
     function togglePlay() {
@@ -56,7 +66,7 @@
         isPlaying = !isPlaying;
         if (audioEl) {
             if (isPlaying) audioEl.play();
-            else audioEl.pause();
+            else audioEl.pause(); // Pauses cleanly in place
         }
     }
 
@@ -136,16 +146,9 @@
         return lines.slice(1).map(line => {
             const cols = line.split(',');
             
-            // 1. Rejoin everything from column index 5 in case the word has commas
             let cleanWord = cols.slice(5).join(',').trim();
-
-            // 2. Unescape standard CSV double quotes ("" -> ")
             cleanWord = cleanWord.replace(/""/g, '"');
-
-            // 3. Deduplicate stacked leading quotes (e.g., ““ or "“ -> “)
             cleanWord = cleanWord.replace(/^[“"]+/g, match => match.slice(-1));
-
-            // 4. Deduplicate stacked trailing quotes (e.g., ”” or ”" -> ”)
             cleanWord = cleanWord.replace(/["”]+$/g, match => match[0]);
 
             return {
@@ -159,10 +162,8 @@
         });
     }
 
-    // Store parsed dataset
     const allTranscriptWords = parseMasterCSV(rawCsv);
 
-    // Reactively filter words for the active step
     const currentWords = $derived(
         allTranscriptWords.filter(item => item.step === `intro-${currentStep.value}`)
     );
@@ -170,8 +171,8 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- Hidden Audio Element -->
-{#if hasStarted && !introComplete.value}
+<!-- Audio Element present from start so bindings are ready -->
+{#if !introComplete.value}
     <audio 
         bind:this={audioEl} 
         src={currentAudioSrc} 
@@ -239,7 +240,6 @@
         {#if !introComplete.value && copy.scrollSteps[currentStep.value]}
             <div class="active-step step-bottom">
                 <div class="step-inner">
-                    <!-- FIX 2: Keying by currentStep guarantees clean re-renders on step change -->
                     {#key currentStep.value}
                         <p class="subtitle-text">
                             {#if currentWords.length > 0}
@@ -440,18 +440,15 @@
         margin: 0;
     }
 
-    /* Base style for inactive/upcoming words */
     .word {
         color: var(--color-gray-400);
         transition: none;
     }
 
-    /* Word actively being spoken */
     .word.active {
         color: var(--color-white);
     }
 
-    /* Words already spoken (karaoke style effect) */
     .word.past {
         color: var(--color-white);
     }
