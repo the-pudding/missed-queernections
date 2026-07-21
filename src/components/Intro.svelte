@@ -247,7 +247,7 @@
                                     <span 
                                         class="word" 
                                         class:active={currentTime >= item.start && currentTime < item.end}
-                                        class:past={currentTime >= item.end}
+                                        class:past={(currentTime >= item.end) || isMuted}
                                     >
                                         {item.word}{' '}
                                     </span>
