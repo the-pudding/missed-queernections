@@ -61,11 +61,42 @@
     }
 
     function handleAudioEnded() {
+        goNext();
+    }
+
+    // Step Navigation Helpers
+    function goNext() {
+        if (!hasStarted) return startExperience(true);
         if (currentStep.value < totalSteps.value - 1) {
             currentStep.value++;
+            isPlaying = true;
         } else {
             isPlaying = false; 
             introComplete.value = true;
+        }
+    }
+
+    function goPrev() {
+        if (!hasStarted) return;
+        if (introComplete.value) {
+            introComplete.value = false;
+        }
+        if (currentStep.value > 0) {
+            currentStep.value--;
+            isPlaying = true; 
+        }
+    }
+
+    // Keyboard Arrow Navigation
+    function handleKeydown(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            goNext();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            goPrev();
         }
     }
 
@@ -79,21 +110,9 @@
         const isRightSide = clickX > rect.width / 2;
 
         if (isRightSide) {
-            if (currentStep.value < totalSteps.value - 1) {
-                currentStep.value++;
-                isPlaying = true;
-            } else {
-                isPlaying = false;
-                introComplete.value = true;
-            }
+            goNext();
         } else {
-            if (introComplete.value) {
-                introComplete.value = false;
-            }
-            if (currentStep.value > 0) {
-                currentStep.value--;
-                isPlaying = true; 
-            }
+            goPrev();
         }
     }
 
@@ -148,6 +167,8 @@
         allTranscriptWords.filter(item => item.step === `intro-${currentStep.value}`)
     );
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Hidden Audio Element -->
 {#if hasStarted && !introComplete.value}

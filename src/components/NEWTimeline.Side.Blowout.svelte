@@ -259,7 +259,7 @@
 		width: 100%;
 		padding: 4rem 2rem 2rem 2rem;
 		margin: 2rem;
-		max-width: 600px;
+		max-width: 800px;
 		color: var(--color-bg);
 		font-family: var(--sans);
 		isolation: isolate;
@@ -314,6 +314,12 @@
 		aspect-ratio: 1 / 1;
 		background-size: cover;
 		background-position: center;
+	}
+
+	.graf {
+		font-size: var(--18px);
+		line-height: 1.65;
+		margin: 1.5rem 0;
 	}
 
 	.graf:last-of-type {
