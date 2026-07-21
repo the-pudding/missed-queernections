@@ -24,7 +24,7 @@
 		border-radius: 3px;
 		/* background: var(--color-gray-100);
 		border: 1px solid black; */
-		max-width: 400px;
+		max-width: 500px;
 	}
 
 	:global(.interaction-span) {
@@ -37,7 +37,7 @@
 
 	p {
 		font-family: var(--sans);
-		font-size: var(--18px);
+		font-size: var(--22px);
 		margin: 0;
 	}
 

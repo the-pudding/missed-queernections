@@ -7,6 +7,7 @@
     import VolumeOff from '@lucide/svelte/icons/volume-off';
     import Volume2 from '@lucide/svelte/icons/volume-2';
     import { currentStep, totalSteps, introComplete } from "$runes/misc.svelte.js";
+    import rawCsv from '$data/timestamps/intro.csv?raw';
 
     const copy = getContext("copy");
     
@@ -15,7 +16,7 @@
     // Core Local Component State
     let isPlaying = $state(false);
     let hasStarted = $state(false);
-    let isMuted = $state(false); // New state to track if the audio is silenced
+    let isMuted = $state(false);
     let audioEl = $state(null);
 
     // Derived States
@@ -25,9 +26,15 @@
     let duration = $state(0);
     const audioProgress = $derived(duration > 0 ? (currentTime / duration) * 100 : 0);
 
-    // Reactive effect to handle track changes when the step increments
+    // FIX 1: Instantly reset currentTime to 0 whenever step changes
     $effect(() => {
-        const track = currentAudioSrc; 
+        const step = currentStep.value; // Explicit step dependency
+        
+        // Zero out time state and audio element immediately
+        currentTime = 0;
+        if (audioEl) {
+            audioEl.currentTime = 0;
+        }
 
         if (hasStarted && isPlaying && audioEl && !introComplete.value) {
             audioEl.load(); 
@@ -89,6 +96,57 @@
             }
         }
     }
+
+    // Time conversion helper
+    function timeToSeconds(timeStr) {
+        if (!timeStr) return 0;
+        const parts = timeStr.trim().split(':');
+        if (parts.length === 2) {
+            return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+        } else if (parts.length === 3) {
+            return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+        }
+        return parseFloat(timeStr) || 0;
+    }
+
+    // Parse the entire CSV once into memory
+    function parseMasterCSV(csvText) {
+        const lines = csvText.trim().split('\n');
+        if (lines.length <= 1) return [];
+
+        return lines.slice(1).map(line => {
+            const cols = line.split(',');
+            
+            // 1. Rejoin everything from column index 5 in case the word has commas
+            let cleanWord = cols.slice(5).join(',').trim();
+
+            // 2. Unescape standard CSV double quotes ("" -> ")
+            cleanWord = cleanWord.replace(/""/g, '"');
+
+            // 3. Deduplicate stacked leading quotes (e.g., ““ or "“ -> “)
+            cleanWord = cleanWord.replace(/^[“"]+/g, match => match.slice(-1));
+
+            // 4. Deduplicate stacked trailing quotes (e.g., ”” or ”" -> ”)
+            cleanWord = cleanWord.replace(/["”]+$/g, match => match[0]);
+
+            return {
+                step: cols[0]?.trim(),           
+                wordIndex: parseInt(cols[1], 10), 
+                start: timeToSeconds(cols[2]),   
+                end: timeToSeconds(cols[3]),     
+                duration: parseFloat(cols[4]),   
+                word: cleanWord
+            };
+        });
+    }
+
+    // Store parsed dataset
+    const allTranscriptWords = parseMasterCSV(rawCsv);
+
+    // Reactively filter words for the active step
+    const currentWords = $derived(
+        allTranscriptWords.filter(item => item.step === `intro-${currentStep.value}`)
+    );
 </script>
 
 <!-- Hidden Audio Element -->
@@ -117,16 +175,9 @@
                         >
                     </div>
                     
-                    <!-- NEW: Split Option Entry Button Layout -->
                     <div class="btn-group">
                         <button onclick={() => startExperience(true)} class="btn-start"><Volume2 size={20} />Begin with Audio</button>
                         <button onclick={() => startExperience(false)} class="btn-start btn-muted"><VolumeOff size={20} />Begin Muted</button>
-                    </div>
-                </div>
-                <div class="title">
-                    {@html title}
-                    <div class="inset-right">
-                        <p>How Pop Culture Coded Our Coming Out</p>
                     </div>
                 </div>
             </div>
@@ -161,17 +212,33 @@
                     </button>
                 </div>
             </div>
+        {/if}
 
-            <!-- Contextual Bottom Subtitles: Display only the active step text -->
-            {#each copy.scrollSteps as step, i}
-                {#if i === currentStep.value && !introComplete.value}
-                    <div class="active-step step-bottom">
-                        <div class="step-inner">
-                            <p>{@html step.value}</p>
-                        </div>
-                    </div>
-                {/if}
-            {/each}
+        <!-- Contextual Bottom Subtitles -->
+        {#if !introComplete.value && copy.scrollSteps[currentStep.value]}
+            <div class="active-step step-bottom">
+                <div class="step-inner">
+                    <!-- FIX 2: Keying by currentStep guarantees clean re-renders on step change -->
+                    {#key currentStep.value}
+                        <p class="subtitle-text">
+                            {#if currentWords.length > 0}
+                                {#each currentWords as item, idx (idx)}
+                                    <span 
+                                        class="word" 
+                                        class:active={currentTime >= item.start && currentTime < item.end}
+                                        class:past={currentTime >= item.end}
+                                    >
+                                        {item.word}{' '}
+                                    </span>
+                                {/each}
+                            {:else}
+                                <!-- Fallback if CSV is loading or unavailable -->
+                                {@html copy.scrollSteps[currentStep.value].value}
+                            {/if}
+                        </p>
+                    {/key}
+                </div>
+            </div>
         {/if}
     </div>
 </section>
@@ -183,7 +250,6 @@
         height: 100svh;
         overflow: hidden;
         pointer-events: none;
-        /* margin-bottom: 4rem; */
     }
 
     .narrative-container {
@@ -222,34 +288,10 @@
         justify-content: space-between;
     }
 
-    /* Flex container for entry buttons */
     .btn-group {
         display: flex;
         gap: 0.75rem;
         margin-top: 1rem;
-    }
-
-    .title {
-        width: 100%;
-        position: relative;
-    }
-
-    .inset-right {
-        position: absolute;
-        top: 0;
-        right: 0;
-        font-family: var(--sans);
-        max-width: 32%;
-    }
-
-    .inset-right p {
-        font-size: var(--36px);
-        padding: 0;
-    }
-
-    :global(.title svg) {
-        width: 100%;
-        height: auto;
     }
 
     .wordmark {
@@ -264,16 +306,6 @@
         display: flex;
         justify-content: center;
         pointer-events: auto;
-    }
-
-    .step-bottom p {
-        font-family: var(--sans, sans-serif);
-        font-size: var(--24px);
-        max-width: 700px;
-        padding: 1rem;
-        text-align: left;
-        line-height: 1.65;
-        margin: 0;
     }
 
     .controls-wrapper {
@@ -334,7 +366,6 @@
         opacity: 0.85;
     }
 
-    /* Styling variant for the explicit muted option */
     .btn-start.btn-muted {
         background: transparent;
         color: var(--color-fg);
@@ -356,5 +387,31 @@
         cursor: pointer;
         font-size: 1.25rem;
         padding: 0.25rem 0.5rem;
+    }
+
+    .subtitle-text {
+        font-family: var(--sans, sans-serif);
+        font-size: var(--22px);
+        max-width: 700px;
+        padding: 1rem;
+        text-align: left;
+        line-height: 1.65;
+        margin: 0;
+    }
+
+    /* Base style for inactive/upcoming words */
+    .word {
+        color: var(--color-gray-400);
+        transition: none;
+    }
+
+    /* Word actively being spoken */
+    .word.active {
+        color: var(--color-white);
+    }
+
+    /* Words already spoken (karaoke style effect) */
+    .word.past {
+        color: var(--color-white);
     }
 </style>

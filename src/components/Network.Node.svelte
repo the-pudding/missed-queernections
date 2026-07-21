@@ -21,14 +21,19 @@
         (node.index !== 0 && node.index !== 4 && currentStep.value >= 6) ||
         (currentStep.value >= 9)
     );
+
+    const shouldPulse = $derived(isOuter && currentStep.value >= 2 && currentStep.value <= 5);
 </script>
 
 <circle
     class="node"
     class:hidden={shouldHide}
-    fill={(isOuter && currentStep.value >= 4 && currentStep.value <= 5) ? colors[node.index] : "#ffffff"}
-    r={(isOuter && currentStep.value >= 4 && currentStep.value <= 5) ? 10 : 6}
-    style="transition-delay: {appeared ? appearDelay : 0}ms;"
+    class:pulse={shouldPulse}
+    fill={(isOuter && currentStep.value <= 5) ? colors[node.index] : "#ffffff"}
+    r={(isOuter && currentStep.value >= 4 && currentStep.value <= 5) ? 12 : 8}
+    style="
+        --node-color: {colors[node.index]}; 
+        transition-delay: {appeared ? appearDelay : 0}ms;"
     use:springy={{ cx: springs.x, cy: springs.y }}
 />
 
@@ -40,5 +45,18 @@
 
     .node.hidden {
         opacity: 0;
+    }
+
+    .node.pulse {
+        animation: pulse-radius 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-radius {
+        0%, 100% {
+            r: 8px;
+        }
+        50% {
+            r: 12px; /* Adjust peak pulse size as needed */
+        }
     }
 </style>

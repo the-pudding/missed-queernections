@@ -65,20 +65,20 @@
     const DRIFT_AMOUNT = 30;  
     const DRIFT_SPEED = 0.001; 
 
+    // 1. Generate drift phases for ALL nodes (inner and outer)
     const driftPhases = new Map();
     nodes.forEach(node => {
-        if (node.index > 6) {
-            driftPhases.set(node.index, {
-                phaseX: Math.random() * Math.PI * 2,
-                phaseY: Math.random() * Math.PI * 2,
-                freqX: 0.6 + Math.random() * 0.8,  
-                freqY: 0.6 + Math.random() * 0.8,
-            });
-        }
+        driftPhases.set(node.index, {
+            phaseX: Math.random() * Math.PI * 2,
+            phaseY: Math.random() * Math.PI * 2,
+            freqX: 0.6 + Math.random() * 0.8,  
+            freqY: 0.6 + Math.random() * 0.8,
+        });
     });
 
     let driftFrameId;
 
+    // 2. Drift inner nodes always, and outer nodes ONLY when step < 2
     $effect(() => {
         const active = currentStep.value !== 'exit';
 
@@ -86,7 +86,10 @@
 
         function tick(t) {
             nodeSprings.forEach((s, index) => {
-                if (index <= 6) return;
+                const isOuter = index <= 6;
+                // Stop drifting outer nodes once they lock into outer positions (step >= 2)
+                if (isOuter && currentStep.value >= 2) return;
+
                 const target = nodeTargets.get(index);
                 const phase = driftPhases.get(index);
                 if (!target || !phase) return;
@@ -142,21 +145,18 @@
             const linksCopy = JSON.parse(JSON.stringify(links));
 
             const simulation = d3.forceSimulation(nodesCopy)
-                .force('link', d3.forceLink(linksCopy).id(d => d.index).distance(70))
+                .force('link', d3.forceLink(linksCopy).id(d => d.index).distance(size / 4))
                 .force('charge', d3.forceManyBody().strength(-30))
                 .force('center', d3.forceCenter(size / 2, size / 2))
                 .force('collision', d3.forceCollide().radius(8).strength(0.6));
 
+            // 3. Update target coordinates for all nodes without forcing spring updates on outer nodes directly
             simulation.on('tick', () => {
                 simulation.nodes().forEach(node => {
                     const target = nodeTargets.get(node.index);
                     if (!target) return;
                     target.x = node.x;
                     target.y = node.y;
-                    if (node.index <= 6) {
-                        const s = nodeSprings.get(node.index);
-                        if (s) { s.x.set(node.x); s.y.set(node.y); }
-                    }
                 });
             });
 
@@ -206,9 +206,6 @@
                 target.y = pos.y;
                 s.x.set(pos.x);
                 s.y.set(pos.y);
-            } else {
-                s.x.set(target.x);
-                s.y.set(target.y);
             }
         });
     });
@@ -219,7 +216,6 @@
         {#if width > 0 && height > 0}
             {@const size = Math.min(width, height)}
 
-            <!-- Added bind:this={canvasEl} to automatically pull the exact screen layout rect coordinates -->
             <div class="canvas-container" bind:this={canvasEl} style="width: {size}px; height: {size}px;">
                 {#each effectiveCommentIndexes as comment, i (comment)}
                     {@const springs = nodeSprings.get(comment)}
@@ -230,7 +226,6 @@
                 {/each}
             </div>
 
-            <!-- Viewport Overlay layer passing down the calibrated screen offset coordinates -->
             <div class="nameplate-container">
                 {#each [{name: "Jan", id: 4}, {name: "Ashleé", id: 0}] as name}
                     {@const springs = nodeSprings.get(name.id)}

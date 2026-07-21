@@ -1,5 +1,5 @@
 <script>
-    import { fly } from 'svelte/transition';
+    import { fly, fade } from 'svelte/transition';
     import { currentStep } from "$runes/misc.svelte.js";
 
     let { springs, name, introComplete, snapToFinalPosition = () => {}, offsetX = 0, offsetY = 0 } = $props();
@@ -76,6 +76,24 @@
         out:fly={{ duration: 300, x: name.name === 'Jan' ? -20 : 20 }}
     >
         <p>{name.name}</p>
+        <!-- Jan's Image (Steps 7 & 9) -->
+        {#if name.name === 'Jan' && !introComplete && (currentStep.value === 7 || currentStep.value === 9)}
+            <div class="img-wrapper" transition:fade={{ duration: 500, delay: 200 }}>
+                <img src="assets/imgs/intro/jan.jpg" alt="Jan" class="intro-img" />
+            </div>
+        {/if}
+
+        <!-- Ashleé's Image (Steps 8 & 9) -->
+        {#if name.name === 'Ashleé' && !introComplete && (currentStep.value === 8 || currentStep.value === 9)}
+            <div class="img-wrapper" transition:fade={{ duration: 500, delay: 200 }}>
+                <img src="assets/imgs/intro/ashlee.jpg" alt="Ashleé" class="intro-img" />
+            </div>
+        {/if}
+    </div>
+{/if}
+{#if currentStep.value === 6 && name.name=="Jan"}
+    <div class="img-wrapper" in:fade={{ duration: 500, delay: 500 }}>
+        <img src="assets/imgs/intro/wku.jpg" alt="Jan" class="intro-img" />
     </div>
 {/if}
 
@@ -121,6 +139,28 @@
         /* Instant 0s opacity switch allows a seamless visual handoff to the timeline element */
         transition: top 0.8s ease-in-out, left 0.8s ease-in-out, opacity 0s ease;
         pointer-events: none;
+    }
+
+    .nameplate .img-wrapper {
+        max-width: 15vw;
+        position: absolute;
+        top: -9vw;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 15vw;
+    }
+
+    .img-wrapper {
+        position: absolute;
+        left: 50%;
+        top: 25%;
+        transform: translate(-50%, -50%);
+        max-width: 15vw;
+    }
+
+    .img-wrapper img {
+        width: 100%;
+        height: auto;
     }
 
     @media(max-width: 760px) {
