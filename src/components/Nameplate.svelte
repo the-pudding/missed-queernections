@@ -76,17 +76,29 @@
         out:fly={{ duration: 300, x: name.name === 'Jan' ? -20 : 20 }}
     >
         <p>{name.name}</p>
-        <!-- Jan's Image (Steps 7 & 9) -->
-        {#if name.name === 'Jan' && !introComplete && (currentStep.value === 7 || currentStep.value === 9)}
+        <!-- Jan's Image (Step 7) -->
+        {#if name.name === 'Jan' && !introComplete && (currentStep.value === 7)}
             <div class="img-wrapper" transition:fade={{ duration: 500, delay: 200 }}>
-                <img src="assets/imgs/intro/jan.jpg" alt="Jan" class="intro-img" />
+                <img src="assets/imgs/intro/jan-then.jpg" alt="Jan" class="intro-img" />
             </div>
         {/if}
 
-        <!-- Ashleé's Image (Steps 8 & 9) -->
-        {#if name.name === 'Ashleé' && !introComplete && (currentStep.value === 8 || currentStep.value === 9)}
+        <!-- Ashleé's Image (Step 8) -->
+        {#if name.name === 'Ashleé' && !introComplete && (currentStep.value === 8)}
             <div class="img-wrapper" transition:fade={{ duration: 500, delay: 200 }}>
-                <img src="assets/imgs/intro/ashlee.jpg" alt="Ashleé" class="intro-img" />
+                <img src="assets/imgs/intro/ashlee-then.jpg" alt="Ashleé" class="intro-img" />
+            </div>
+        {/if}
+
+        <!-- Updated images (Step 9) -->
+         {#if name.name === 'Jan' && !introComplete && (currentStep.value === 9)}
+            <div class="img-wrapper" transition:fade={{ duration: 500, delay: 200 }}>
+                <img src="assets/imgs/intro/jan-now.jpg" alt="Jan" class="intro-img" />
+            </div>
+        {/if}
+        {#if name.name === 'Ashleé' && !introComplete && (currentStep.value === 9)}
+            <div class="img-wrapper" transition:fade={{ duration: 500, delay: 200 }}>
+                <img src="assets/imgs/intro/ashlee-now.jpg" alt="Ashleé" class="intro-img" />
             </div>
         {/if}
     </div>
