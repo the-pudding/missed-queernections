@@ -84,7 +84,9 @@
 				onchange={yearChange}
 			>
 				{#each yearOptions as option}
-					<option value={option}>{option}</option>
+					{#if option !== "1988"}
+						<option value={option}>{option}</option>
+					{/if}
 				{/each}
 			</select>
 		</div>

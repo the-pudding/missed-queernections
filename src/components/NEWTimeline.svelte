@@ -577,7 +577,9 @@
                 <g class="year-axis">
                     {#each yearTicks as year}
                         {@const y = yScale(year)}
-                        <text x={svgWidth / 2} y={y + 100}>{year.getFullYear()}</text>
+                        {#if year.getFullYear() !== 1988}
+                            <text x={svgWidth / 2} y={y + 100}>{year.getFullYear()}</text>
+                        {/if}
                     {/each}
                 </g>
 
