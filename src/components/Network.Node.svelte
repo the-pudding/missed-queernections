@@ -30,7 +30,7 @@
     class:hidden={shouldHide}
     class:pulse={shouldPulse}
     fill={(isOuter && currentStep.value <= 5) ? colors[node.index] : "#ffffff"}
-    r={(isOuter && currentStep.value >= 4 && currentStep.value <= 5) ? 12 : 8}
+    r={(isOuter && currentStep.value >= 4 && currentStep.value <= 5) ? 12 : 5}
     style="
         --node-color: {colors[node.index]}; 
         transition-delay: {appeared ? appearDelay : 0}ms;"

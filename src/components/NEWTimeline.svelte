@@ -8,7 +8,9 @@
         themes,
         colors,
         activeSection,
-        instructionsVisible
+        instructionsVisible,
+        isAudioMuted,
+        audioUnlocked
     } from "$runes/misc.svelte.js";
     import Path from "$components/NEWTimeline.Side.Path.svelte";
     import Circle from "$components/NEWTimeline.Side.Circle.svelte";
@@ -202,7 +204,7 @@
             { key: "ashleé", themeCol: "ashleéTheme" }
         ];
 
-        return sides.map((side) => {
+        const sidesData = sides.map((side) => {
             const groupedByTheme = d3.group(formattedData, (d) => {
                 const val = d[side.themeCol];
                 return val && val.trim() !== "" ? val.trim() : "none";
@@ -314,13 +316,13 @@
                         day.triggerY = yScale(triggerDate);
                     });
 
-                    let runTriggerY = null;
+                    let runStartKey = null;
                     for (const day of dailyEvents) {
                         if (day.combinedPull > 0) {
-                            if (runTriggerY === null) runTriggerY = day.triggerY;
-                            day.segmentKey = runTriggerY;
+                            if (runStartKey === null) runStartKey = yScale(day.parsedDate);
+                            day.segmentKey = runStartKey;
                         } else {
-                            runTriggerY = null;
+                            runStartKey = null;
                             day.segmentKey = null;
                         }
                     }
@@ -341,6 +343,40 @@
                 })
             };
         });
+
+        // ─── SYNCHRONIZE SEGMENT KEYS FOR CENTER MATCHES ───────────────────
+        themes.forEach((_, themeIdx) => {
+            const janTheme = sidesData[0].themesData[themeIdx];
+            const ashleeTheme = sidesData[1].themesData[themeIdx];
+
+            janTheme.circlePoints.forEach((janCircle) => {
+                if (janCircle.isCenterMatch && janCircle.segmentKey != null) {
+                    const janKey = janCircle.segmentKey;
+                    const ashleeCircle = ashleeTheme.circlePoints.find(
+                        (c) => c.parsedDate.getTime() === janCircle.parsedDate.getTime()
+                    );
+                    if (ashleeCircle && ashleeCircle.segmentKey != null) {
+                        const ashleeKey = ashleeCircle.segmentKey;
+                        const unifiedKey = Math.min(janKey, ashleeKey);
+
+                        [janTheme, ashleeTheme].forEach((sideTheme) => {
+                            sideTheme.pathPoints.forEach((p) => {
+                                if (p.segmentKey === janKey || p.segmentKey === ashleeKey) {
+                                    p.segmentKey = unifiedKey;
+                                }
+                            });
+                            sideTheme.circlePoints.forEach((c) => {
+                                if (c.segmentKey === janKey || c.segmentKey === ashleeKey) {
+                                    c.segmentKey = unifiedKey;
+                                }
+                            });
+                        });
+                    }
+                }
+            });
+        });
+
+        return sidesData;
     };
 
     const baseData = processData(combinedData);
@@ -350,10 +386,9 @@
     let activeFadeOuts = [];
     const currentlyActiveAudioKeys = new Set();
 
-    function playWithCrossfade(src, fadeDuration = 350) {
+    function playWithCrossfade(src, circleId, fadeDuration = 350) {
         const clamp = (val) => Math.max(0, Math.min(1, val));
 
-        // Fade out currently playing audio
         if (activeAudio) {
             const oldAudio = activeAudio;
             activeFadeOuts.push(oldAudio);
@@ -376,10 +411,15 @@
             requestAnimationFrame(fadeOut);
         }
 
-        // Initialize and fade in new audio track
         const newAudio = new Audio(src);
         newAudio.volume = 0;
         activeAudio = newAudio;
+
+        newAudio.addEventListener("ended", () => {
+            if (currentPlayingAudioCircleId === circleId) {
+                currentPlayingAudioCircleId = null;
+            }
+        });
 
         newAudio
             .play()
@@ -415,7 +455,8 @@
                         seen.add(d.audio + d.parsedDate.getTime());
                         list.push({
                             audio: d.audio,
-                            key: d.segmentKey ?? yScale(d.parsedDate)
+                            segmentKey: d.segmentKey ?? yScale(d.parsedDate),
+                            circleId: d.event + yScale(d.parsedDate)
                         });
                     }
                 }
@@ -448,19 +489,36 @@
         return picks.sort((a, b) => a.cy - b.cy);
     })();
 
+    let currentPlayingAudioCircleId = $state(null);
+
+    // ─── AUDIO PLAYBACK TRIGGER EFFECT ─────────────────────────────────────────
     $effect(() => {
+        // If blowout overlay is active, audio is muted, or audio isn't unlocked -> pause & cancel
+        if (activeBlowoutId !== null || isAudioMuted.value || !audioUnlocked.value) {
+            if (activeAudio) {
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+            }
+            currentPlayingAudioCircleId = null;
+            return;
+        }
+
         for (const match of audioMatches) {
-            const isActive = activeSegmentKeys.has(match.key);
-            const wasActive = currentlyActiveAudioKeys.has(match.key);
+            const isActive = activeSegmentKeys.has(match.segmentKey);
+            const wasActive = currentlyActiveAudioKeys.has(match.segmentKey);
 
             if (isActive && !wasActive) {
-                // Newly entered middle of screen -> trigger audio
-                currentlyActiveAudioKeys.add(match.key);
+                currentlyActiveAudioKeys.add(match.segmentKey);
+                currentPlayingAudioCircleId = match.circleId;
+
                 const audioPath = `${base}/assets/audio/clips/${match.audio}.mp3`;
-                playWithCrossfade(audioPath);
+                playWithCrossfade(audioPath, match.circleId);
             } else if (!isActive && wasActive) {
-                // Scrolled back past trigger point -> allow re-trigger on next scroll down
-                currentlyActiveAudioKeys.delete(match.key);
+                currentlyActiveAudioKeys.delete(match.segmentKey);
+                if (currentPlayingAudioCircleId === match.circleId) {
+                    currentPlayingAudioCircleId = null;
+                }
             }
         }
     });
@@ -488,7 +546,6 @@
     let activeSegmentKeys = $state(new Set());
 
     $effect(() => {
-        // Trigger precisely at 50% viewport height (center screen)
         const midpointThreshold = timelineScroll + windowHeight * 0.5;
 
         let changed = false;
@@ -570,7 +627,8 @@
                         segmentKey: day.segmentKey,
                         activationKey: day.segmentKey ?? day.triggerY,
                         isPick: day.isPick,
-                        pickLetter: day.pickLetter
+                        pickLetter: day.pickLetter,
+                        isCenterMatch: day.isCenterMatch
                     }));
 
                     return { ...theme, themeColor, pathD, circles };
@@ -707,13 +765,11 @@
                                             fill={theme.themeColor}
                                             centerX={svgWidth / 2}
                                             {hoveredEventName}
-                                            isDimmed={hoveredEventName !== null &&
-                                                !activeHoverThemes.includes(theme.themeName)}
+                                            isDimmed={hoveredEventName !== null && !activeHoverThemes.includes(theme.themeName)}
                                             isPick={circle.isPick}
                                             pickLetter={circle.pickLetter}
-                                            onclick={circle.isPick
-                                                ? () => handlePickClick(circle, theme.themeColor)
-                                                : undefined}
+                                            isPlayingAudio={currentPlayingAudioCircleId === (circle.event + circle.cy)}
+                                            onclick={circle.isPick ? () => handlePickClick(circle, theme.themeColor) : undefined}
                                             onhover={circle.isPick ? () => {
                                                 hoveredId = circle.event + circle.cy;
                                                 hoveredEventName = circle.event;
@@ -722,7 +778,7 @@
                                                 hoveredId = null;
                                                 hoveredEventName = null;
                                             } : undefined}
-                                        />
+                                        />                                          
                                     {/each}
                                 </g>
                             {/if}

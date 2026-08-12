@@ -1,18 +1,36 @@
 <script>
     import { getContext, onMount } from "svelte";
+    import Header from "$components/Header.svelte";
     import Footer from "$components/Footer.svelte";
     import Intro from "$components/Intro.svelte";
     import Network from "$components/Network.svelte";
     import Timeline from "$components/NEWTimeline.svelte";
-    import { userId, addedEvents } from "$runes/misc.svelte.js";
-    import { currentStep, totalSteps, pastNetwork, introComplete } from "$runes/misc.svelte.js";
+    import {
+        userId,
+        addedEvents,
+        currentStep,
+        totalSteps,
+        pastNetwork,
+        introComplete,
+        isAudioMuted,
+        audioUnlocked
+    } from "$runes/misc.svelte.js";
 
     import generateId from "$utils/generateId.js";
 
     let introHeight = $state(0);
-    
-    // Safety lock flag to prevent the window scroll animation from accidentally tripping the top-scroll reset rule
     let ignoreReset = false;
+
+    // Handles global audio configuration and unlocks browser audio policy
+    function handleStartExperience(withAudio) {
+        isAudioMuted.value = !withAudio;
+        audioUnlocked.value = true;
+
+        if (withAudio) {
+            const silentAudio = new Audio();
+            silentAudio.play().catch(() => {});
+        }
+    }
 
     onMount(() => {
         let storedId = localStorage.getItem("user_id");
@@ -23,7 +41,6 @@
         }
 
         userId.set(storedId);
-        console.log("User ID:", $userId);
 
         let storedEvents = localStorage.getItem("added_events");
         if (storedEvents) {
@@ -34,7 +51,6 @@
             }
         }
 
-        // RESET MECHANISM: Resets introComplete when the user manually scrolls back to the very top
         const handleScrollReset = () => {
             if (ignoreReset) return;
 
@@ -47,7 +63,6 @@
         return () => window.removeEventListener("scroll", handleScrollReset);
     });
 
-    // JANK-FREE INPUT SCROLL LOCK: Intercepts manual inputs rather than thrashing CSS layout overflows
     $effect(() => {
         if (typeof window === "undefined") return;
 
@@ -62,14 +77,12 @@
             }
         };
 
-        // If the intro isn't finished, bind non-passive blocking interceptors
         if (!introComplete.value) {
             window.addEventListener("wheel", preventDefault, { passive: false });
             window.addEventListener("touchmove", preventDefault, { passive: false });
             window.addEventListener("keydown", preventScrollKeys, { passive: false });
         }
 
-        // Svelte clean-up function automatically destroys handlers when state updates or unmounts
         return () => {
             window.removeEventListener("wheel", preventDefault);
             window.removeEventListener("touchmove", preventDefault);
@@ -77,7 +90,6 @@
         };
     });
 
-    // Reactive trigger: Automatically schedules the scroll when introComplete flips to true
     $effect(() => {
         if (introComplete.value) {
             scrollToTimeline();
@@ -90,7 +102,6 @@
         }
     });
 
-    // CUSTOM SMOOTH SCROLLER: Programmatic animation control over velocity and timeline duration
     function customScrollTo(targetY, duration) {
         const startY = window.scrollY;
         const difference = targetY - startY;
@@ -117,11 +128,8 @@
 
     function scrollToTimeline() {
         ignoreReset = true; 
-        
-        // --- CUSTOM SPEED CONFIGURATION ---
         const DURATION = 1200; 
         
-        // Delay timing: 850ms allows the Nameplate's 0.8s CSS transit to finish settling first
         setTimeout(() => {
             const el = document.getElementById("timeline-section");
             const yOffset = el ? (el.getBoundingClientRect().top + window.scrollY) : window.innerHeight;
@@ -136,7 +144,8 @@
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
-    <Intro />
+    <!-- <Header /> -->
+    <Intro onstart={handleStartExperience} />
     
     <div class="network-container" bind:clientHeight={introHeight}>
         <Network 
@@ -149,15 +158,17 @@
     <div id="timeline-section">
         <Timeline {introHeight} />
     </div>
+
+    <!-- <Footer /> -->
 </svelte:boundary>
 
 <style>
-     .network-container {
+    .network-container {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
-        height: 70%;
+        height: 80%;
         z-index: 1;
         pointer-events: none;
     }

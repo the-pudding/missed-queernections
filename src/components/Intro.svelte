@@ -1,87 +1,38 @@
 <script>
-    import { base } from '$app/paths';
-    import { getContext, untrack, tick } from "svelte"; // <--- Added tick
+    import { getContext } from "svelte";
+    import { colors, currentStep, totalSteps, introComplete, isAudioMuted, audioUnlocked } from "$runes/misc.svelte.js";
+    import VolumeOff from "$svg/icons/volume-off.svg";
+    import Volume2 from "$svg/icons/volume-2.svg";
     import wordmark from "$svg/wordmark_script_stacked_plain.svg";
-    import title from "$svg/title.svg";
-    import Play from '$svg/icons/play.svg';
-    import Pause from '$svg/icons/pause.svg';
-    import VolumeOff from '$svg/icons/volume-off.svg';
-    import Volume2 from '$svg/icons/volume-2.svg';
-    import { currentStep, totalSteps, introComplete } from "$runes/misc.svelte.js";
-    import rawCsv from '$data/timestamps/intro.csv?raw';
 
     const copy = getContext("copy");
     
     totalSteps.value = copy.scrollSteps.length;
 
-    // Core Local Component State
-    let isPlaying = $state(false);
-    let hasStarted = $state(false);
-    let isMuted = $state(false);
-    let audioEl = $state(null);
+    // Derived State: starts automatically once the user makes an audio selection in Header
+    const hasStarted = $derived(audioUnlocked.value);
 
-    // Derived States
-    const currentAudioSrc = $derived(`${base}/assets/audio/intro-${currentStep.value}.mp3`);
+    function selectAudioOption(withAudio) {
+        isAudioMuted.value = !withAudio;
+        audioUnlocked.value = true;
 
-    let currentTime = $state(0);
-    let duration = $state(0);
-    const audioProgress = $derived(duration > 0 ? (currentTime / duration) * 100 : 0);
-
-    // Only re-run when step changes (switching slides)
-    $effect(() => {
-        const step = currentStep.value; // Explicit step dependency
-        
-        untrack(() => {
-            currentTime = 0;
-            if (audioEl) {
-                audioEl.currentTime = 0;
-            }
-
-            if (hasStarted && isPlaying && audioEl && !introComplete.value) {
-                audioEl.load(); 
-                audioEl.play().catch(err => {
-                    console.error("Audio play blocked or interrupted:", err);
-                });
-            }
-        });
-    });
-
-    // Initializes the layout experience with the chosen audio configuration
-    async function startExperience(withAudio) {
-        isMuted = !withAudio;
-        hasStarted = true;
-        isPlaying = true;
-
-        await tick(); // Ensure element bindings are synced
-
-        if (audioEl) {
-            audioEl.play().catch(err => {
-                console.error("Audio play blocked or interrupted:", err);
-            });
+        if (withAudio) {
+            // Unlocks browser audio policy
+            const silent = new Audio();
+            silent.play().catch(() => {});
         }
     }
 
-    function togglePlay() {
-        if (!hasStarted) return startExperience(true);
-        isPlaying = !isPlaying;
-        if (audioEl) {
-            if (isPlaying) audioEl.play();
-            else audioEl.pause(); // Pauses cleanly in place
-        }
-    }
-
-    function handleAudioEnded() {
-        goNext();
+    function toggleMute() {
+        isAudioMuted.value = !isAudioMuted.value;
     }
 
     // Step Navigation Helpers
     function goNext() {
-        if (!hasStarted) return startExperience(true);
+        if (!hasStarted) return;
         if (currentStep.value < totalSteps.value - 1) {
             currentStep.value++;
-            isPlaying = true;
         } else {
-            isPlaying = false; 
             introComplete.value = true;
         }
     }
@@ -93,7 +44,6 @@
         }
         if (currentStep.value > 0) {
             currentStep.value--;
-            isPlaying = true; 
         }
     }
 
@@ -110,7 +60,7 @@
         }
     }
 
-    // Handles Left / Right Tap Navigation (Instagram Story style)
+    // Handles Left / Right Tap Navigation
     function handleOverlayTap(e) {
         if (e.target.closest('button') || e.target.closest('a')) return;
         if (!hasStarted) return;
@@ -125,141 +75,71 @@
             goPrev();
         }
     }
-
-    // Time conversion helper
-    function timeToSeconds(timeStr) {
-        if (!timeStr) return 0;
-        const parts = timeStr.trim().split(':');
-        if (parts.length === 2) {
-            return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
-        } else if (parts.length === 3) {
-            return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
-        }
-        return parseFloat(timeStr) || 0;
-    }
-
-    // Parse the entire CSV once into memory
-    function parseMasterCSV(csvText) {
-        const lines = csvText.trim().split('\n');
-        if (lines.length <= 1) return [];
-
-        return lines.slice(1).map(line => {
-            const cols = line.split(',');
-            
-            let cleanWord = cols.slice(5).join(',').trim();
-            cleanWord = cleanWord.replace(/""/g, '"');
-            cleanWord = cleanWord.replace(/^[“"]+/g, match => match.slice(-1));
-            cleanWord = cleanWord.replace(/["”]+$/g, match => match[0]);
-
-            return {
-                step: cols[0]?.trim(),           
-                wordIndex: parseInt(cols[1], 10), 
-                start: timeToSeconds(cols[2]),   
-                end: timeToSeconds(cols[3]),     
-                duration: parseFloat(cols[4]),   
-                word: cleanWord
-            };
-        });
-    }
-
-    const allTranscriptWords = parseMasterCSV(rawCsv);
-
-    const currentWords = $derived(
-        allTranscriptWords.filter(item => item.step === `intro-${currentStep.value}`)
-    );
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- Audio Element present from start so bindings are ready -->
-{#if !introComplete.value}
-    <audio 
-        bind:this={audioEl} 
-        src={currentAudioSrc} 
-        bind:currentTime={currentTime}
-        bind:duration={duration}
-        onended={handleAudioEnded}
-        muted={isMuted}
-    ></audio>
-{/if}
-
 <section id="intro">
-    <!-- Narrative Overlay + Tap Zones -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="narrative-container" onclick={handleOverlayTap}>
-        {#if !hasStarted}
-            <!-- Initial User Gesture Prompt -->
-            <div class="start-prompt">
-                <div class="top">
-                    <div class="wordmark">
-                        <a href="https://pudding.cool" aria-label="The Pudding" target="_self"
-                            >{@html wordmark}</a
-                        >
-                    </div>
-                    
+        {#if !audioUnlocked.value}
+            <div class="intro-splash">
+                <div class="wordmark">
+                    <a href="https://pudding.cool" aria-label="The Pudding" target="_self">
+                        {@html wordmark}
+                    </a>
+                </div>
+                <h1>This is a story about missed connections</h1>
+                <div class="audio-controls">
+                    <!-- Initial Choice -->
                     <div class="btn-group">
-                        <button onclick={() => startExperience(true)} class="btn-start">{@html Volume2} Begin with Audio</button>
-                        <button onclick={() => startExperience(false)} class="btn-start btn-muted">{@html VolumeOff} Begin Muted</button>
+                        <button onclick={() => selectAudioOption(true)} class="btn-audio">
+                            {@html Volume2} Begin with Audio
+                        </button>
+                        <button onclick={() => selectAudioOption(false)} class="btn-audio btn-muted">
+                            {@html VolumeOff} Begin Muted
+                        </button>
                     </div>
                 </div>
             </div>
         {:else}
-            <!-- Persistent Top Bar: Progress Segments & Controls -->
+            <button onclick={toggleMute} class="btn-toggle" aria-label="Toggle audio">
+                {#if isAudioMuted.value}
+                    {@html VolumeOff}
+                    <span>Off</span>
+                {:else}
+                    {@html Volume2}
+                    <span>On</span>
+                {/if}
+            </button>
+        {/if}
+        {#if hasStarted}
+            <!-- Persistent Top Bar: Progress Segments -->
             <div class="controls-wrapper">
                 <div class="progress-segments">
                     {#each copy.scrollSteps as _, i}
                         <div class="progress-bar">
                             <div 
                                 class="progress-fill" 
-                                style="width: {i < currentStep.value || introComplete.value ? 100 : i === currentStep.value ? audioProgress : 0}%"
+                                style="width: {i <= currentStep.value || introComplete.value ? 100 : 0}%"
                             ></div>
                         </div>
                     {/each}
                 </div>
-                <div class="controls">
-                    <button onclick={togglePlay} class="btn-control" aria-label="Toggle play/pause">
-                        {#if isPlaying}
-                            {@html Pause}
-                        {:else}
-                            {@html Play}
-                        {/if}
-                    </button>
-
-                    <button onclick={() => isMuted = !isMuted} class="btn-icon" aria-label="Toggle mute">
-                        {#if isMuted}
-                            {@html VolumeOff}
-                        {:else}
-                            {@html Volume2}
-                        {/if}
-                    </button>
-                </div>
             </div>
-        {/if}
 
-        <!-- Contextual Bottom Subtitles -->
-        {#if !introComplete.value && copy.scrollSteps[currentStep.value]}
-            <div class="active-step step-bottom">
-                <div class="step-inner">
-                    {#key currentStep.value}
-                        <p class="subtitle-text">
-                            {#if currentWords.length > 0}
-                                {#each currentWords as item, idx (idx)}
-                                    <span 
-                                        class="word" 
-                                        class:active={currentTime >= item.start && currentTime < item.end}
-                                        class:past={(currentTime >= item.end) || isMuted}
-                                    >
-                                        {item.word}{' '}
-                                    </span>
-                                {/each}
-                            {:else}
-                                <!-- Fallback if CSV is loading or unavailable -->
+            <!-- Active Step Text -->
+            {#if !introComplete.value && copy.scrollSteps[currentStep.value]}
+                <div class="active-step step-bottom">
+                    <div class="step-inner">
+                        {#key currentStep.value}
+                            <p class="subtitle-text">
                                 {@html copy.scrollSteps[currentStep.value].value}
-                            {/if}
-                        </p>
-                    {/key}
+                            </p>
+                        {/key}
+                    </div>
                 </div>
-            </div>
+            {/if}
         {/if}
     </div>
 </section>
@@ -287,37 +167,68 @@
         cursor: pointer;
     }
 
-    .start-prompt {
+    .intro-splash {
+        height: 100%;
         width: 100%;
-        height: 100svh;
-        position: absolute;
-        bottom: -3px;
-        left: 0;
         display: flex;
         flex-direction: column;
+        align-items: center;
         justify-content: space-between;
-        align-items: flex-start;
-        padding: 0 2rem;
-        cursor: default;
+        gap: 1rem;
+        padding: 1rem 1rem 4rem 1rem;
     }
 
-    .top {
+    h1 {
+        font-family: var(--marsha);
+        text-transform: uppercase;
+        -webkit-text-stroke-width: 1.5px;
+        -webkit-text-stroke-color: var(--color-fg);
+        color: rgba(25, 25, 25, 0.96);
+        font-size: clamp(2rem, 10vw, 10rem);
+        text-align: center;
+        line-height: 1;
+        margin-bottom: 10rem;
+        filter: drop-shadow(0 0 12px rgba(0, 0, 0, 0.9)) 
+                drop-shadow(0 0 24px rgba(0, 0, 0, 0.2));
+    }
+
+    .btn-toggle {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
         display: flex;
-        flex-direction: row;
-        align-items: center;
-        width: 100%;
-        justify-content: space-between;
+        background-color: var(--color-gray-900);
+		border: 2px solid var(--color-gray-800);
+		color: var(--color-fg);
+		flex-direction: row;
+		gap: 0.5rem;
     }
 
     .btn-group {
         display: flex;
-        gap: 0.75rem;
-        margin-top: 1rem;
+        flex-direction: row;
+        gap: 1rem;
+    }
+
+    .btn-audio {
+        display: flex;
+        background-color: var(--color-gray-900);
+		border: 2px solid var(--color-gray-800);
+		color: var(--color-fg);
+		flex-direction: row;
+		gap: 0.5rem;
     }
 
     .wordmark {
-        max-width: 160px;
-        margin-top: 1rem;
+        max-width: 9em;
+        transform: rotate(-4deg);
+        pointer-events: auto;
+    }
+
+    .wordmark a {
+        border: none;
+        display: block;
+        color: var(--color-fg);
     }
 
     .step-bottom {
@@ -331,19 +242,11 @@
 
     .controls-wrapper {
         position: absolute;
-        top: 0;
+        top: 0; /* Offset slightly below sticky header wordmark */
         width: 100%;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        padding: 0.5rem;
-    }
-
-    .controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 0.5rem;
+        padding: 1rem;
     }
 
     .progress-segments {
@@ -363,71 +266,7 @@
     .progress-fill {
         height: 100%;
         background-color: var(--color-white);
-        transition: width 0.1s linear;
-    }
-
-    .btn-start {
-        padding: 0.75rem;
-        font-size: 1rem;
-        background: var(--color-fg);
-        color: var(--color-bg);
-        border: 2px solid var(--color-fg);
-        cursor: pointer;
-        border-radius: 4px;
-        font-family: var(--sans, sans-serif);
-        font-weight: bold;
-        transition: opacity 0.2s ease;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    :global(.btn-start svg, .btn-control svg) {
-        width: 20px;
-    }
-
-    :global(.btn-control svg) {
-        width: 16px;
-    }
-
-    :global(.btn-icon svg) {
-        width: 20px;
-    }
-
-    :global(.btn-start svg path) {
-        fill: black;
-    }
-
-    :global(.btn-start.btn-muted svg path) {
-        fill: white;
-    }
-
-    .btn-start:hover {
-        opacity: 0.85;
-    }
-
-    .btn-start.btn-muted {
-        background: transparent;
-        color: var(--color-fg);
-    }
-
-    .btn-control {
-        background: none;
-        border: none;
-        color: var(--color-white);
-        cursor: pointer;
-        font-size: 1.2rem;
-        padding: 0.25rem 0.5rem;
-    }
-
-    .btn-icon {
-        background: none;
-        border: none;
-        color: var(--color-white);
-        cursor: pointer;
-        font-size: 1.25rem;
-        padding: 0.25rem 0.5rem;
+        transition: width 0.2s ease;
     }
 
     .subtitle-text {
@@ -438,18 +277,6 @@
         text-align: left;
         line-height: 1.65;
         margin: 0;
-    }
-
-    .word {
-        color: var(--color-gray-400);
-        transition: none;
-    }
-
-    .word.active {
-        color: var(--color-white);
-    }
-
-    .word.past {
         color: var(--color-white);
     }
 </style>
