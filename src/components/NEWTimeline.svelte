@@ -1,5 +1,6 @@
 <script>
     // ─── IMPORTS ──────────────────────────────────────────────────────────────
+    import { base } from "$app/paths";
     import * as d3 from "d3";
     import combinedData from "$data/combined.csv";
     import copy from "$data/copy.json";
@@ -248,7 +249,8 @@
                                     parsedDate: date,
                                     isCenterMatch,
                                     isPick,
-                                    pickLetter
+                                    pickLetter,
+                                    audio: existing[0].audio
                                 }
                             : { parsedDate: date, isPlaceholder: true };
                     });
@@ -343,6 +345,85 @@
 
     const baseData = processData(combinedData);
 
+    // ─── AUDIO ENGINE & CROSSFADER ────────────────────────────────────────────
+    let activeAudio = null;
+    let activeFadeOuts = [];
+    const currentlyActiveAudioKeys = new Set();
+
+    function playWithCrossfade(src, fadeDuration = 350) {
+        const clamp = (val) => Math.max(0, Math.min(1, val));
+
+        // Fade out currently playing audio
+        if (activeAudio) {
+            const oldAudio = activeAudio;
+            activeFadeOuts.push(oldAudio);
+            const startVol = clamp(oldAudio.volume);
+            const startTime = performance.now();
+
+            function fadeOut(now) {
+                const elapsed = now - startTime;
+                const progress = elapsed / fadeDuration;
+                oldAudio.volume = clamp(startVol * (1 - progress));
+
+                if (progress < 1) {
+                    requestAnimationFrame(fadeOut);
+                } else {
+                    oldAudio.pause();
+                    oldAudio.currentTime = 0;
+                    activeFadeOuts = activeFadeOuts.filter((a) => a !== oldAudio);
+                }
+            }
+            requestAnimationFrame(fadeOut);
+        }
+
+        // Initialize and fade in new audio track
+        const newAudio = new Audio(src);
+        newAudio.volume = 0;
+        activeAudio = newAudio;
+
+        newAudio
+            .play()
+            .then(() => {
+                const startTime = performance.now();
+                function fadeIn(now) {
+                    const elapsed = now - startTime;
+                    const progress = elapsed / fadeDuration;
+                    newAudio.volume = clamp(progress);
+
+                    if (progress < 1 && activeAudio === newAudio) {
+                        requestAnimationFrame(fadeIn);
+                    }
+                }
+                requestAnimationFrame(fadeIn);
+            })
+            .catch((err) => {
+                console.warn("Audio playback blocked or failed:", err);
+            });
+    }
+
+    const audioMatches = (() => {
+        const list = [];
+        const seen = new Set();
+        for (const sideData of baseData) {
+            for (const theme of sideData.themesData) {
+                for (const d of theme.circlePoints) {
+                    if (
+                        d.isCenterMatch &&
+                        d.audio &&
+                        !seen.has(d.audio + d.parsedDate.getTime())
+                    ) {
+                        seen.add(d.audio + d.parsedDate.getTime());
+                        list.push({
+                            audio: d.audio,
+                            key: d.segmentKey ?? yScale(d.parsedDate)
+                        });
+                    }
+                }
+            }
+        }
+        return list;
+    })();
+
     const allPickEvents = (() => {
         const seen = new Set();
         const picks = [];
@@ -367,6 +448,23 @@
         return picks.sort((a, b) => a.cy - b.cy);
     })();
 
+    $effect(() => {
+        for (const match of audioMatches) {
+            const isActive = activeSegmentKeys.has(match.key);
+            const wasActive = currentlyActiveAudioKeys.has(match.key);
+
+            if (isActive && !wasActive) {
+                // Newly entered middle of screen -> trigger audio
+                currentlyActiveAudioKeys.add(match.key);
+                const audioPath = `${base}/assets/audio/clips/${match.audio}.mp3`;
+                playWithCrossfade(audioPath);
+            } else if (!isActive && wasActive) {
+                // Scrolled back past trigger point -> allow re-trigger on next scroll down
+                currentlyActiveAudioKeys.delete(match.key);
+            }
+        }
+    });
+
     // ─── SCROLL HIGH-WATER MARK ───────────────────────────────────────────────
     $effect(() => {
         const threshold = timelineScroll + windowHeight * 0.7;
@@ -390,17 +488,17 @@
     let activeSegmentKeys = $state(new Set());
 
     $effect(() => {
-        const inThreshold = timelineScroll + windowHeight * 0.8;
-        const outThreshold = timelineScroll + windowHeight * 0.8;
+        // Trigger precisely at 50% viewport height (center screen)
+        const midpointThreshold = timelineScroll + windowHeight * 0.5;
 
         let changed = false;
         const next = new Set(activeSegmentKeys);
 
         for (const key of allActivationKeys) {
-            if (!next.has(key) && key <= inThreshold) {
+            if (!next.has(key) && key <= midpointThreshold) {
                 next.add(key);
                 changed = true;
-            } else if (next.has(key) && key > outThreshold) {
+            } else if (next.has(key) && key > midpointThreshold) {
                 next.delete(key);
                 changed = true;
             }
