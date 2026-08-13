@@ -1,18 +1,31 @@
 <script>
-	import wordmark from "$svg/wordmark_script_stacked_plain.svg";
-	import { getContext } from "svelte";
-	import { fly } from "svelte/transition";
-	const copy = getContext("copy");
-	import { isAudioMuted, audioUnlocked, colors } from "$runes/misc.svelte.js";
-	import VolumeOff from "$svg/icons/volume-off.svg";
+    import wordmark from "$svg/wordmark_script_stacked_plain.svg";
+    import { getContext } from "svelte";
+    import { fly } from "svelte/transition";
+    const copy = getContext("copy");
+    import { isAudioMuted, audioUnlocked, colors } from "$runes/misc.svelte.js";
+    import VolumeOff from "$svg/icons/volume-off.svg";
     import Volume2 from "$svg/icons/volume-2.svg";
 
-	const seamlessColors = [...colors, colors[0]];
+    const seamlessColors = [...colors, colors[0]];
     const animatedGradient = $derived(`linear-gradient(90deg, ${seamlessColors.join(", ")})`);
 
-	function selectAudioOption(withAudio) {
+    // Lock body scroll until audio preference is selected
+    $effect(() => {
+        if (!audioUnlocked.value) {
+            const prev = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+            return () => {
+                document.body.style.overflow = prev;
+            };
+        } else {
+            document.body.style.overflow = "";
+        }
+    });
+
+    function selectAudioOption(withAudio) {
         isAudioMuted.value = !withAudio;
-        audioUnlocked.value = true;
+        audioUnlocked.value = true; // Triggers the $effect above to unlock scroll!
 
         if (withAudio) {
             // Unlocks browser audio policy
@@ -20,13 +33,11 @@
             silent.play().catch(() => {});
         }
 
-		document.body.style.overflow = "auto";
-
         // Smoothly scroll down slightly to push Scrolly to step 1
         window.scrollBy({ top: window.innerHeight * 0.5, behavior: "smooth" });
     }
 
-	let { index = -1 } = $props();
+    let { index = -1 } = $props();
 </script>
 
 {#each copy.timelineInstructions as step, i}
