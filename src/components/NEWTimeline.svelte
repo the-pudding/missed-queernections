@@ -22,8 +22,6 @@
     import Instructions from "$components/NEWTimeline.Instructions.svelte";
     import Scrolly from "$components/helpers/Scrolly.svelte";
 
-    let { introHeight = 0 } = $props();
-
     // ─── SECTION STATE ───────────────────────────────────────────────────────
     function changeActiveSection(view) {
         const newSection = view === "enter" ? "timeline" : null;
@@ -37,7 +35,7 @@
     let windowHeight = $state(0);
     let maxScroll = $state(0);
 
-    const timelineScroll = $derived(scrollY - introHeight);
+    const timelineScroll = $derived(scrollY);
 
     // ─── DATE SCALE ───────────────────────────────────────────────────────────
     const allDates = combinedData
@@ -48,9 +46,13 @@
     const yScale = d3
         .scaleTime()
         .domain([minDate, maxDate])
-        .range([100, svgHeight - 100]);
+        .range([-100, svgHeight]);
 
     const yearTicks = d3.timeYear.range(minDate, d3.timeYear.offset(maxDate, 1));
+
+    const isAtEnd = $derived(
+        windowHeight > 0 && timelineScroll + windowHeight >= svgHeight - 1000
+    );
 
     // ─── BLOWOUT STATE ────────────────────────────────────────────────────────
     let activeBlowoutId = $state(null);
@@ -123,7 +125,7 @@
         const yearDate = new Date(parseInt(yearStr), 0, 1);
         const yPixel = yScale(yearDate);
         if (yPixel > maxScroll) maxScroll = yPixel;
-        const targetScrollY = Math.max(0, introHeight + yPixel - windowHeight / 2);
+        const targetScrollY = Math.max(0, yPixel - windowHeight / 2);
         window.scrollTo({ top: targetScrollY, behavior: "smooth" });
     }
 
@@ -200,8 +202,8 @@
         const dateRange = d3.timeDay.range(minDate, d3.timeDay.offset(maxDate, 1));
 
         const sides = [
-            { key: "jan", themeCol: "janTheme" },
-            { key: "ashleé", themeCol: "ashleéTheme" }
+            { key: "ashleé", themeCol: "ashleéTheme" },
+            { key: "jan", themeCol: "janTheme" }
         ];
 
         const sidesData = sides.map((side) => {
@@ -657,7 +659,7 @@
     currentIndex={currentPickIndex}
 />
 
-<YourEvents />
+<YourEvents index={currentInstructionIndex} atEnd={isAtEnd} />
 
 <section
     id="timeline"
@@ -683,6 +685,19 @@
     <figure style="height: {svgHeight}px;" bind:clientWidth={svgWidth}>
         <!-- HTML tooltip layer: sits above SVG -->
         <div class="html-overlay" style="height: {svgHeight}px;">
+            <div class="curtain-container">
+                {#each themes as _, i}
+                    <div
+                        class="curtain-strip"
+                        class:reveal={currentInstructionIndex >= 1}
+                        style="
+                            width: calc(100% - {i * 20}px);
+                            transition-delay: {i * 200}ms;
+                            z-index: {10 - i};
+                        "
+                    ></div>
+                {/each}
+            </div>
             <Scrolly bind:value={currentInstructionIndex}>
                 {#each copy.timelineInstructions as step, i}
                     {@const nextStep = copy.timelineInstructions[i + 1]}
@@ -733,14 +748,14 @@
                 <g class="year-axis">
                     {#each yearTicks as year}
                         {@const y = yScale(year)}
-                        {#if year.getFullYear() !== 1988}
+                        {#if year.getFullYear() >= 1987 && year.getFullYear() !== 2027}
                             <text x={svgWidth / 2} y={y + 100}>{year.getFullYear()}</text>
                         {/if}
                     {/each}
                 </g>
 
                 {#each renderedData as sideData}
-                    <g class="side-{sideData.side}">
+                    <g class="side-{sideData.side}" class:dimmed={(sideData.side === "ashleé" && currentInstructionIndex == 4) || (sideData.side === "jan" && currentInstructionIndex == 3)}>
                         <!-- Paths rendered first (behind circles) -->
                         {#each sideData.themesData as theme, themeIndex (theme.themeName)}
                             {#if themeIndex !== -1}
@@ -798,7 +813,7 @@
     }
     .sticky-header {
         position: sticky;
-        top: 0;
+        top: 0.5rem;
         left: 0;
         height: 1.75rem;
         width: 100%;
@@ -809,8 +824,8 @@
         z-index: 900;
     }
     figure {
-        width: calc(100% - 4rem);
-        margin: -4rem auto 0 auto;
+        width: calc(100% - 4.75rem);
+        margin: 0 auto 0 auto;
         position: relative;
     }
 
@@ -835,6 +850,14 @@
         transform: translateY(10px);
     }
 
+    .side-ashleé, .side-jan {
+        transition: opacity 0.4s ease;
+    }
+
+    .side-ashleé.dimmed, .side-jan.dimmed {
+        opacity: 0.3;
+    }
+
     /* ── HTML tooltip overlay ────────────────────────────────────────────── */
     .html-overlay {
         position: absolute;
@@ -843,6 +866,40 @@
         width: 100%;
         pointer-events: none;
         z-index: 10;
+    }
+
+    .curtain-container {
+        position: fixed;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 3rem); /* Mirrors the exact width of <figure> */
+        height: 100vh;
+        pointer-events: none;
+        z-index: 5;
+        overflow: hidden;
+    }
+
+    .curtain-strip {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translate(-50%, 0);
+        height: 100%;
+        background-color: var(--color-bg);
+        /* Smooth cubic-bezier curve for a clean drop */
+        transition: transform 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform;
+    }
+
+    .curtain-strip.reveal {
+        transform: translate(-50%, 100%);
+    }
+
+    @media(max-width: 500px) {
+        .curtain-container {
+            width: calc(100% - 2rem); /* Matches figure's mobile width */
+        }
     }
 
     @media(max-width: 760px) {

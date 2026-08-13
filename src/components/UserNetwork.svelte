@@ -2,7 +2,7 @@
 	import * as d3 from "d3";
 	import { spring } from "svelte/motion";
 	import { springy } from "$actions/springy.js";
-	import { addedEvents, userId, visitors } from "$runes/misc.svelte.js";
+	import { addedEvents, userId, visitors, colors } from "$runes/misc.svelte.js";
 	import { getRecentVisitors } from "$utils/database.js";
 	import janData from "$data/jan.csv";
 	import ashleeData from "$data/ashlee.csv";
@@ -461,6 +461,14 @@
 			onmouseleave={onMouseLeave}
 			style:cursor={hoveredVisitor !== null ? "pointer" : "default"}
 		>
+			<defs>
+				<!-- Diagonal linear gradient for the stroke -->
+				<linearGradient id="user-stroke-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+					{#each colors as color, i}
+						<stop offset="{(i / (colors.length - 1)) * 100}%" stop-color={color} />
+					{/each}
+				</linearGradient>
+			</defs>
 			<!-- Visitor circles — dim others when one is hovered -->
 			<g class="visitor-nodes" class:has-hover={hoveredVisitor !== null}>
 				{#each Array.from({ length: $visitors.length }, (_, i) => i + 1) as i}

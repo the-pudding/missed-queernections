@@ -1,15 +1,22 @@
 <script>
     import {
         addedEvents,
-        instructionStep,
         activeSection,
-        visitors
+        visitors, 
+        colors
     } from "$runes/misc.svelte.js";
     import { ChevronDown } from "@lucide/svelte";
     import UserNetwork from "$components/UserNetwork.svelte";
+    import copy from "$data/copy.json";
+    import Footer from "$components/Footer.svelte";
+
+    let { index = -1, atEnd = false } = $props();
+    const seamlessColors = [...colors, colors[0]];
+    const animatedGradient = $derived(`linear-gradient(90deg, ${seamlessColors.join(", ")})`);
 
     let listVisible = $state(false);
-    let hasAutoOpened = $state(false); // Track if we've already popped out for the first event
+    let hasAutoOpenedAtEnd = $state(false);
+    let hasInstructionAutoOpened = $state(false);
 
     function toggleShow() {
         listVisible = !listVisible;
@@ -24,15 +31,27 @@
         $addedEvents = $addedEvents.filter((e) => e !== event);
     }
 
+    $effect(() => {
+        if (atEnd) {
+            if (!hasAutoOpenedAtEnd) {
+                listVisible = true;
+                hasAutoOpenedAtEnd = true;
+            }
+        } else {
+            // Reset the flag when scrolling away from the end so it can fire again next time!
+            hasAutoOpenedAtEnd = false;
+        }
+    });
+
     const connectionCount = $derived(
         $visitors.filter((v) => (v.events ?? []).some((e) => $addedEvents.includes(e))).length
     );
 
     // Auto pop-out the first time an event is added
     $effect(() => {
-        if ($addedEvents.length > 0 && !hasAutoOpened) {
+        if (index >= 8 && !hasInstructionAutoOpened) {
             listVisible = true;
-            hasAutoOpened = true;
+            hasInstructionAutoOpened = true;
         }
     });
 
@@ -49,13 +68,16 @@
 
 <div
     class="events-wrapper"
-    class:wiggle={$instructionStep == 5}
-    style="transform: translateY({listVisible
-        ? 0
-        : $activeSection == 'timeline'
-            ? '100%'
-            : '120%'})"
+    class:wiggle={index == 5}
+    style="transform: translateY({(index < 8 && !atEnd)
+        ? '200%'
+        : listVisible
+            ? 0
+            : $activeSection == 'timeline'
+                ? '100%'
+                : '120%'})"
 >
+    <!-- Toggle button stays anchored at the top of the screen -->
     <button
         class="show-toggle"
         class:list-visible={listVisible}
@@ -74,68 +96,87 @@
         </p>
     </button>
 
-    <div class="top-info">
-        <p class="connection-count">
-            {#if $addedEvents.length === 0}
-                Add events to see your queernections
-            {:else}
-                You've made  
-                {$addedEvents.length}
-                {$addedEvents.length === 1 ? "queernection" : "queernections"}
+    <!-- Scrollable content viewport -->
+    <div class="scroll-container">
+        <div class="top-info">
+            {#if atEnd}
+                <div class="closing-text">
+                    {#each copy.closing as graf}
+                        <p>{@html graf.value}</p>
+                    {/each}
+                </div>
             {/if}
-        </p>
-        <p class="panel-title">Showing shared events between you and the last 99 people to read this story</p>
-    </div>
+            <p class="connection-count" style="background-image: {animatedGradient};">
+                {#if $addedEvents.length === 0}
+                    Add events to see your “queernections” with the last 99 people to visit this site.
+                {:else}
+                    You've made  
+                    {$addedEvents.length}
+                    {$addedEvents.length === 1 ? `“queernection”` : `“queernections”`}
+                    with the last 99 people to visit this site.
+                {/if}
+            </p>
+        </div>
 
-    <div class="network-wrapper">
-        <UserNetwork />
-    </div>
+        <div class="network-wrapper">
+            <UserNetwork />
+        </div>
 
-    <div class="bottom-info">
-        {#if $addedEvents.length > 0}
-            <p class="events-label">Your events ({$addedEvents.length})</p>
-            <ul class="event-list">
-                {#each $addedEvents as event}
-                    <li>
-                        <button
-                            class="remove-btn"
-                            onclick={() => removeEvent(event)}
-                            aria-label="Remove {event}">
-                                <p>{event}</p>
-                                <div class="strikethrough"></div>
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="-5 -5 10 10"
-                                    class="icon"
-                                    style="transform: rotate(45deg)"
-                                >
-                                    <line
-                                        x1="0"
-                                        y1="-5"
-                                        x2="0"
-                                        y2="5"
-                                        stroke="white"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                    />
-                                    <line
-                                        x1="-5"
-                                        y1="0"
-                                        x2="5"
-                                        y2="0"
-                                        stroke="white"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                    />
-                                </svg>
-                            </button
-                        >
-                    </li>
+        <div class="bottom-info">
+            {#if $addedEvents.length > 0}
+                <p class="events-label">Your events ({$addedEvents.length})</p>
+                <ul class="event-list">
+                    {#each $addedEvents as event}
+                        <li>
+                            <button
+                                class="remove-btn"
+                                onclick={() => removeEvent(event)}
+                                aria-label="Remove {event}">
+                                    <p>{event}</p>
+                                    <div class="strikethrough"></div>
+                                    <svg
+                                        width="12"
+                                        height="12"
+                                        viewBox="-5 -5 10 10"
+                                        class="icon"
+                                        style="transform: rotate(45deg)"
+                                    >
+                                        <line
+                                            x1="0"
+                                            y1="-5"
+                                            x2="0"
+                                            y2="5"
+                                            stroke="white"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                        />
+                                        <line
+                                            x1="-5"
+                                            y1="0"
+                                            x2="5"
+                                            y2="0"
+                                            stroke="white"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                        />
+                                    </svg>
+                                </button>
+                        </li>
+                    {/each}
+                </ul>
+                <button onclick={clearAll} class="remove-all">Clear all events</button>
+            {/if}
+        </div>
+
+        {#if atEnd}
+            <div class="notes">
+                <h5 class="events-label">Notes</h5>
+                {#each copy.notes as graf}
+                    <p>{@html graf.value}</p>
                 {/each}
-            </ul>
+            </div>
+            <Footer />
         {/if}
-        <button onclick={clearAll} class="remove-all">Clear all events</button>
     </div>
 </div>
 
@@ -147,16 +188,25 @@
         right: 0;
         width: 100%;
         height: 100vh;
-        background: rgba(25 ,25 ,25 ,0.99);
+        background: rgba(25, 25, 25, 0.99);
         z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        justify-content: space-between;
-        padding: 5rem 2rem 2rem;
         transition: transform 0.5s ease-out;
         box-sizing: border-box;
+    }
+
+    /* Inner scrollable area */
+    .scroll-container {
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 5rem 2rem 4rem;
+        gap: 2.5rem;
+        box-sizing: border-box;
+        -webkit-overflow-scrolling: touch;
     }
 
     @keyframes wiggle {
@@ -193,6 +243,7 @@
         color: var(--color-fg);
         padding: 0 0 8px 0;
         transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        z-index: 1001;
     }
 
     .show-toggle.list-visible {
@@ -240,32 +291,64 @@
 
     /* Top group */
     .top-info {
+        max-width: 700px;
+        width: 100%;
+        gap: 2rem;
         display: flex;
         flex-direction: column;
-        gap: 0.2rem;
-        text-align: center;
-        flex-shrink: 0;
-        align-items: center;
+        margin-top: 4rem;
     }
 
-    .connection-count {
-        font-size: var(--36px);
-        line-height: 1;
+    .closing-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .closing-text p {
+        font-family: var(--sans);
+        font-size: var(--20px);
+        line-height: 1.5;
+        margin: 0;
+        text-align: left;
+        color: var(--color-fg);
+    }
+
+    .connection-count, .top-info p.connection-count {
+        font-size: var(--24px);
+        line-height: 1.2;
         font-weight: 700;
         font-family: var(--marsha);
         text-transform: uppercase;
         margin: 0;
+        text-align: left;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+        display: inline-block;
+        background-size: 300% 100%;
+        animation: flow 8s ease infinite;
     }
 
-    .panel-title {
-        font-size: var(--14px);
-        margin: 0;
+    @keyframes flow {
+        0% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+        100% {
+            background-position: 0% 50%;
+        }
     }
 
     /* Network */
     .network-wrapper {
-        height: 38vh;
+        height: 42vh;
+        min-height: 320px;
         width: 100%;
+        max-width: 800px;
         flex-shrink: 0;
     }
 
@@ -293,7 +376,7 @@
         list-style: none;
         margin: 0;
         padding: 0;
-        max-height: 10rem;
+        max-height: 12rem;
         overflow-y: auto;
         border: 2px solid var(--color-gray-800);
         border-radius: 4px;
@@ -368,16 +451,35 @@
         margin: 0;
     }
 
+    .notes {
+        max-width: 700px;
+        margin-top: 4rem;
+    }
+
+    .notes p {
+        padding: 0.5rem 0;
+    }
+
     @media(max-width: 760px) {
+        .scroll-container {
+            padding: 4rem 1.25rem 3rem;
+            gap: 1.75rem;
+        }
+
         .show-toggle {
             width: 10rem;
         }
-        p, .events-label, .remove-all {
-            font-size: var(--14px);
+
+        .closing-text p {
+            font-size: var(--16px);
         }
 
-        .connection-count {
-            font-size: var(--24px);
+        .connection-count, .top-info p.connection-count {
+            font-size: var(--20px);
+        }
+
+        p, .events-label, .remove-all {
+            font-size: var(--14px);
         }
     }
 </style>
