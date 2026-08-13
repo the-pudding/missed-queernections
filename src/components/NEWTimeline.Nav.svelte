@@ -81,8 +81,8 @@
 </svg>
 
 <div class="timeline-nav">
-	<p id="Jan-target-nameplate" class="name">Jan</p>
-	<div class="middle-wrapper" class:nav-hidden={index < 1}>
+	<p id="Ashleé-target-nameplate" class="name" class:nav-hidden={index < 2} class:dimmed={index === 4}>Ashleé</p>
+	<div class="middle-wrapper" class:nav-hidden={index < 7}>
 		<div class="top-row">
 			<div class="select-wrapper">
 				<label for="year-select">Jump to</label>
@@ -92,7 +92,7 @@
 					onchange={yearChange}
 				>
 					{#each yearOptions as option}
-						{#if option !== "1988"}
+						{#if option >= "1987"}
 							<option value={option}>{option}</option>
 						{/if}
 					{/each}
@@ -127,7 +127,7 @@
 							style="background-color: {colors[i]}"
 							class:visible={userHoveredIndex !== null
 								? i === userHoveredIndex
-								: i === animatedVisibleIndex || (i === 1 && index === 1)}
+								: i === animatedVisibleIndex || (i === 1 && index === 7)}
 						>
 							<p><span>{category.categoryLong}</span></p>
 							<p>{category.definition}</p>
@@ -137,7 +137,7 @@
 			{/each}
 		</div>
 	</div>
-	<p id="Ashleé-target-nameplate" class="name">Ashleé</p>
+	<p id="Jan-target-nameplate" class="name" class:nav-hidden={index < 2} class:dimmed={index === 3}>Jan</p>
 </div>
 
 <style>
@@ -230,6 +230,22 @@
 		border: 2px solid var(--color-bg);
 		color: var(--color-bg);
 		box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+		opacity: 1;
+		visibility: visible;
+		transition:
+			opacity 0.4s ease,
+			visibility 0.4s ease,
+			filter 0.4s ease;
+	}
+
+	.name.nav-hidden {
+		opacity: 0;
+		visibility: hidden;
+		pointer-events: none;
+	}
+
+	.name.dimmed {
+		filter: brightness(0.4);
 	}
 
 	#key {

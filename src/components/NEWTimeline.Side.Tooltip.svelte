@@ -120,13 +120,13 @@
 	}
 
 	.html-tooltip.side-jan {
-		transform: translate(14px, -50%);
+		transform: translate(calc(-100% - 14px), -50%);
 	}
 
 	/* ASHLEÉ'S SIDE: Stick to the left of the dot */
 	.html-tooltip.side-ashlee {
 		/* -100% moves the entire width of the div to the left of the anchor point */
-		transform: translate(calc(-100% - 14px), -50%);
+		transform: translate(14px, -50%);
 	}
 
 	/* CENTER MATCH: Move above the dot so it doesn't overlap either side */

@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from "svelte";
 	import { shuffle } from "d3";
-	import wordmark from "$svg/wordmark-sticker.svg";
+	import wordmark from "$svg/wordmark_script_stacked_sticker.svg";
 	import linkOutArrow from "$svg/arrow-up-right.svg";
 	import Story from "$components/Footer.Story.svelte";
 
@@ -162,10 +162,11 @@
 <style>
   footer {
     margin-top: 100px;
+    align-self: stretch;              
+    width: calc(100% + 2rem) !important;
   }
 
   .c {
-    max-width: calc(var(--width-column-wide, 1280px) - var(--margin, 16px) * 2);
     padding: 16px;
     margin: 32px auto 100px auto;
     font-family: var(--sans);
@@ -212,6 +213,7 @@
   }
 
   .bottom {
+    width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -310,6 +312,11 @@
 
   .links .img-wrapper {
     max-width: none;
+    width: 100%;
+    height: auto;
+  }
+
+  :global(.links .img-wrapper .wordmark svg) {
     width: 100%;
     height: auto;
   }
