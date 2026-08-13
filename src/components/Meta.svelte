@@ -1,9 +1,9 @@
 <script>
 	let {
-		title = "Title TK",
-		description = "Description TK",
+		title = "Missed Queernections",
+		description = "An interactive exploration of sapphic adolescence, shared culture, and the quiet overlaps we missed along the way.",
 		url = "https://pudding.cool",
-		keywords = "",
+		keywords = "queer, sapphic, adolescence, culture, missed connections, interactive, data visualization, queernection, gay, lesbian",
 		preloadFont = []
 	} = $props();
 </script>
@@ -21,7 +21,7 @@
 	<meta property="og:type" content="article" />
 	<meta property="og:locale" content="en_US" />
 
-	<meta property="og:image" content="{url}/assets/social-facebook.jpg" />
+	<meta property="og:image" content="{url}/assets/imgs/social.jpg" />
 	<meta property="og:image:type" content="image/jpeg" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="628" />
@@ -31,7 +31,7 @@
 	<meta name="twitter:creator" content="@puddingviz" />
 	<meta name="twitter:title" content={title} />
 	<meta name="twitter:description" content={description} />
-	<meta name="twitter:image:src" content="{url}/assets/social-twitter.jpg" />
+	<meta name="twitter:image:src" content="{url}/assets/imgs/social.jpg" />
 
 	<meta name="robots" content="max-image-preview:large" />
 
