@@ -461,14 +461,6 @@
 			onmouseleave={onMouseLeave}
 			style:cursor={hoveredVisitor !== null ? "pointer" : "default"}
 		>
-			<defs>
-				<!-- Diagonal linear gradient for the stroke -->
-				<linearGradient id="user-stroke-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-					{#each colors as color, i}
-						<stop offset="{(i / (colors.length - 1)) * 100}%" stop-color={color} />
-					{/each}
-				</linearGradient>
-			</defs>
 			<!-- Visitor circles — dim others when one is hovered -->
 			<g class="visitor-nodes" class:has-hover={hoveredVisitor !== null}>
 				{#each Array.from({ length: $visitors.length }, (_, i) => i + 1) as i}
@@ -567,8 +559,6 @@
 		{:else if hoveredVisitor !== null && hoveredEvents.length > 0}
 			<div class="tooltip" style:left="{tooltipX}px" style:top="{tooltipY}px">
 				<p class="tooltip-title">
-					{#if hoveredName}{hoveredName} -
-					{/if}
 					{hoveredEvents.length}
 					shared {hoveredEvents.length === 1 ? "event" : "events"}
 				</p>
@@ -610,7 +600,7 @@
 	/* Visitor nodes */
 	.visitor {
 		fill: var(--color-fg);
-		opacity: 0.18;
+		opacity: 0.3;
 		transition: opacity 0.25s ease;
 	}
 
@@ -633,8 +623,8 @@
 		font-size: 9px;
 		font-weight: 700;
 		text-anchor: middle;
-		fill: var(--color-fg);
-		opacity: 0.25;
+		fill: var(--color-bg);
+		opacity: 1;
 		pointer-events: none;
 		transition: opacity 0.25s ease;
 		text-transform: uppercase;
@@ -642,11 +632,11 @@
 	}
 
 	.node-label.label-famous {
-		opacity: 0.6;
+		opacity: 1;
 	}
 
 	.node-label.label-connected {
-		opacity: 0.7;
+		opacity: 1;
 	}
 
 	.has-hover .node-label.label-connected:not(.label-hovered) {
@@ -677,8 +667,9 @@
 	/* Tooltip */
 	.tooltip {
 		position: absolute;
-		background: var(--color-bg);
+		background: var(--color-fg);
 		border: 1.5px solid var(--color-fg);
+		border-radius: 4px;
 		padding: 0.5rem 0.65rem;
 		pointer-events: none;
 		max-width: 155px;

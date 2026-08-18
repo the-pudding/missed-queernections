@@ -82,9 +82,9 @@
 
 <div class="timeline-nav">
 	<p id="Ashleé-target-nameplate" class="name" class:nav-hidden={index < 2} class:dimmed={index === 4}>Ashleé</p>
-	<div class="middle-wrapper" class:nav-hidden={index < 7}>
+	<div class="middle-wrapper" class:nav-hidden={index < 1}>
 		<div class="top-row">
-			<div class="select-wrapper">
+			<div class="select-wrapper" class:nav-hidden={index < 7}>
 				<label for="year-select">Jump to</label>
 				<select
 					bind:value={year}
@@ -111,7 +111,7 @@
 				</button>
 			</div>
 		</div>
-		<div id="key">
+		<div id="key" class:nav-hidden={index < 7}>
 			{#each keyData as category, i}
 				<div class="category category-{category.categoryShort}">
 					<div class="goo-wrapper" style="filter:url(#gooey)">
@@ -207,6 +207,10 @@
 		gap: 0.5rem;
 	}
 
+	.select-wrapper.nav-hidden {
+		display: none;
+	}
+
 	select {
 		background-color: var(--color-gray-900);
 		border: 2px solid var(--color-gray-800);
@@ -254,6 +258,10 @@
 		flex-direction: row;
 		justify-content: space-between;
 		margin: 0 auto;
+	}
+
+	#key.nav-hidden {
+		display: none;
 	}
 
 	.category {

@@ -38,6 +38,41 @@
     }
 
     let { index = -1 } = $props();
+
+    $effect(() => {
+        const isAudioActive = audioUnlocked.value && !isAudioMuted.value;
+        const isWithinRange = index >= 1 && index <= 6;
+        const currentClip = copy.timelineInstructions[index]?.clip;
+
+        if (isAudioActive && isWithinRange && currentClip) {
+            const audio = new Audio(`assets/audio/clips/${currentClip}.mp3`);
+
+            // 1. Capture the play promise
+            const playPromise = audio.play();
+
+            if (playPromise !== undefined) {
+                playPromise.catch((err) => {
+                    if (err.name !== 'AbortError') {
+                        console.warn("Audio playback error:", err);
+                    }
+                });
+            }
+            return () => {
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            audio.pause();
+                            audio.currentTime = 0;
+                        })
+                        .catch(() => {
+                        });
+                } else {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+            };
+        }
+    });
 </script>
 
 {#each copy.timelineInstructions as step, i}
@@ -159,14 +194,32 @@
 		text-align: center;
 	}
 
-	:global(.plus-icon, .headphone-icon, .quote-icon) {
+	:global(.plus-icon, .headphone-icon, .quote-icon, .scroll-icon) {
 		font-weight: 700;
 		margin-left: 1.125rem;
 		position: relative;
 		white-space: nowrap;
 	}
 
-	:global(.plus-icon::before, .headphone-icon::before, .quote-icon::before) {
+    :global(.scroll-icon) {
+		font-weight: 700;
+		margin-left: 1.125rem;
+		position: relative;
+        white-space: nowrap;
+        display: inline-block;
+        animation: bounce 0.75s ease-in-out infinite;
+	}
+
+    @keyframes bounce {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-4px);
+        }
+    }
+
+	:global(.plus-icon::before, .headphone-icon::before, .quote-icon::before, .scroll-icon::before) {
 		content: "";
 		position: absolute;
 		top: 55%;
@@ -179,7 +232,6 @@
 		justify-content: center;
 		border-radius: 50%;
 		background-color: var(--color-gray-300);
-		background-image: url("../svg/plus-icon.svg");
 		background-position: center;
     	background-repeat: no-repeat;
 		line-height: 1;
@@ -197,6 +249,11 @@
 
 	:global(.quote-icon::before) {
 		background-image: url("../svg/icons/quote.svg");
+		background-size: 60%;
+	}
+
+    :global(.scroll-icon::before) {
+		background-image: url("../svg/icons/circle-arrow-down.svg");
 		background-size: 60%;
 	}
 

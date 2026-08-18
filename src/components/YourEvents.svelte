@@ -18,6 +18,9 @@
     let hasAutoOpenedAtEnd = $state(false);
     let hasInstructionAutoOpened = $state(false);
 
+    // Snapshot on load to identify returning users who already had saved events
+    const isReturningUser = $addedEvents.length > 0;
+
     function toggleShow() {
         listVisible = !listVisible;
     }
@@ -47,9 +50,13 @@
         $visitors.filter((v) => (v.events ?? []).some((e) => $addedEvents.includes(e))).length
     );
 
-    // Auto pop-out the first time an event is added
+    // Auto pop-out ONLY when a new user adds their first event EVER and index >= 8
     $effect(() => {
-        if (index >= 8 && !hasInstructionAutoOpened) {
+        const isNewUser = !isReturningUser;
+        const hasEvents = $addedEvents.length > 0;
+        const isAtOrPastStep8 = index >= 8;
+
+        if (isNewUser && hasEvents && isAtOrPastStep8 && !hasInstructionAutoOpened) {
             listVisible = true;
             hasInstructionAutoOpened = true;
         }
@@ -106,7 +113,7 @@
                     {/each}
                 </div>
             {/if}
-            <p class="connection-count" style="background-image: {animatedGradient};">
+            <p class="connection-count">
                 {#if $addedEvents.length === 0}
                     Add events to see your “queernections” with the last 99 people to visit this site.
                 {:else}
@@ -146,7 +153,7 @@
                                             y1="-5"
                                             x2="0"
                                             y2="5"
-                                            stroke="white"
+                                            stroke="#191919"
                                             stroke-width="2"
                                             stroke-linecap="round"
                                         />
@@ -155,7 +162,7 @@
                                             y1="0"
                                             x2="5"
                                             y2="0"
-                                            stroke="white"
+                                            stroke="#191919"
                                             stroke-width="2"
                                             stroke-linecap="round"
                                         />
@@ -188,7 +195,16 @@
         right: 0;
         width: 100%;
         height: 100vh;
-        background: rgba(25, 25, 25, 0.99);
+        color: var(--color-bg);
+        background-color: var(--color-fg);
+        background-image: 
+            radial-gradient(at 10% 15%, #FF94CD 0px, transparent 55%),
+            radial-gradient(at 85% 15%, #FF7676 0px, transparent 55%),
+            radial-gradient(at 50% 35%, #FFAE58 0px, transparent 50%),
+            radial-gradient(at 15% 55%, #FFD426 0px, transparent 50%),
+            radial-gradient(at 80% 55%, #B18CFF 0px, transparent 50%),
+            radial-gradient(at 30% 85%, #5CE1E1 0px, transparent 50%),
+            radial-gradient(at 85% 85%, #7CD67C 0px, transparent 50%);
         z-index: 1000;
         transition: transform 0.5s ease-out;
         box-sizing: border-box;
@@ -231,7 +247,8 @@
         transform: translate(-50%, 0);
         background: var(--color-gray-900);
         border: 2px solid var(--color-gray-800);
-        border-radius: 4px;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
         display: flex;
         flex-direction: row;
         align-items: center;
@@ -246,8 +263,21 @@
         z-index: 1001;
     }
 
+    .show-toggle p {
+        color: var(--color-fg);
+    }
+
     .show-toggle.list-visible {
         padding: 8px 0 0 0;
+        background: transparent;
+        border: 2px solid var(--color-gray-800);
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        color: var(--color-bg);
+    }
+
+    .show-toggle.list-visible p {
+        color: var(--color-bg);
     }
 
     .show-toggle:hover {
@@ -267,7 +297,7 @@
         height: 2rem;
     }
 
-    .count {
+    .show-toggle p.count {
         position: absolute;
         right: -0.5rem;
         background: var(--color-fg);
@@ -283,6 +313,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    .list-visible .show-toggle p.count {
+        background: var(--color-bg);
+        color: var(--color-fg);
     }
 
     .chevron-wrapper {
@@ -311,7 +346,16 @@
         line-height: 1.5;
         margin: 0;
         text-align: left;
-        color: var(--color-fg);
+        color: var(--color-bg);
+    }
+
+    :global(.closing-text p a, .notes p a) {
+        color: var(--color-bg);
+        text-decoration: underline;
+    }
+
+     :global(.closing-text p a:hover, .notes p a:hover) {
+        opacity: 0.7;
     }
 
     .connection-count, .top-info p.connection-count {
@@ -322,25 +366,7 @@
         text-transform: uppercase;
         margin: 0;
         text-align: left;
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        color: transparent;
-        display: inline-block;
-        background-size: 300% 100%;
-        animation: flow 8s ease infinite;
-    }
-
-    @keyframes flow {
-        0% {
-            background-position: 0% 50%;
-        }
-        50% {
-            background-position: 100% 50%;
-        }
-        100% {
-            background-position: 0% 50%;
-        }
+        color: var(--color-bg);
     }
 
     /* Network */
@@ -378,7 +404,7 @@
         padding: 0;
         max-height: 12rem;
         overflow-y: auto;
-        border: 2px solid var(--color-gray-800);
+        border: 2px solid rgba(255, 255, 255, 0.5);
         border-radius: 4px;
         width: 100%;
     }
@@ -390,10 +416,11 @@
         padding: 0.5rem;
         font-family: var(--sans);
         font-size: var(--14px);
+        color: var(--color-bg);
     }
 
     .event-list li + li {
-        border-top: 1px solid color-mix(in srgb, var(--color-fg) 15%, transparent);
+        border-top: 1px solid rgba(255, 255, 255, 0.5);
     }
 
     .remove-btn {
@@ -413,7 +440,7 @@
         position: relative;
     }
 
-    .remove-btn:hover {
+    .remove-btn:hover p {
         opacity: 0.5;
     }
 
@@ -425,13 +452,14 @@
         opacity: 0;
         position: absolute;
         left: 0;
-        top: 50%;
+        top: calc(50% - 1px);
         width: 100%;
-        border-bottom: 1px solid var(--color-fg);
+        border-bottom: 2px solid var(--color-bg);
     }
 
     .remove-all {
-        background: var(--color-fg);
+        background: var(--color-bg);
+        color: var(--color-fg);
         font-family: var(--marsha);
         text-transform: uppercase;
         font-size: var(--16px);
@@ -449,6 +477,7 @@
     p {
         font-size: var(--16px);
         margin: 0;
+        color: var(--color-bg);
     }
 
     .notes {
