@@ -189,6 +189,14 @@
 
 <style>
     .events-wrapper {
+        --mesh-gradient: 
+            radial-gradient(at 10% 15%, #FF94CD 0px, transparent 55%),
+            radial-gradient(at 85% 15%, #FF7676 0px, transparent 55%),
+            radial-gradient(at 50% 35%, #FFAE58 0px, transparent 50%),
+            radial-gradient(at 15% 55%, #FFD426 0px, transparent 50%),
+            radial-gradient(at 80% 55%, #B18CFF 0px, transparent 50%),
+            radial-gradient(at 30% 85%, #5CE1E1 0px, transparent 50%),
+            radial-gradient(at 85% 85%, #7CD67C 0px, transparent 50%);
         font-family: var(--sans);
         position: fixed;
         top: 0;
@@ -197,14 +205,8 @@
         height: 100vh;
         color: var(--color-bg);
         background-color: var(--color-fg);
-        background-image: 
-            radial-gradient(at 10% 15%, #FF94CD 0px, transparent 55%),
-            radial-gradient(at 85% 15%, #FF7676 0px, transparent 55%),
-            radial-gradient(at 50% 35%, #FFAE58 0px, transparent 50%),
-            radial-gradient(at 15% 55%, #FFD426 0px, transparent 50%),
-            radial-gradient(at 80% 55%, #B18CFF 0px, transparent 50%),
-            radial-gradient(at 30% 85%, #5CE1E1 0px, transparent 50%),
-            radial-gradient(at 85% 85%, #7CD67C 0px, transparent 50%);
+        background-image: var(--mesh-gradient);
+        background-attachment: fixed;
         z-index: 1000;
         transition: transform 0.5s ease-out;
         box-sizing: border-box;
@@ -269,7 +271,7 @@
 
     .show-toggle.list-visible {
         padding: 8px 0 0 0;
-        background: transparent;
+        background-color: var(--color-fg);
         border: 2px solid var(--color-gray-800);
         border-top: none;
         border-radius: 0 0 4px 4px;
@@ -315,7 +317,7 @@
         justify-content: center;
     }
 
-    .list-visible .show-toggle p.count {
+    .list-visible.show-toggle p.count {
         background: var(--color-bg);
         color: var(--color-fg);
     }
@@ -458,8 +460,8 @@
     }
 
     .remove-all {
-        background: var(--color-bg);
-        color: var(--color-fg);
+        background: var(--color-fg);
+        color: var(--color-bg);
         font-family: var(--marsha);
         text-transform: uppercase;
         font-size: var(--16px);
@@ -496,7 +498,7 @@
         }
 
         .show-toggle {
-            width: 10rem;
+            width: 12rem;
         }
 
         .closing-text p {

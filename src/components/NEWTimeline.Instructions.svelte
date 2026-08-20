@@ -165,6 +165,7 @@
 		align-items: center;
 		gap: 1rem;
 		pointer-events: auto;
+        padding: 0;
 	}
 
 	img {
@@ -257,13 +258,6 @@
 		background-size: 60%;
 	}
 
-	@media(max-width: 760px) {
-		p {
-			font-size: var(--14px);
-		}
-			
-	}
-
 	.audio-controls {
         margin-top: 1rem;
         width: 100%;
@@ -311,5 +305,12 @@
         width: 1.25rem;
         height: 1.25rem;
         fill: currentColor;
+    }
+
+    @media(max-width: 760px) {
+        p {
+            font-size: var(--16px);
+        }
+            
     }
 </style>

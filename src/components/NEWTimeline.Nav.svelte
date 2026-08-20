@@ -92,7 +92,7 @@
 					onchange={yearChange}
 				>
 					{#each yearOptions as option}
-						{#if option >= "1987"}
+						{#if option >= "1987" && option <= "2026"}
 							<option value={option}>{option}</option>
 						{/if}
 					{/each}
@@ -337,12 +337,18 @@
         .name {
             font-size: var(--16px);
 			height: 2.25rem;
+			width: 100px;
         }
     }
 
-	@media(max-width: 500px) {
+	@media(max-width: 600px) {
 		.middle-wrapper {
-			max-width: 200px;
+			max-width: 260px;
+			padding-top: 0.5rem;
+		}
+
+		.name {
+			margin: 0.5rem 0;
 		}
 
 		#key {
@@ -356,6 +362,33 @@
 		
 		.desc {
 			max-width: 200px;
+		}
+
+		label, .btn-toggle, select {
+			font-size: var(--14px);
+		}
+
+		.top-row {
+			gap: 1rem;
+		}
+
+		.select-wrapper, .btn-wrapper {
+			gap: 0.25rem;
+		}
+	}
+
+	@media(max-width: 500px) {
+		.top-row {
+			justify-content: center;
+		}
+
+		label {
+			display: none;
+		}
+
+		.name {
+			font-size: var(--14px);
+			width: 80px;
 		}
 	}
 </style>

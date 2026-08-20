@@ -1,11 +1,11 @@
 <script>
-    let { d, stroke, isDimmed } = $props();
+    let { d, stroke, pathStrokeWidth, isDimmed } = $props();
 </script>
 
 <path 
     d={d}
     stroke={stroke}
-    stroke-width="6"
+    stroke-width={pathStrokeWidth}
     fill="none"
     stroke-linecap="round"
     stroke-linejoin="round"

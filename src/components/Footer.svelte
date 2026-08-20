@@ -163,7 +163,8 @@
   footer {
     margin-top: 100px;
     align-self: stretch;              
-    width: calc(100% + 2rem) !important;
+    width: 100%;
+    color: var(--color-bg);
   }
 
   .c {
@@ -184,6 +185,7 @@
     font-size: var(--20px, 20px);
     text-align: center;
     max-width: 900px;
+    color: var(--color-bg);
   }
 
   .images {
@@ -257,18 +259,19 @@
   }
 
   p {
-    color: var(--color-fg);
+    color: var(--color-bg);
   }
 
   a {
     font-weight: 700;
     color: var(--color-fg);
-    text-decoration: 2px underline var(--color-fg);
+    text-decoration: 2px underline var(--color-bg);
+    color: var(--color-bg);
   }
 
   a:hover {
-    color: var(--color-link-hover);
-    text-decoration: 2px underline var(--color-link-hover);
+    color: var(--color-gray-700);
+    text-decoration: 2px underline var(--color-gray-700);
   }
 
   a:hover + .arrow {

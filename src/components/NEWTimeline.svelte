@@ -34,6 +34,7 @@
     let scrollY = $state(0);
     let windowHeight = $state(0);
     let maxScroll = $state(0);
+    let pathStrokeWidth = $derived(svgWidth < 460 ? 4 : 6);
 
     const timelineScroll = $derived(scrollY);
 
@@ -595,6 +596,9 @@
         const active = activeSegmentKeys;
         const sw = svgWidth;
 
+        const laneSpacing = pathStrokeWidth * 1.67;
+        const edgeOffset = pathStrokeWidth / 2;
+
         return baseData.map((sideData, sideIndex) => {
             const direction = sideIndex === 0 ? 1 : -1;
             const centerX = sw / 2;
@@ -604,9 +608,8 @@
                 themesData: sideData.themesData.map((theme, themeIndex) => {
                     const themeColor = colors[themeIndex];
                     const laneX =
-                        (sideIndex === 0 ? 0 : sw) +
-                        0 * direction +
-                        themeIndex * 10 * direction;
+                        (sideIndex === 0 ? edgeOffset : sw - edgeOffset) +
+                        themeIndex * laneSpacing * direction;
 
                     function getX(d) {
                         const activationY = d.segmentKey ?? d.triggerY;
@@ -763,6 +766,7 @@
                                     <Path
                                         d={theme.pathD}
                                         stroke={theme.themeColor}
+                                        {pathStrokeWidth}
                                         isDimmed={hoveredEventName !== null &&
                                             !activeHoverThemes.includes(theme.themeName)}
                                     />
@@ -873,7 +877,7 @@
         top: 0;
         left: 50%;
         transform: translateX(-50%);
-        width: calc(100% - 3rem); /* Mirrors the exact width of <figure> */
+        width: calc(100% - 3rem);
         height: 100vh;
         pointer-events: none;
         z-index: 5;
@@ -896,21 +900,27 @@
         transform: translate(-50%, 100%);
     }
 
-    @media(max-width: 500px) {
-        .curtain-container {
-            width: calc(100% - 2rem); /* Matches figure's mobile width */
-        }
-    }
-
     @media(max-width: 760px) {
+        figure {
+            width: calc(100% - 3.75rem);
+        }
+
+        .curtain-container {
+            width: calc(100% - 2rem);
+        }
+
         .year-axis text {
             font-size: 160px;
         }
     }
 
-    @media(max-width: 500px) {
+    @media(max-width: 600px) {
         figure {
-            width: calc(100% - 2rem);
+            width: calc(100% - 2.5rem);
+        }
+
+        .curtain-container {
+            width: calc(100% - 2.5rem);
         }
 
         .year-axis text {
