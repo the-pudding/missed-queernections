@@ -111,7 +111,7 @@
 
 	h1 {
 		font-family: var(--marsha);
-		font-size: clamp(2rem, 12vw, 20rem);
+		font-size: clamp(2rem, 6vw, 20rem);
 		text-transform: uppercase;
 		line-height: 0.9;
 		padding: 1rem 0;
