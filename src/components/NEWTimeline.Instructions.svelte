@@ -25,16 +25,20 @@
 
     function selectAudioOption(withAudio) {
         isAudioMuted.value = !withAudio;
-        audioUnlocked.value = true; // Triggers the $effect above to unlock scroll!
+        audioUnlocked.value = true;
+
+        // 1. Synchronously unlock scroll before calling scrollBy
+        document.body.style.overflow = "";
 
         if (withAudio) {
-            // Unlocks browser audio policy
             const silent = new Audio();
             silent.play().catch(() => {});
         }
 
-        // Smoothly scroll down slightly to push Scrolly to step 1
-        window.scrollBy({ top: window.innerHeight * 0.5, behavior: "smooth" });
+        // 2. Defer scroll by 1 frame so browser registers unlocked overflow
+        requestAnimationFrame(() => {
+            window.scrollBy({ top: window.innerHeight * 0.8, behavior: "smooth" });
+        });
     }
 
     let { index = -1 } = $props();
@@ -46,8 +50,6 @@
 
         if (isAudioActive && isWithinRange && currentClip) {
             const audio = new Audio(`assets/audio/clips/${currentClip}.mp3`);
-
-            // 1. Capture the play promise
             const playPromise = audio.play();
 
             if (playPromise !== undefined) {
@@ -64,8 +66,7 @@
                             audio.pause();
                             audio.currentTime = 0;
                         })
-                        .catch(() => {
-                        });
+                        .catch(() => {});
                 } else {
                     audio.pause();
                     audio.currentTime = 0;

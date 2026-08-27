@@ -190,7 +190,6 @@
     });
 
     $effect(() => {
-        console.log(eventObject);
         currentIndex;
         if (wrapperEl) wrapperEl.scrollTop = 0;
     });
