@@ -1,5 +1,5 @@
 <script>
-	import { addedEvents, userId } from "$runes/misc.svelte.js";
+	import { addedEvents, userId, famous } from "$runes/misc.svelte.js";
 	import * as db from "$utils/database.js";
 	import { fade } from "svelte/transition";
 
@@ -30,7 +30,7 @@
 		} else {
 			$addedEvents = [...$addedEvents, eventKey];
 		}
-		db.insert({ user_id: $userId, events: $addedEvents });
+		db.insert({ user_id: $userId, events: $addedEvents, famous: $famous });
 	}
 </script>
 

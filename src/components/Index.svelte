@@ -3,21 +3,59 @@
     import Timeline from "$components/NEWTimeline.svelte";
     import {
         userId,
-        addedEvents
+        addedEvents,
+        famous // <-- 1. Import famous
     } from "$runes/misc.svelte.js";
-
+    import celebrityIds from "$data/celebrityIds.csv";
     import generateId from "$utils/generateId.js";
+    import * as db from "$utils/database.js";
 
-    onMount(() => {
+    onMount(async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const customId = urlParams.get("id") || urlParams.get("user");
+
         let storedId = localStorage.getItem("user_id");
 
-        if (!storedId) {
+        if (customId) {
+            storedId = customId;
+            localStorage.setItem("user_id", storedId);
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        } else if (storedId) {
+            console.log("💾 [LocalStorage Found] Loaded existing user_id:", storedId);
+        } else {
             storedId = generateId();
             localStorage.setItem("user_id", storedId);
         }
 
         userId.set(storedId);
 
+        // --- CELEBRITY LOOKUP ---
+        const match = celebrityIds.find(
+            (row) => String(row.id).trim() === String(storedId).trim()
+        );
+        const famousValue = match ? (match.famous || match.name) : null;
+
+        if (famousValue) {
+            localStorage.setItem("famous", famousValue);
+            famous.set(famousValue); // <-- 2. Update the store
+        } else {
+            localStorage.removeItem("famous");
+            famous.set(null); // <-- 2. Reset if standard user
+        }
+
+        // --- INITIAL DB SYNC ---
+        try {
+            await db.insert({ 
+                user_id: storedId, 
+                events: $addedEvents, 
+                famous: famousValue 
+            });
+        } catch (err) {
+            console.error("❌ [DB Insert Failed]:", err);
+        }
+
+        // Load existing events
         let storedEvents = localStorage.getItem("added_events");
         if (storedEvents) {
             try {
@@ -25,12 +63,6 @@
             } catch (e) {
                 console.error("Failed to parse added_events from localStorage:", e);
             }
-        }
-    });
-
-    $effect(() => {
-        if (typeof window !== "undefined") {
-            localStorage.setItem("added_events", JSON.stringify($addedEvents));
         }
     });
 </script>

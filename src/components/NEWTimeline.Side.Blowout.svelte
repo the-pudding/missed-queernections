@@ -1,7 +1,8 @@
 <script>
     import { base } from "$app/paths";
     import { getContext, untrack } from "svelte";
-	import { addedEvents, userId, longThemes, isAudioMuted, colors } from "$runes/misc.svelte.js";    import * as db from "$utils/database.js";
+	import { addedEvents, userId, longThemes, isAudioMuted, colors, famous } from "$runes/misc.svelte.js";    
+    import * as db from "$utils/database.js";
     import timestampData from "$data/timestamps/intro.csv?raw";
     import Quote from "$svg/icons/quote.svg";
     
@@ -139,7 +140,7 @@
         } else {
             $addedEvents = [...$addedEvents, eventKey];
         }
-        db.insert({ user_id: $userId, events: $addedEvents });
+        db.insert({ user_id: $userId, events: $addedEvents, famous: $famous });
     }
 
     let miniPicksHeight = $state(0);
@@ -325,6 +326,7 @@
                             <p class="graf">{@html graf.value}</p>
                         {/each}
                 {/if}
+                <div class="spacer"></div>
             </div>
         </div>
 
@@ -432,6 +434,7 @@
         overflow-y: auto;
         display: flex;
         justify-content: center;
+        padding-bottom: 10rem;
     }
 
     .blowout-content {
@@ -531,7 +534,6 @@
         width: 100%;
         max-width: 460px;
         aspect-ratio: 1;
-        border-radius: 0.75rem;
         overflow: hidden;
         isolation: isolate;
         box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
@@ -556,7 +558,6 @@
         background-size: cover;
         background-position: center;
 		filter: grayscale(1);
-		border-radius: 0.75rem;
     }
 
     /* ── Audio & Paragraph Highlighting ──────────────────────────────────── */
@@ -613,8 +614,9 @@
         text-transform: capitalize;
     }
 
-    .graf:last-of-type {
-        padding-bottom: 4rem;
+    .spacer {
+        width: 100%;
+        height: 8rem;
     }
 
     .button-group {

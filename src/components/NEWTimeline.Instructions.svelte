@@ -158,7 +158,6 @@
         left: 50%;
         transform: translate(-50%, -50%);
         padding: 1rem;
-        border-radius: 3px;
         max-width: 500px;
         z-index: 1000;
         display: flex;
@@ -175,7 +174,6 @@
         width: 100%;
         max-width: 300px;
         aspect-ratio: 1;
-        border-radius: 0.75rem;
         overflow: hidden;
         isolation: isolate;
         box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);

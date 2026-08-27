@@ -1,14 +1,18 @@
 <script>
+    import * as db from "$utils/database.js";
     import {
         addedEvents,
         activeSection,
         visitors, 
-        colors
+        colors,
+        userId,
+        famous
     } from "$runes/misc.svelte.js";
     import { ChevronDown } from "@lucide/svelte";
     import UserNetwork from "$components/UserNetwork.svelte";
     import copy from "$data/copy.json";
     import Footer from "$components/Footer.svelte";
+    import combinedData from "$data/combined.csv";
 
     let { index = -1, atEnd = false } = $props();
     const seamlessColors = [...colors, colors[0]];
@@ -31,7 +35,20 @@
     }
 
     function removeEvent(event) {
-        $addedEvents = $addedEvents.filter((e) => e !== event);
+        const targetEvent = typeof event === "object" && event !== null ? (event.event || event) : event;
+        $addedEvents = $addedEvents.filter((e) => e !== targetEvent);
+        db.insert({ 
+            user_id: $userId, 
+            events: $addedEvents, 
+            famous: $famous 
+    });
+}
+
+    function addEvent(event) {
+        if (event && !$addedEvents.includes(event)) {
+            $addedEvents = [...$addedEvents, event.event];
+            db.insert({ user_id: $userId, events: $addedEvents, famous: $famous });
+        }
     }
 
     $effect(() => {
@@ -49,6 +66,17 @@
     const connectionCount = $derived(
         $visitors.filter((v) => (v.events ?? []).some((e) => $addedEvents.includes(e))).length
     );
+
+    const remainingEvents = $derived.by(() => {
+        // 1. Remove first (index 0) and last (index length-1) items
+        const slicedData = combinedData.slice(1, -1);
+
+        // 2. Filter out events present in $addedEvents
+        return slicedData.filter((item) => {
+            const eventKey = String(item.event ?? "").trim();
+            return !$addedEvents.includes(eventKey);
+        });
+    });
 
     // Auto pop-out ONLY when a new user adds their first event EVER and index >= 8
     $effect(() => {
@@ -130,23 +158,66 @@
         </div>
 
         <div class="bottom-info">
-            {#if $addedEvents.length > 0}
-                <p class="events-label">Your events ({$addedEvents.length})</p>
+            <div class="list-wrapper">
+                {#if $addedEvents.length > 0}
+                    <p class="events-label">Your events ({$addedEvents.length})</p>
+                    <ul class="event-list">
+                        {#each $addedEvents as event}
+                            <li>
+                                <button
+                                    class="remove-btn"
+                                    onclick={() => removeEvent(event)}
+                                    aria-label="Remove {event}">
+                                        <p>{event}</p>
+                                        <div class="strikethrough"></div>
+                                        <svg
+                                            width="12"
+                                            height="12"
+                                            viewBox="-5 -5 10 10"
+                                            class="icon"
+                                            style="transform: rotate(45deg)"
+                                        >
+                                            <line
+                                                x1="0"
+                                                y1="-5"
+                                                x2="0"
+                                                y2="5"
+                                                stroke="#191919"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                            />
+                                            <line
+                                                x1="-5"
+                                                y1="0"
+                                                x2="5"
+                                                y2="0"
+                                                stroke="#191919"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                            />
+                                        </svg>
+                                    </button>
+                            </li>
+                        {/each}
+                    </ul>
+                    <button onclick={clearAll} class="remove-all">Clear all events</button>
+                {/if}
+            </div>
+            <div class="list-wrapper">
+                <p class="events-label">All other events ({remainingEvents.length})</p>
                 <ul class="event-list">
-                    {#each $addedEvents as event}
+                    {#each remainingEvents as event}
                         <li>
                             <button
-                                class="remove-btn"
-                                onclick={() => removeEvent(event)}
-                                aria-label="Remove {event}">
-                                    <p>{event}</p>
-                                    <div class="strikethrough"></div>
+                                class="add-btn"
+                                onclick={() => addEvent(event)}
+                                aria-label="Add {event}">
+                                    <p>{event.event}</p>
                                     <svg
                                         width="12"
                                         height="12"
                                         viewBox="-5 -5 10 10"
                                         class="icon"
-                                        style="transform: rotate(45deg)"
                                     >
                                         <line
                                             x1="0"
@@ -171,8 +242,7 @@
                         </li>
                     {/each}
                 </ul>
-                <button onclick={clearAll} class="remove-all">Clear all events</button>
-            {/if}
+            </div>
         </div>
 
         {#if atEnd}
@@ -207,7 +277,7 @@
         background-color: var(--color-fg);
         background-image: var(--mesh-gradient);
         background-attachment: fixed;
-        z-index: 998;
+        z-index: 10000;
         transition: transform 0.5s ease-out;
         box-sizing: border-box;
     }
@@ -385,10 +455,18 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.5rem;
+        gap: 4rem;
         max-width: 500px;
         width: 100%;
         flex-shrink: 0;
+    }
+
+    .list-wrapper {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .events-label {
@@ -425,7 +503,7 @@
         border-top: 1px solid rgba(255, 255, 255, 0.5);
     }
 
-    .remove-btn {
+    .remove-btn, .add-btn {
         background: transparent;
         width: 100%;
         height: 100%;
@@ -440,6 +518,10 @@
         justify-content: space-between;
         align-items: center;
         position: relative;
+    }
+
+    .add-btn:hover p {
+        font-weight: 700;
     }
 
     .remove-btn:hover p {

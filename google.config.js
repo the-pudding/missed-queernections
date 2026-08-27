@@ -32,5 +32,10 @@ export default [
 		"id": "1EIrHpt-qmErCCz_ZQooGmeOKxogKam1z3TPAdFDTdeY",
 		"gid": "210288250",
 		"filepath": "src/data/timestamps/intro.csv"
+	},
+	{
+		"id": "1eqNO-4JNNcAOnnqG_5Ekjm7JLOKkyiDl6E0UKkYVXfI",
+		"gid": "0",
+		"filepath": "src/data/celebrityIds.csv"
 	}
 ]
