@@ -112,7 +112,7 @@
 				</select>
 			</div>
 			<div class="btn-wrapper" class:nav-hidden={hideAudioToggle}>
-				<label for="audio-toggle" class:black-lbl={!hideAudioToggle}>Sound</label>
+				<label for="audio-toggle" class:black-lbl={activeBlowoutId}>Sound</label>
 				<button onclick={toggleMute} class="btn-toggle" aria-label="Toggle audio">
 					{#if isAudioMuted.value}
 						{@html VolumeOff}

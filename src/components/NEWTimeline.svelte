@@ -828,6 +828,7 @@
         justify-content: space-between;
         align-items: center;
         z-index: 1000;
+        pointer-events: none;
     }
     figure {
         width: calc(100% - 4.75rem);

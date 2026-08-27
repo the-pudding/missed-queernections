@@ -573,7 +573,7 @@
         display: flex;
         align-items: center;
         gap: 0.125rem;
-        z-index: 1000;
+        z-index: 1001;
         transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
 
@@ -585,6 +585,7 @@
         padding: 0;
         padding-top: 2px;
         margin: 0;
+		pointer-events: none;
     }
 
     .icon {
