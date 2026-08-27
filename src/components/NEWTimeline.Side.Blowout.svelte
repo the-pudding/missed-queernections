@@ -1,8 +1,9 @@
 <script>
-    import { getContext, untrack } from "svelte";
     import { base } from "$app/paths";
+    import { getContext, untrack } from "svelte";
 	import { addedEvents, userId, longThemes, isAudioMuted, colors } from "$runes/misc.svelte.js";    import * as db from "$utils/database.js";
     import timestampData from "$data/timestamps/intro.csv?raw";
+    import Quote from "$svg/icons/quote.svg";
     
     const copy = getContext("copy");
 
@@ -27,23 +28,19 @@
     );
 	const seamlessColors = [...colors, colors[0]];
     const animatedGradient = $derived(`linear-gradient(45deg, ${seamlessColors.join(", ")})`);
-
     const bgImageUrl = $derived(
         eventObject?.img 
             ? `url('${base}/assets/imgs/blowouts/${eventObject.img}')` 
             : 'none'
     );
-
     const blowoutTheme = $derived(
         longThemes.find(item => item.theme === eventObject?.theme)
     );
-    
     let wrapperEl = $state(null);
     let currentTime = $state(0);
     let timestamps = $state([]);
     let audioElement = $state(null);
     let isPaused = $state(true);
-
     const isAdded = $derived(
         blowoutData
             ? $addedEvents.includes(String(blowoutData.event ?? "").trim())
@@ -145,7 +142,55 @@
         db.insert({ user_id: $userId, events: $addedEvents });
     }
 
+    let miniPicksHeight = $state(0);
+
+    // Calculate label visibility anchored at currentIndex
+    const visibleLabelIndexes = $derived.by(() => {
+        if (!allPickEvents.length || !miniPicksHeight) return new Set();
+
+        const minCy = allPickEvents[0].cy;
+        const maxCy = allPickEvents[allPickEvents.length - 1].cy;
+        const cyRange = maxCy - minCy || 1;
+        const MIN_GAP_PX = 18; // Minimum vertical pixels required between labels
+
+        // Calculate vertical pixel position for every item
+        const positions = allPickEvents.map((pick) => {
+            const pct = (pick.cy - minCy) / cyRange;
+            return pct * miniPicksHeight;
+        });
+
+        const visible = new Set();
+        const validCurrentIndex =
+            currentIndex >= 0 && currentIndex < allPickEvents.length
+                ? currentIndex
+                : 0;
+
+        // 1. Active label is always visible
+        visible.add(validCurrentIndex);
+
+        // 2. Scan upwards from current index
+        let lastKeptUpPos = positions[validCurrentIndex];
+        for (let i = validCurrentIndex - 1; i >= 0; i--) {
+            if (lastKeptUpPos - positions[i] >= MIN_GAP_PX) {
+                visible.add(i);
+                lastKeptUpPos = positions[i];
+            }
+        }
+
+        // 3. Scan downwards from current index
+        let lastKeptDownPos = positions[validCurrentIndex];
+        for (let i = validCurrentIndex + 1; i < allPickEvents.length; i++) {
+            if (positions[i] - lastKeptDownPos >= MIN_GAP_PX) {
+                visible.add(i);
+                lastKeptDownPos = positions[i];
+            }
+        }
+
+        return visible;
+    });
+
     $effect(() => {
+        console.log(eventObject);
         currentIndex;
         if (wrapperEl) wrapperEl.scrollTop = 0;
     });
@@ -191,11 +236,6 @@
 
         <div class="blowout-content-wrapper" bind:this={wrapperEl}>
             <div class="blowout-content">
-				<div class="date-theme-wrapper">
-                    <p>{blowoutTheme.longTheme}</p>
-					<p class="splitter">•</p>
-                    <p class="date">{eventObject.date}</p>
-                </div>
 				<div class="img-wrapper" style="--animated-gradient: {animatedGradient}">
                 	<div class="blowout-image" style="background-image: {bgImageUrl}"></div>
 				</div>
@@ -237,43 +277,54 @@
                 {#if eventObject.eventSecondary}
                     <p class="secondary">{eventObject.eventSecondary}</p>
                 {/if}
+                <div class="date-theme-wrapper">
+                    {#if eventObject.perspective == "both"}
+                        <div class="audio-controls">
+                            <button
+                                class="play-pause-btn"
+                                onclick={togglePlay}
+                                aria-label={isPaused ? "Start dialogue" : "Pause dialogue"}
+                            >
+                                {#if isPaused}
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                    <span>Start Dialogue</span>
+                                {:else}
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                    </svg>
+                                    <span>Pause Dialogue</span>
+                                {/if}
+                            </button>
+                            <audio
+                                bind:this={audioElement}
+                                bind:currentTime={currentTime}
+                                bind:paused={isPaused}
+                                muted={isAudioMuted.value}
+                                src={eventObject.audio ? `${base}/assets/audio/convos/${eventObject.audio}` : `${base}/assets/audio/convos/convo-0.mp3`}
+                                preload="auto"
+                            ></audio>
+                        </div>
+                    {:else}
+                        <p>
+                            <span class="essay-icon">{@html Quote}</span>
+                            By {eventObject.perspective}
+                        </p>
+                    {/if}
+                    <p>{blowoutTheme.longTheme}</p>
+                    <p class="date">{eventObject.date}</p>
+                </div>
                 {#if eventObject.perspective == "both"}
-                    <div class="audio-controls">
-                        <button
-                            class="play-pause-btn"
-                            onclick={togglePlay}
-                            aria-label={isPaused ? "Start dialogue" : "Pause dialogue"}
-                        >
-                            {#if isPaused}
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M8 5v14l11-7z" />
-                                </svg>
-                                <span>Start Dialogue</span>
-                            {:else}
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                </svg>
-                                <span>Pause Dialogue</span>
-                            {/if}
-                        </button>
-                        <audio
-							bind:this={audioElement}
-							bind:currentTime={currentTime}
-							bind:paused={isPaused}
-							muted={isAudioMuted.value}
-							src={eventObject.audio ? `${base}/assets/audio/convos/${eventObject.audio}` : `${base}/assets/audio/convos/convo-0.mp3`}
-							preload="auto"
-						></audio>
-                    </div>
                     {#each eventObject.text as graf, i}
                         <p class="graf" class:highlighted={i === activeGrafIndex}>
                             <span class="speaker">{@html graf.speaker}:</span> {@html graf.words}
                         </p>
                     {/each}
                 {:else}
-                    {#each eventObject.text as graf, i}
-                        <p class="graf">{@html graf.value}</p>
-                    {/each}
+                        {#each eventObject.text as graf, i}
+                            <p class="graf">{@html graf.value}</p>
+                        {/each}
                 {/if}
             </div>
         </div>
@@ -294,7 +345,7 @@
                 </button>
             </div>
 
-            <div class="mini-picks">
+            <div class="mini-picks" bind:clientHeight={miniPicksHeight}>
                 {#if allPickEvents.length > 0}
                     {@const minCy = allPickEvents[0].cy}
                     {@const maxCy = allPickEvents[allPickEvents.length - 1].cy}
@@ -304,9 +355,14 @@
                     <div class="tracker-dot" style="top: {currentPct}%"></div>
                     {#each allPickEvents as pick, i}
                         {@const pct = ((pick.cy - minCy) / cyRange) * 100}
-                        <span class="dot-label" style="top: {pct}%"
-                            >{new Date(pick.date).getFullYear()}</span
+                        <span
+                            class="dot-label"
+                            class:is-current={i === currentIndex}
+                            class:is-hidden={!visibleLabelIndexes.has(i)}
+                            style="top: {pct}%"
                         >
+                            {pick.date?.slice(-4)}
+                        </span>
                         <button
                             class="mini-dot"
                             class:is-current={i === currentIndex}
@@ -381,7 +437,7 @@
 
     .blowout-content {
         width: 100%;
-        padding: 4rem 2rem 2rem 2rem;
+        padding: 4rem 4rem 2rem 2rem;
         margin: 2rem;
         max-width: 800px;
         color: var(--color-bg);
@@ -393,30 +449,45 @@
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		gap: 1rem;
+		gap: 0.25rem;
 	}
 
 	.date-theme-wrapper p {
-		font-family: var(--sans);
+		font-family: var(--marsha);
         font-weight: 700;
         line-height: 1;
-        text-transform: capitalize;
+        text-transform: uppercase;
+        border: 2px solid var(--color-bg);
+        padding: 0.8rem 1.2rem 0.8rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1.5rem;
+        font-size: var(--14px);
+        margin: 0;
 	}
+
+    .essay-icon {
+        width: 14px;
+        aspect-ratio: 1;
+        margin: -3px 0.5rem 0 0;
+    }
 
     h3 {
         font-family: var(--marsha);
         font-weight: 700;
         line-height: 1;
         text-transform: uppercase;
-        font-size: var(--48px);
+        font-size: var(--64px);
         position: relative;
     }
 
 	.secondary {
-		font-family: var(--sans);
+		font-family: var(--marsha);
+        text-transform: uppercase;
         font-weight: 700;
         line-height: 1;
-		font-size: var(--24px);
+		font-size: var(--36px);
 	}
 
     .add-btn {
@@ -424,24 +495,20 @@
         border-radius: 50%;
         padding: 0;
         margin: 0;
-        height: 24px;
-        width: 24px;
+        height: 30px;
+        width: 30px;
         display: flex;
         align-items: center;
         justify-content: center;
         position: absolute;
-        top: 20px;
-        left: -2rem;
+        top: 28px;
+        left: -3rem;
         transform: translateY(-50%);
         transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
 
     .add-btn:hover {
         transform: scale(1.1) translateY(-50%);
-    }
-
-    .add-btn svg {
-        margin-bottom: 1px;
     }
 
     .add-btn svg line {
@@ -469,6 +536,7 @@
         overflow: hidden;
         isolation: isolate;
         box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+        margin-bottom: 3rem;
     }
 
 	.img-wrapper::after {
@@ -494,7 +562,6 @@
 
     /* ── Audio & Paragraph Highlighting ──────────────────────────────────── */
     .audio-controls {
-        margin: 1.5rem 0 0.5rem 0;
         display: flex;
         align-items: center;
     }
@@ -503,14 +570,18 @@
         background: var(--color-fg);
         border: none;
         padding: 0.8rem 1.2rem 0.8rem 1rem;
+        width: 190px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         border-radius: 50px;
         cursor: pointer;
         font-weight: bold;
         color: var(--color-bg);
         font-family: var(--marsha);
+        font-size: var(--14px);
         text-transform: uppercase;
         line-height: 1;
-        height: 2.5rem;
         display: flex;
         align-items: center;
         gap: 0.125rem;
@@ -530,7 +601,6 @@
         font-size: var(--18px);
         line-height: 1.65;
         margin: 1.5rem 0;
-        padding: 0.5rem;
         border-radius: 6px;
         transition: background-color 0.25s ease, transform 0.25s ease;
     }
@@ -688,11 +758,21 @@
         font-family: var(--sans);
         font-size: 0.6rem;
         font-weight: bold;
-        letter-spacing: 0.05em;
         text-transform: uppercase;
         color: var(--color-bg);
         white-space: nowrap;
         pointer-events: none;
+    }
+
+    .dot-label.is-hidden {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    .dot-label.is-current {
+        font-size: 0.8rem;
+        opacity: 1;
+        visibility: visible;
     }
 
     .tracker-dot {
@@ -738,6 +818,13 @@
         transform: translate(-50%, -50%);
     }
 
+    @media(max-width: 800px) {
+        .date-theme-wrapper {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+
     @media(max-width: 760px) {
         .blowout-content-wrapper {
             justify-content: flex-start;
@@ -749,8 +836,8 @@
         }
 
         .button-group {
-            bottom: 0.5rem;
-            left: 0.5rem;
+            top: 0.5rem;
+            left: 0.25rem;
         }
 
         .theme-group {
@@ -768,8 +855,15 @@
             font-size: var(--36px);
         }
 
+        .secondary {
+            font-size: var(--24px);
+        }
+
         .add-btn {
             top: 16px;
+            left: -2rem;
+            width: 24px;
+            height: 24px;
         }
     }
 </style>
