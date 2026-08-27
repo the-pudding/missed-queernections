@@ -1,11 +1,14 @@
 <script>
 	// ------------------- IMPORTS -------------------
+	import { getContext } from "svelte";
 	import keyData from "$data/categories.csv";
 	import * as d3 from "d3";
 	import { instructionStep, colors } from "$runes/misc.svelte.js";
 	import VolumeOff from "$svg/icons/volume-off.svg";
     import Volume2 from "$svg/icons/volume-2.svg";
     import { isAudioMuted, audioUnlocked } from "$runes/misc.svelte.js";
+
+	const copy = getContext("copy");
 
 	// ------------------- PROPS -------------------
 	let {
@@ -14,8 +17,18 @@
 		timelineSectionElement,
 		index = -1,
 		onYearSelect,
-		currentYear = null
+		currentYear = null,
+		activeBlowoutId,
+		blowoutData
 	} = $props();
+
+	const eventObject = $derived(
+        copy?.expandedEvents?.find(item => item?.event === blowoutData?.event)
+    );
+
+	const hideAudioToggle = $derived(
+        activeBlowoutId !== null && eventObject?.perspective !== "both"
+    );
 
 	// ------------------- VARIABLES -------------------
 	let userHoveredIndex = $state(null);
@@ -81,10 +94,10 @@
 </svg>
 
 <div class="timeline-nav">
-	<p id="Ashleé-target-nameplate" class="name" class:nav-hidden={index < 2} class:dimmed={index === 4}>Ashleé</p>
+	<p id="Ashleé-target-nameplate" class="name" class:nav-hidden={index < 2 || activeBlowoutId !== null} class:dimmed={index === 4}>Ashleé</p>
 	<div class="middle-wrapper" class:nav-hidden={index < 1}>
 		<div class="top-row">
-			<div class="select-wrapper" class:nav-hidden={index < 7}>
+			<div class="select-wrapper" class:nav-hidden={index < 7 || activeBlowoutId !== null}>
 				<label for="year-select">Jump to</label>
 				<select
 					bind:value={year}
@@ -98,7 +111,7 @@
 					{/each}
 				</select>
 			</div>
-			<div class="btn-wrapper">
+			<div class="btn-wrapper" class:nav-hidden={hideAudioToggle}>
 				<label for="audio-toggle">Sound</label>
 				<button onclick={toggleMute} class="btn-toggle" aria-label="Toggle audio">
 					{#if isAudioMuted.value}
@@ -111,7 +124,7 @@
 				</button>
 			</div>
 		</div>
-		<div id="key" class:nav-hidden={index < 7}>
+		<div id="key" class:nav-hidden={index < 7 || activeBlowoutId !== null}>
 			{#each keyData as category, i}
 				<div class="category category-{category.categoryShort}">
 					<div class="goo-wrapper" style="filter:url(#gooey)">
@@ -137,7 +150,7 @@
 			{/each}
 		</div>
 	</div>
-	<p id="Jan-target-nameplate" class="name" class:nav-hidden={index < 2} class:dimmed={index === 3}>Jan</p>
+	<p id="Jan-target-nameplate" class="name" class:nav-hidden={index < 2 || activeBlowoutId !== null} class:dimmed={index === 3}>Jan</p>
 </div>
 
 <style>
@@ -189,6 +202,10 @@
 		flex-direction: row;
 		align-items: center;
 		gap: 0.5rem;
+	}
+
+	.btn-wrapper.nav-hidden {
+		display: none;
 	}
 
 	.btn-toggle {

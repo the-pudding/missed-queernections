@@ -683,6 +683,8 @@
             index={currentInstructionIndex}
             onYearSelect={scrollToYear}
             {currentYear}
+            {activeBlowoutId}
+            {blowoutData}
         />
     </div>
     <figure style="height: {svgHeight}px;" bind:clientWidth={svgWidth}>
@@ -825,7 +827,7 @@
         flex-direction: column;
         justify-content: space-between;
         align-items: center;
-        z-index: 900;
+        z-index: 1000;
     }
     figure {
         width: calc(100% - 4.75rem);

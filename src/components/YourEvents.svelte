@@ -207,7 +207,7 @@
         background-color: var(--color-fg);
         background-image: var(--mesh-gradient);
         background-attachment: fixed;
-        z-index: 1000;
+        z-index: 998;
         transition: transform 0.5s ease-out;
         box-sizing: border-box;
     }
