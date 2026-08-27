@@ -1,7 +1,7 @@
 <script>
     import { getContext, untrack } from "svelte";
     import { base } from "$app/paths";
-	import { addedEvents, userId, longThemes, isAudioMuted } from "$runes/misc.svelte.js";    import * as db from "$utils/database.js";
+	import { addedEvents, userId, longThemes, isAudioMuted, colors } from "$runes/misc.svelte.js";    import * as db from "$utils/database.js";
     import timestampData from "$data/timestamps/intro.csv?raw";
     
     const copy = getContext("copy");
@@ -25,6 +25,8 @@
     const eventObject = $derived(
         copy.expandedEvents.find(item => item?.event === blowoutData?.event)
     );
+	const seamlessColors = [...colors, colors[0]];
+    const animatedGradient = $derived(`linear-gradient(45deg, ${seamlessColors.join(", ")})`);
 
     const bgImageUrl = $derived(
         eventObject?.img 
@@ -194,7 +196,9 @@
 					<p class="splitter">•</p>
                     <p class="date">{eventObject.date}</p>
                 </div>
-                <div class="blowout-image" style="background-image: {bgImageUrl}"></div>
+				<div class="img-wrapper" style="--animated-gradient: {animatedGradient}">
+                	<div class="blowout-image" style="background-image: {bgImageUrl}"></div>
+				</div>
 				<h3>
                     <button
                         class="add-btn"
@@ -444,12 +448,48 @@
         fill: var(--color-fg);
     }
 
+	@keyframes flow {
+        0% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+	.img-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 460px;
+        aspect-ratio: 1;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        isolation: isolate;
+        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+	.img-wrapper::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: var(--animated-gradient);
+        background-size: 300% 300%;
+        animation: flow 8s ease infinite;
+        mix-blend-mode: multiply;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
     .blowout-image {
         width: 100%;
-        max-width: 400px;
         aspect-ratio: 1 / 1;
         background-size: cover;
         background-position: center;
+		filter: grayscale(1);
+		border-radius: 0.75rem;
     }
 
     /* ── Audio & Paragraph Highlighting ──────────────────────────────────── */
@@ -479,8 +519,7 @@
     }
 
     .play-pause-btn:hover {
-        transform: scale(1.05);
-        opacity: 0.9;
+        transform: translateY(-4px);
     }
 
 	:global(.play-pause-btn svg) {
@@ -511,7 +550,7 @@
 
     .button-group {
         position: absolute;
-        bottom: 1rem;
+        top: 1rem;
         left: 1rem;
         display: flex;
         flex-direction: column;

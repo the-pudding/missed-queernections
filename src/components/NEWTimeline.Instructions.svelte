@@ -8,7 +8,7 @@
     import Volume2 from "$svg/icons/volume-2.svg";
 
     const seamlessColors = [...colors, colors[0]];
-    const animatedGradient = $derived(`linear-gradient(90deg, ${seamlessColors.join(", ")})`);
+    const animatedGradient = $derived(`linear-gradient(45deg, ${seamlessColors.join(", ")})`);
 
     // Lock body scroll until audio preference is selected
     $effect(() => {
@@ -76,17 +76,17 @@
 </script>
 
 {#each copy.timelineInstructions as step, i}
-	{#if i === index}
-		<div class="step" transition:fly={{ y: 10, duration: 200 }}>
-			{#if index == 0}
-				<div class="wordmark">
-					<a href="https://pudding.cool" aria-label="The Pudding" target="_self">
-						{@html wordmark}
-					</a>
-				</div>
-				<h1 style="background-image: {animatedGradient};">Missed Queer- nections</h1>
-				<p class="centered">{@html step.text}</p>
-				<div class="audio-controls">
+    {#if i === index}
+        <div class="step" transition:fly={{ y: 10, duration: 200 }}>
+            {#if index == 0}
+                <div class="wordmark">
+                    <a href="https://pudding.cool" aria-label="The Pudding" target="_self">
+                        {@html wordmark}
+                    </a>
+                </div>
+                <h1 style="background-image: {animatedGradient};">Missed Queer- nections</h1>
+                <p class="centered">{@html step.text}</p>
+                <div class="audio-controls">
                     <!-- Initial Choice -->
                     <div class="btn-group">
                         <button onclick={() => selectAudioOption(true)} class="btn-audio">
@@ -97,33 +97,35 @@
                         </button>
                     </div>
                 </div>
-			{:else}
-				{#if step.img}
-					<img src={`assets/imgs/intro/${step.img}.jpg`} alt="TKTK" />
-				{/if}
-				<p>{@html step.text}</p>
-			{/if}
-		</div>
-	{/if}
+            {:else}
+                {#if step.img}
+                    <div class="img-wrapper" style="--animated-gradient: {animatedGradient}">
+                        <img src={`assets/imgs/intro/${step.img}.jpg`} alt="TKTK" />
+                    </div>
+                {/if}
+                <p>{@html step.text}</p>
+            {/if}
+        </div>
+    {/if}
 {/each}
 
 <style>
 
-	h1 {
-		font-family: var(--marsha);
-		font-size: clamp(2rem, 6vw, 20rem);
-		text-transform: uppercase;
-		line-height: 0.9;
-		padding: 1rem 0;
-		-webkit-background-clip: text;
+    h1 {
+        font-family: var(--marsha);
+        font-size: clamp(2rem, 6vw, 20rem);
+        text-transform: uppercase;
+        line-height: 0.9;
+        padding: 1rem 0;
+        -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
         color: transparent;
         display: inline-block;
-        background-size: 300% 100%;
+        background-size: 300% 300%;
         animation: flow 8s ease infinite;
-		text-align: center;
-	}
+        text-align: center;
+    }
 
     @keyframes flow {
         0% {
@@ -137,7 +139,7 @@
         }
     }
 
-	.wordmark {
+    .wordmark {
         max-width: 12em;
         transform: rotate(-4deg);
         pointer-events: auto;
@@ -149,67 +151,87 @@
         color: var(--color-fg);
     }
 
-	.step {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		padding: 1rem;
-		border-radius: 3px;
-		/* background: var(--color-gray-100);
-		border: 1px solid black; */
-		max-width: 500px;
-		z-index: 1000;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-		pointer-events: auto;
+    .step {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 1rem;
+        border-radius: 3px;
+        max-width: 500px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        pointer-events: auto;
         padding: 0;
-	}
+    }
 
-	img {
-		width: 100%;
-		aspect-ratio: 1;
-		height: auto;
-		max-width: 300px;
-		border: 2px solid var(--color-gray-300);
-		border-radius: 0.75rem;
-	}
+    /* ── Image Overlay Container ────────────────────────────────────────── */
+    .img-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 300px;
+        aspect-ratio: 1;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        isolation: isolate;
+        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+    }
 
-	:global(.interaction-span) {
-		color: var(--color-gray-300);
-		font-style: italic;
-		font-size: var(--14px);
-		display: block;
-		margin: 1rem 0;
-	}
+    .img-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
 
-	p {
-		font-family: var(--sans);
-		font-size: var(--22px);
-		margin: 0;
-	}
+    .img-wrapper::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: var(--animated-gradient);
+        background-size: 300% 300%;
+        animation: flow 8s ease infinite;
+        mix-blend-mode: multiply;
+        opacity: 0.6;
+        pointer-events: none;
+    }
 
-	p.centered {
-		text-align: center;
-	}
+    :global(.interaction-span) {
+        color: var(--color-gray-300);
+        font-style: italic;
+        font-size: var(--14px);
+        display: block;
+        margin: 1rem 0;
+    }
 
-	:global(.plus-icon, .headphone-icon, .quote-icon, .scroll-icon) {
-		font-weight: 700;
-		margin-left: 1.125rem;
-		position: relative;
-		white-space: nowrap;
-	}
+    p {
+        font-family: var(--sans);
+        font-size: var(--22px);
+        margin: 0;
+    }
+
+    p.centered {
+        text-align: center;
+    }
+
+    :global(.plus-icon, .headphone-icon, .quote-icon, .scroll-icon) {
+        font-weight: 700;
+        margin-left: 1.125rem;
+        position: relative;
+        white-space: nowrap;
+    }
 
     :global(.scroll-icon) {
-		font-weight: 700;
-		margin-left: 1.125rem;
-		position: relative;
+        font-weight: 700;
+        margin-left: 1.125rem;
+        position: relative;
         white-space: nowrap;
         display: inline-block;
         animation: bounce 0.75s ease-in-out infinite;
-	}
+    }
 
     @keyframes bounce {
         0%, 100% {
@@ -220,45 +242,45 @@
         }
     }
 
-	:global(.plus-icon::before, .headphone-icon::before, .quote-icon::before, .scroll-icon::before) {
-		content: "";
-		position: absolute;
-		top: 55%;
-		transform: translateY(-50%);
-		left: -1.125rem;
-		width: 1rem;
-		height: 1rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: 50%;
-		background-color: var(--color-gray-300);
-		background-position: center;
-    	background-repeat: no-repeat;
-		line-height: 1;
-	}
+    :global(.plus-icon::before, .headphone-icon::before, .quote-icon::before, .scroll-icon::before) {
+        content: "";
+        position: absolute;
+        top: 55%;
+        transform: translateY(-50%);
+        left: -1.125rem;
+        width: 1rem;
+        height: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background-color: var(--color-gray-300);
+        background-position: center;
+        background-repeat: no-repeat;
+        line-height: 1;
+    }
 
-	:global(.plus-icon::before) {
-		background-image: url("../svg/plus-icon.svg");
-		background-size: contain;
-	}
+    :global(.plus-icon::before) {
+        background-image: url("../svg/plus-icon.svg");
+        background-size: contain;
+    }
 
-	:global(.headphone-icon::before) {
-		background-image: url("../svg/icons/headphones.svg");
-		background-size: 60%;
-	}
+    :global(.headphone-icon::before) {
+        background-image: url("../svg/icons/headphones.svg");
+        background-size: 60%;
+    }
 
-	:global(.quote-icon::before) {
-		background-image: url("../svg/icons/quote.svg");
-		background-size: 60%;
-	}
+    :global(.quote-icon::before) {
+        background-image: url("../svg/icons/quote.svg");
+        background-size: 60%;
+    }
 
     :global(.scroll-icon::before) {
-		background-image: url("../svg/icons/circle-arrow-down.svg");
-		background-size: 60%;
-	}
+        background-image: url("../svg/icons/circle-arrow-down.svg");
+        background-size: 60%;
+    }
 
-	.audio-controls {
+    .audio-controls {
         margin-top: 1rem;
         width: 100%;
         display: flex;
@@ -311,6 +333,5 @@
         p {
             font-size: var(--16px);
         }
-            
     }
 </style>
