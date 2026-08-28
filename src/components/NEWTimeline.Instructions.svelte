@@ -10,13 +10,11 @@
     const seamlessColors = [...colors, colors[0]];
     const animatedGradient = $derived(`linear-gradient(45deg, ${seamlessColors.join(", ")})`);
 
-    // Synchronize gradient animation across all step mounts
     let animationStartTime = $state(0);
 
     onMount(() => {
         animationStartTime = Date.now();
 
-        // Preload and decode all step images ahead of time to eliminate image loading flicker
         copy.timelineInstructions.forEach((step) => {
             if (step.img) {
                 const img = new Image();
@@ -28,14 +26,12 @@
         });
     });
 
-    // Calculate negative delay so the 8s flow animation stays seamlessly in sync
     const animationDelay = $derived.by(() => {
         if (!animationStartTime) return '0s';
         const elapsed = (Date.now() - animationStartTime) % 8000;
         return `-${elapsed}ms`;
     });
 
-    // Lock body scroll until audio preference is selected
     $effect(() => {
         const isLocked = !audioUnlocked.value;
         
@@ -48,23 +44,33 @@
         };
     });
 
-    async function selectAudioOption(withAudio) {
-        isAudioMuted.value = !withAudio;
-        audioUnlocked.value = true;
-
+    function selectAudioOption(withAudio) {
+        // 1. MUST BE SYNCHRONOUS: Unlock audio policy immediately in user click stack
         if (withAudio) {
             const silent = new Audio();
             silent.play().catch(() => {});
         }
 
-        await tick();
+        isAudioMuted.value = !withAudio;
+        audioUnlocked.value = true;
 
-        setTimeout(() => {
-            window.scrollTo({ 
-                top: window.innerHeight, 
-                behavior: "smooth" 
-            });
-        }, 50);
+        // 2. MUST BE SYNCHRONOUS: Clear scroll lock inline so browser allows window.scrollTo
+        document.body.style.overflow = "";
+        document.documentElement.style.overflow = "";
+
+        // 3. Defer scroll to next frame to allow DOM reflow
+        requestAnimationFrame(() => {
+            // Find the 2nd Scrolly target div (Step 1) or fallback to calculated offset
+            const allScrollySteps = document.querySelectorAll(".html-overlay [style*='position: absolute']");
+            const step1Target = allScrollySteps[1];
+
+            if (step1Target) {
+                const targetY = step1Target.getBoundingClientRect().top + window.scrollY;
+                window.scrollTo({ top: targetY, behavior: "smooth" });
+            } else {
+                window.scrollTo({ top: window.innerHeight * 1.5, behavior: "smooth" });
+            }
+        });
     }
 
     let { index = -1 } = $props();
@@ -146,7 +152,6 @@
 {/each}
 
 <style>
-
     h1 {
         font-family: var(--marsha);
         font-size: clamp(2rem, 6vw, 20rem);
@@ -164,15 +169,9 @@
     }
 
     @keyframes flow {
-        0% {
-            background-position: 0% 50%;
-        }
-        50% {
-            background-position: 100% 50%;
-        }
-        100% {
-            background-position: 0% 50%;
-        }
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
     }
 
     .wordmark {
@@ -203,7 +202,6 @@
         padding: 0;
     }
 
-    /* ── Image Overlay Container ────────────────────────────────────────── */
     .img-wrapper {
         position: relative;
         width: 100%;
@@ -230,7 +228,7 @@
         background-image: var(--animated-gradient);
         background-size: 300% 300%;
         animation: flow 8s ease infinite;
-        animation-delay: var(--anim-delay, 0s); /* Applied synced delay */
+        animation-delay: var(--anim-delay, 0s);
         mix-blend-mode: multiply;
         opacity: 0.6;
         pointer-events: none;
@@ -254,74 +252,12 @@
         text-align: center;
     }
 
-    :global(.plus-icon, .headphone-icon, .quote-icon, .scroll-icon) {
-        font-weight: 700;
-        margin-left: 1.125rem;
-        position: relative;
-        white-space: nowrap;
-    }
-
-    :global(.scroll-icon) {
-        font-weight: 700;
-        margin-left: 1.125rem;
-        position: relative;
-        white-space: nowrap;
-        display: inline-block;
-        animation: bounce 0.75s ease-in-out infinite;
-    }
-
-    @keyframes bounce {
-        0%, 100% {
-            transform: translateY(0);
-        }
-        50% {
-            transform: translateY(-4px);
-        }
-    }
-
-    :global(.plus-icon::before, .headphone-icon::before, .quote-icon::before, .scroll-icon::before) {
-        content: "";
-        position: absolute;
-        top: 55%;
-        transform: translateY(-50%);
-        left: -1.125rem;
-        width: 1rem;
-        height: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background-color: var(--color-gray-300);
-        background-position: center;
-        background-repeat: no-repeat;
-        line-height: 1;
-    }
-
-    :global(.plus-icon::before) {
-        background-image: url("../svg/plus-icon.svg");
-        background-size: contain;
-    }
-
-    :global(.headphone-icon::before) {
-        background-image: url("../svg/icons/headphones.svg");
-        background-size: 60%;
-    }
-
-    :global(.quote-icon::before) {
-        background-image: url("../svg/icons/quote.svg");
-        background-size: 60%;
-    }
-
-    :global(.scroll-icon::before) {
-        background-image: url("../svg/icons/circle-arrow-down.svg");
-        background-size: 60%;
-    }
-
     .audio-controls {
         margin-top: 1rem;
         width: 100%;
         display: flex;
         justify-content: center;
+        pointer-events: auto;
     }
 
     .btn-group {
@@ -330,6 +266,7 @@
         gap: 0.75rem;
         width: 100%;
         max-width: 320px;
+        pointer-events: auto;
     }
 
     .btn-audio {
@@ -347,6 +284,7 @@
         border: 2px solid var(--color-fg);
         border-radius: 50px;
         cursor: pointer;
+        pointer-events: auto;
         transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
@@ -364,6 +302,7 @@
         width: 1.25rem;
         height: 1.25rem;
         fill: currentColor;
+        pointer-events: none;
     }
 
     @media(max-width: 760px) {
