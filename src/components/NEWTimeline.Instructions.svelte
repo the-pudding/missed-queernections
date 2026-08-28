@@ -1,6 +1,6 @@
 <script>
     import wordmark from "$svg/wordmark_script_stacked_plain.svg";
-    import { getContext } from "svelte";
+    import { getContext, tick, onMount } from "svelte";
     import { fly } from "svelte/transition";
     const copy = getContext("copy");
     import { isAudioMuted, audioUnlocked, colors } from "$runes/misc.svelte.js";
@@ -10,35 +10,61 @@
     const seamlessColors = [...colors, colors[0]];
     const animatedGradient = $derived(`linear-gradient(45deg, ${seamlessColors.join(", ")})`);
 
-    // Lock body scroll until audio preference is selected
-    $effect(() => {
-        if (!audioUnlocked.value) {
-            const prev = document.body.style.overflow;
-            document.body.style.overflow = "hidden";
-            return () => {
-                document.body.style.overflow = prev;
-            };
-        } else {
-            document.body.style.overflow = "";
-        }
+    // Synchronize gradient animation across all step mounts
+    let animationStartTime = $state(0);
+
+    onMount(() => {
+        animationStartTime = Date.now();
+
+        // Preload and decode all step images ahead of time to eliminate image loading flicker
+        copy.timelineInstructions.forEach((step) => {
+            if (step.img) {
+                const img = new Image();
+                img.src = `assets/imgs/intro/${step.img}.jpg`;
+                if (img.decode) {
+                    img.decode().catch(() => {});
+                }
+            }
+        });
     });
 
-    function selectAudioOption(withAudio) {
+    // Calculate negative delay so the 8s flow animation stays seamlessly in sync
+    const animationDelay = $derived.by(() => {
+        if (!animationStartTime) return '0s';
+        const elapsed = (Date.now() - animationStartTime) % 8000;
+        return `-${elapsed}ms`;
+    });
+
+    // Lock body scroll until audio preference is selected
+    $effect(() => {
+        const isLocked = !audioUnlocked.value;
+        
+        document.body.style.overflow = isLocked ? "hidden" : "";
+        document.documentElement.style.overflow = isLocked ? "hidden" : "";
+
+        return () => {
+            document.body.style.overflow = "";
+            document.documentElement.style.overflow = "";
+        };
+    });
+
+    async function selectAudioOption(withAudio) {
         isAudioMuted.value = !withAudio;
         audioUnlocked.value = true;
-
-        // 1. Synchronously unlock scroll before calling scrollBy
-        document.body.style.overflow = "";
 
         if (withAudio) {
             const silent = new Audio();
             silent.play().catch(() => {});
         }
 
-        // 2. Defer scroll by 1 frame so browser registers unlocked overflow
-        requestAnimationFrame(() => {
-            window.scrollBy({ top: window.innerHeight * 0.8, behavior: "smooth" });
-        });
+        await tick();
+
+        setTimeout(() => {
+            window.scrollTo({ 
+                top: window.innerHeight, 
+                behavior: "smooth" 
+            });
+        }, 50);
     }
 
     let { index = -1 } = $props();
@@ -85,10 +111,11 @@
                         {@html wordmark}
                     </a>
                 </div>
-                <h1 style="background-image: {animatedGradient};">Missed Queer- nections</h1>
+                <h1 style="background-image: {animatedGradient}; animation-delay: {animationDelay};">
+                    Missed Queer- nections
+                </h1>
                 <p class="centered">{@html step.text}</p>
                 <div class="audio-controls">
-                    <!-- Initial Choice -->
                     <div class="btn-group">
                         <button onclick={() => selectAudioOption(true)} class="btn-audio">
                             {@html Volume2} Begin with Audio
@@ -100,8 +127,16 @@
                 </div>
             {:else}
                 {#if step.img}
-                    <div class="img-wrapper" style="--animated-gradient: {animatedGradient}">
-                        <img src={`assets/imgs/intro/${step.img}.jpg`} alt="TKTK" />
+                    <div 
+                        class="img-wrapper" 
+                        style="--animated-gradient: {animatedGradient}; --anim-delay: {animationDelay};"
+                    >
+                        <img 
+                            src={`assets/imgs/intro/${step.img}.jpg`} 
+                            alt={step.text ? step.text.slice(0, 30) : "Intro image"} 
+                            loading="eager"
+                            decoding="async"
+                        />
                     </div>
                 {/if}
                 <p>{@html step.text}</p>
@@ -172,7 +207,9 @@
     .img-wrapper {
         position: relative;
         width: 100%;
+        height: 100%;
         max-width: 300px;
+        max-height: 300px;
         aspect-ratio: 1;
         overflow: hidden;
         isolation: isolate;
@@ -193,6 +230,7 @@
         background-image: var(--animated-gradient);
         background-size: 300% 300%;
         animation: flow 8s ease infinite;
+        animation-delay: var(--anim-delay, 0s); /* Applied synced delay */
         mix-blend-mode: multiply;
         opacity: 0.6;
         pointer-events: none;

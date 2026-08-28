@@ -32,6 +32,7 @@
     function clearAll() {
         $addedEvents = [];
         listVisible = false;
+        db.insert({ user_id: $userId, events: $addedEvents, famous: $famous });
     }
 
     function removeEvent(event) {
@@ -103,14 +104,12 @@
 
 <div
     class="events-wrapper"
-    class:wiggle={index == 5}
+    class:wiggle={index == 8}
     style="transform: translateY({(index < 8 && !atEnd)
         ? '200%'
         : listVisible
             ? 0
-            : $activeSection == 'timeline'
-                ? '100%'
-                : '120%'})"
+            : '100%'})"
 >
     <!-- Toggle button stays anchored at the top of the screen -->
     <button

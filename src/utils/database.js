@@ -32,8 +32,6 @@ export async function insert({ user_id, events, famous }) {
         ? famous 
         : (typeof window !== "undefined" ? localStorage.getItem("famous") : null);
 
-    console.log("Upserting data for:", { user_id, events, famous: resolvedFamous });
-
     // 2. Include famous in the upsert payload object
     const { data, error } = await supabase
         .from("queernections")
@@ -50,7 +48,6 @@ export async function insert({ user_id, events, famous }) {
         .select();
 
     if (error) {
-        console.error("Error upserting data:", error);
         throw error;
     }
 

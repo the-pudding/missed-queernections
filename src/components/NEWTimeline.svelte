@@ -23,10 +23,7 @@
     import Scrolly from "$components/helpers/Scrolly.svelte";
 
     // ─── SECTION STATE ───────────────────────────────────────────────────────
-    function changeActiveSection(view) {
-        const newSection = view === "enter" ? "timeline" : null;
-        $activeSection = newSection;
-    }
+
 
     // ─── SVG + SCROLL STATE ───────────────────────────────────────────────────
     let svgHeight = $state(60000); // Tall canvas
@@ -667,13 +664,6 @@
 <section
     id="timeline"
     bind:this={timelineSectionElement}
-    use:inView={{ top: 0, bottom: windowHeight - 1 }}
-    onenter={() => {
-        changeActiveSection("enter");
-    }}
-    onexit={() => {
-        changeActiveSection("exit");
-    }}
 >
     <div class="sticky-header">
         <Nav

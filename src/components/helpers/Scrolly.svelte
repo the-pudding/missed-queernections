@@ -1,97 +1,86 @@
 <script>
-	/**
-	 * This component manages which item is most in view for scroll triggering
-	 * example:
-	 * <Scrolly
-	 * 	bind:value={scrollIndex}
-	 * >
-	 * **items here**
-	 * </Scrolly>
-	 *
-	 * optional params with defaults
-	 * <Scrolly root={null} top={0} bottom={0} increments={100}>
-	 */
-	
-	let {
-		root = null,
-		top = 0,
-		bottom = 0,
-		increments = 100,
-		value = $bindable(undefined),
-		children
-	} = $props();
+    /**
+     * Managed scroll index container based on maximum visible pixel height in viewport.
+     */
+    let {
+        root = null,
+        top = 0,
+        bottom = 0,
+        increments = 100,
+        value = $bindable(undefined),
+        children
+    } = $props();
 
-	let steps = [];
-	let threshold = [];
-	let nodes = [];
-	let intersectionObservers = [];
-	let container = undefined;
+    let steps = [];
+    let threshold = [];
+    let nodes = [];
+    let intersectionObservers = [];
+    let container = undefined;
 
-	function mostInView () {
-		let maxRatio = 0;
-		let maxIndex = 0;
-		for (let i = 0; i < steps.length; i++) {
-			if (steps[i] > maxRatio) {
-				maxRatio = steps[i];
-				maxIndex = i;
-			}
-		}
+    function mostInView() {
+        let maxPixels = 0;
+        let maxIndex = 0;
 
-		if (maxRatio > 0) {
-			value = maxIndex;
-		} else {
-			// If nothing is in view, check if the last active item was the final one.
-			if (value === nodes.length - 1) {
-				// If so, we've scrolled past the end.
-				value = "exit";
-			} else {
-				// Otherwise, we are likely above the first item.
-				value = undefined;
-			}
-		}
-	};
+        for (let i = 0; i < steps.length; i++) {
+            if (steps[i] > maxPixels) {
+                maxPixels = steps[i];
+                maxIndex = i;
+            }
+        }
 
-	function createObserver(node, index) {
-		const handleIntersect = (e) => {
-			const intersecting = e[0].isIntersecting;
-			const ratio = e[0].intersectionRatio;
-			steps[index] = ratio;
-			mostInView();
-		};
+        if (maxPixels > 0) {
+            value = maxIndex;
+        } else {
+            // If nothing is in view, check if the last active item was the final one.
+            if (value === nodes.length - 1) {
+                value = "exit";
+            } else {
+                value = undefined;
+            }
+        }
+    }
 
-		const marginTop = top ? top * -1 : 0;
-		const marginBottom = bottom ? bottom * -1 : 0;
-		const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
-		const options = { root, rootMargin, threshold };
+    function createObserver(node, index) {
+        const handleIntersect = (e) => {
+            const entry = e[0];
+            // 🚀 Measure visible screen pixel height instead of percentage ratio
+            steps[index] = entry.isIntersecting ? entry.intersectionRect.height : 0;
+            mostInView();
+        };
 
-		if (intersectionObservers[index]) intersectionObservers[index].disconnect();
+        const marginTop = top ? top * -1 : 0;
+        const marginBottom = bottom ? bottom * -1 : 0;
+        const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
+        const options = { root, rootMargin, threshold };
 
-		const io = new IntersectionObserver(handleIntersect, options);
-		io.observe(node);
-		intersectionObservers[index] = io;
-	}
+        if (intersectionObservers[index]) intersectionObservers[index].disconnect();
 
-	function update() {
-		if (!nodes.length) return;
-		nodes.forEach(createObserver);
-	}
+        const io = new IntersectionObserver(handleIntersect, options);
+        io.observe(node);
+        intersectionObservers[index] = io;
+    }
 
-	$effect(() => {
-		for (let i = 0; i < increments + 1; i++) {
-			threshold.push(i / increments);
-		}
-		nodes = container.querySelectorAll(":scope > *:not(iframe)");
-		update();
-	});
+    function update() {
+        if (!nodes.length) return;
+        nodes.forEach(createObserver);
+    }
 
-	$effect(() => {
-		top;
-		bottom;
-		update();
-	});
+    $effect(() => {
+        threshold = [];
+        for (let i = 0; i <= increments; i++) {
+            threshold.push(i / increments);
+        }
+        nodes = container.querySelectorAll(":scope > *:not(iframe)");
+        update();
+    });
 
+    $effect(() => {
+        top;
+        bottom;
+        update();
+    });
 </script>
 
 <div bind:this={container}>
-	{@render children?.()}
+    {@render children?.()}
 </div>

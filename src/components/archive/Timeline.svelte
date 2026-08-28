@@ -276,17 +276,10 @@
         }
     });
 
-    $effect(() => {
-        if ($activeSection === 'timeline' && timelineSectionElement) {
-            timelineOffset = timelineSectionElement.offsetTop;
-            instructionsVisible = true;
-        }
-    });
-
     // HIGHLIGHT TICK BY SCROLL
     $effect(() => {
         // This effect runs on every scroll
-        if ($activeSection !== 'timeline' || !allTimelineData?.yScale || !axisData || axisData.length === 0) {
+        if (!allTimelineData?.yScale || !axisData || axisData.length === 0) {
             return;
         }
 
@@ -402,49 +395,49 @@
     });
 
     // INSTRUCTION: LOCK
-    $effect(() => {
-        if ($activeSection !== 'timeline' || !instructionsVisible || storyVisible || !timelineSectionElement || instructionsDone) {
-            return; // Do nothing if the timeline is not in view
-        }
+    // $effect(() => {
+    //     if (!instructionsVisible || storyVisible || !timelineSectionElement || instructionsDone) {
+    //         return; // Do nothing if the timeline is not in view
+    //     }
 
-        const boundaryY = timelineSectionElement.offsetTop;
+    //     const boundaryY = timelineSectionElement.offsetTop;
 
-        // Scroll
-        const preventWheelScroll = (event) => {
-            const isScrollingDown = event.deltaY > 0;
+    //     // Scroll
+    //     const preventWheelScroll = (event) => {
+    //         const isScrollingDown = event.deltaY > 0;
             
-            const isAtOrPastBoundary = window.scrollY >= boundaryY;
+    //         const isAtOrPastBoundary = window.scrollY >= boundaryY;
 
-            if (isAtOrPastBoundary && isScrollingDown) {
-                window.scrollTo({ top: boundaryY, behavior: 'instant' });
-                event.preventDefault();
-            }
-        };
+    //         if (isAtOrPastBoundary && isScrollingDown) {
+    //             window.scrollTo({ top: boundaryY, behavior: 'instant' });
+    //             event.preventDefault();
+    //         }
+    //     };
 
-        // Touch
-        let lastTouchY = 0;
-        const preventTouchScroll = (event) => {
-            const touchY = event.touches[0].clientY;
-            const isScrollingDown = touchY < lastTouchY;
-            const isAtOrPastBoundary = window.scrollY >= boundaryY;
+    //     // Touch
+    //     let lastTouchY = 0;
+    //     const preventTouchScroll = (event) => {
+    //         const touchY = event.touches[0].clientY;
+    //         const isScrollingDown = touchY < lastTouchY;
+    //         const isAtOrPastBoundary = window.scrollY >= boundaryY;
             
-            if (isAtOrPastBoundary && isScrollingDown) {
-                event.preventDefault();
-            }
-            lastTouchY = touchY;
-        };
+    //         if (isAtOrPastBoundary && isScrollingDown) {
+    //             event.preventDefault();
+    //         }
+    //         lastTouchY = touchY;
+    //     };
 
-        // Listeners
-        window.addEventListener('wheel', preventWheelScroll, { passive: false });
-        window.addEventListener('touchmove', preventTouchScroll, { passive: false });
+    //     // Listeners
+    //     window.addEventListener('wheel', preventWheelScroll, { passive: false });
+    //     window.addEventListener('touchmove', preventTouchScroll, { passive: false });
 
 
-        // Cleanup 
-        return () => {
-            window.removeEventListener('wheel', preventWheelScroll);
-            window.removeEventListener('touchmove', preventTouchScroll);
-        }
-    });
+    //     // Cleanup 
+    //     return () => {
+    //         window.removeEventListener('wheel', preventWheelScroll);
+    //         window.removeEventListener('touchmove', preventTouchScroll);
+    //     }
+    // });
 
     // INSTRUCTION: SIDE FADE
     $effect(() => {
@@ -502,21 +495,7 @@
 
 <section id="timeline" 
     bind:this={timelineSectionElement}
-    use:inView={{ top: 0, bottom: innerHeight - 1 }} 
- 	onenter={() => {
-        changeActiveSection("enter")
-        instructionsVisible = true;
-        }}
-    onexit={() => {
-        changeActiveSection("exit");
-        instructionsVisible = false;
-    }}
 >
-    {#if $activeSection === 'timeline'}
-        <div in:fade={{ duration: 500, delay: 1000 }}>
-            <Bands />
-        </div>
-    {/if}
     <Instructions {instructionsVisible} {instructionsDone} on:close={handleInstructionsClose} />
     <Story 
         isOpen={storyVisible} 

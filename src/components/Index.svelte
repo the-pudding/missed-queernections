@@ -1,10 +1,11 @@
 <script>
     import { getContext, onMount } from "svelte";
+    import { replaceState } from "$app/navigation"; // 1. Import replaceState from SvelteKit
     import Timeline from "$components/NEWTimeline.svelte";
     import {
         userId,
         addedEvents,
-        famous // <-- 1. Import famous
+        famous
     } from "$runes/misc.svelte.js";
     import celebrityIds from "$data/celebrityIds.csv";
     import generateId from "$utils/generateId.js";
@@ -20,9 +21,7 @@
             storedId = customId;
             localStorage.setItem("user_id", storedId);
             const cleanUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-        } else if (storedId) {
-            console.log("💾 [LocalStorage Found] Loaded existing user_id:", storedId);
+            replaceState(cleanUrl, {}); // 2. Replaced window.history.replaceState
         } else {
             storedId = generateId();
             localStorage.setItem("user_id", storedId);
@@ -38,10 +37,10 @@
 
         if (famousValue) {
             localStorage.setItem("famous", famousValue);
-            famous.set(famousValue); // <-- 2. Update the store
+            famous.set(famousValue);
         } else {
             localStorage.removeItem("famous");
-            famous.set(null); // <-- 2. Reset if standard user
+            famous.set(null);
         }
 
         // --- INITIAL DB SYNC ---
